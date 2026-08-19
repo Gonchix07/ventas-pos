@@ -159,7 +159,10 @@ export function OfertasMedioPagoPage() {
               <td>{o.activo ? <span className="badge on">Sí</span> : <span className="badge off">No</span>}</td>
               <td className="row-actions">
                 <button onClick={() => editar(o)}>✎</button>
-                <button className="danger" onClick={() => run(() => ofertasMedioPago.remove(suc, o.idOfertaMedioPago))}>×</button>
+                <button className="danger" onClick={() => {
+                  if (!confirm(`¿Eliminar la oferta «${o.descripcion}»?`)) return;
+                  void run(() => ofertasMedioPago.remove(suc, o.idOfertaMedioPago));
+                }}>×</button>
               </td>
             </tr>
           ))}

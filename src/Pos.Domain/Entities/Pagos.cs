@@ -64,17 +64,6 @@ public class PlanCuota : AuditableEntity
     public int CantidadCuotas { get; set; }
 }
 
-public class Cupon : AuditableEntity
-{
-    public int IdSucursal { get; set; }
-    public int IdCupon { get; set; }
-    public int IdMedioPago { get; set; }
-    public DateTime Fecha { get; set; }
-    public string? NroCupon { get; set; }
-    public string? NroLote { get; set; }
-    public int? IdComprobante { get; set; }
-}
-
 public class CuentaCorriente : AuditableEntity
 {
     public int IdSucursal { get; set; }

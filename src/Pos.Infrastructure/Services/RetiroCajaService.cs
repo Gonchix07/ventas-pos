@@ -9,10 +9,10 @@ using Pos.Infrastructure.Persistence;
 namespace Pos.Infrastructure.Services;
 
 /// <summary>
-/// Retiro de efectivo del turno del cajero: resta del efectivo esperado en la rendición (arqueo X
-/// / cierre de turno) igual que una nota de crédito, pero sin comprobante — es plata que sale de la
-/// caja para enviarse a otro lado, no una devolución al cliente. Ver CierreLoteEjecutor.RetirosAsync
-/// para cómo se muestra en la rendición.
+/// Retiro del turno del cajero (efectivo por defecto; cualquier medio si se indica IdMedioPago):
+/// resta del esperado de ese medio en la rendición (arqueo X / cierre de turno) igual que una nota
+/// de crédito, pero sin comprobante — es plata que sale de la caja para enviarse a otro lado, no una
+/// devolución al cliente. Ver CierreLoteEjecutor.RetirosAsync para cómo se muestra en la rendición.
 /// </summary>
 public class RetiroCajaService : IRetiroCajaService
 {
@@ -38,29 +38,29 @@ public class RetiroCajaService : IRetiroCajaService
             l.Estado == EstadoLote.Abierto && l.FechaApertura.Date == DateTime.UtcNow.Date, ct)
             ?? throw new DomainException("SIN_LOTE_ABIERTO", "No hay un lote abierto para esta caja.");
 
-        var efectivo = await _db.MediosPago.AsNoTracking().Include(m => m.TipoPago)
-            .FirstOrDefaultAsync(m => m.TipoPago!.Fuente == FuentePago.Efectivo, ct)
-            ?? throw new DomainException("SIN_MEDIO_EFECTIVO", "No hay un medio de pago de tipo Efectivo configurado.");
+        int idMedioPago;
+        if (req.IdMedioPago is int idm)
+        {
+            if (!await _db.MediosPago.AsNoTracking().AnyAsync(m => m.IdMedioPago == idm, ct))
+                throw new DomainException("MEDIO_INEXISTENTE", "El medio de pago indicado no existe.");
+            idMedioPago = idm;
+        }
+        else
+        {
+            var efectivo = await _db.MediosPago.AsNoTracking().Include(m => m.TipoPago)
+                .FirstOrDefaultAsync(m => m.TipoPago!.Fuente == FuentePago.Efectivo, ct)
+                ?? throw new DomainException("SIN_MEDIO_EFECTIVO", "No hay un medio de pago de tipo Efectivo configurado.");
+            idMedioPago = efectivo.IdMedioPago;
+        }
 
         var concepto = string.IsNullOrWhiteSpace(req.Concepto) ? "Retiro" : $"Retiro: {req.Concepto.Trim()}";
 
         // Mismo mecanismo que una nota de crédito (MovimientoPago negativo + MovimientoCaja), pero
         // con IdComprobante null: no hay ningún comprobante fiscal detrás de un retiro.
-        var movPago = new MovimientoPago { IdMedioPago = efectivo.IdMedioPago, Total = -req.Monto, Redondeo = 0 };
-        _db.MovimientosPagos.Add(movPago);
-        await _db.SaveChangesAsync(ct); // IdMovPagos es identity, lo asigna la BD
+        var movCaja = await MovimientoManualCajaHelper.RegistrarAsync(_db, idSucursal, idCaja, lote.IdLote,
+            idUsuario, idMedioPago, -req.Monto, TipoMovimientoManual.Retiro, concepto, ct);
 
-        var idMov = (await _db.MovimientosCaja.Where(m => m.IdSucursal == idSucursal)
-            .Select(m => m.IdMovCaja).MaxAsync(x => (int?)x, ct) ?? 0) + 1;
-        var fecha = DateTime.UtcNow;
-        _db.MovimientosCaja.Add(new MovimientoCaja
-        {
-            IdSucursal = idSucursal, IdMovCaja = idMov, IdUsuario = idUsuario, IdCaja = idCaja,
-            IdComprobante = null, IdLote = lote.IdLote, IdMovPagos = movPago.IdMovPagos,
-            Estado = "Confirmado", Fecha = fecha, Concepto = concepto,
-        });
-        await _db.SaveChangesAsync(ct);
-
-        return new RetiroEfectivoResponse(idSucursal, idMov, req.Monto, concepto, fecha);
+        return new RetiroEfectivoResponse(idSucursal, movCaja.IdMovCaja, idMedioPago, req.Monto, concepto,
+            movCaja.Fecha);
     }
 }

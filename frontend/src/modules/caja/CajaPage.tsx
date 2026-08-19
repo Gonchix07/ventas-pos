@@ -12,6 +12,9 @@ import {
 import { ComprobanteImpresionView } from "./ComprobanteImpresion";
 import { NotaCreditoModal } from "./NotaCreditoModal";
 import { RetiroEfectivoModal } from "./RetiroEfectivoModal";
+import { IngresoInicialModal } from "./IngresoInicialModal";
+import { TicketIngresoInicial } from "./TicketIngresoInicial";
+import { ReporteCierreTurno } from "./ReporteCierreTurno";
 import { VoucherComprobantePago, type ItemVoucherPago } from "./VoucherComprobantePago";
 import { useLectorCodigo } from "../../shared/ui/useLectorCodigo";
 import { useSupervisorGate } from "../../shared/ui/SupervisorGate";
@@ -232,22 +235,23 @@ export function CajaPage() {
   };
 
   // Abrir una caja que no es la del propio puesto (PC caída, se sigue vendiendo desde otra) pide
-  // autorización de supervisor; abrir la propia, no — ni siquiera pasa por el gate.
+  // autorización de supervisor; abrir la propia, no — ni siquiera pasa por el gate. Antes de abrir
+  // de verdad, se pide el fondo inicial (IngresoInicialModal) — si hace falta código de supervisor,
+  // se resuelve PRIMERO (vía el gate) para tenerlo ya validado cuando se confirme el monto.
+  const [aperturaPendiente, setAperturaPendiente] = useState<{ codigoSupervisor: string | null } | null>(null);
+  // Si el fondo inicial fue > 0, se imprime un ticket aparte (ver TicketIngresoInicial) apenas la
+  // caja queda abierta.
+  const [ingresoAImprimir, setIngresoAImprimir] = useState<{ fecha: Date; monto: number } | null>(null);
   const abrirCaja = () => {
-    const accion = async (codigoSupervisor: string | null) => {
-      setError(null);
-      try {
-        setLote(await caja.abrir(idSucursal, idCaja, codigoSupervisor));
-        caja.misTurnos(idSucursal).then(setTurnos).catch(() => {});
-      } catch (e) {
-        const mensaje = e instanceof Error ? e.message : "Error al abrir caja";
-        setError(mensaje);
-        throw e;
-      }
-    };
     const enOtroPuesto = idCajaAuth !== null && idCaja !== idCajaAuth;
-    // Fuera del gate no hay popup que deba enterarse del error (ya se mostró con setError arriba).
-    return enOtroPuesto ? ejecutarConSupervisor(accion) : accion(null).catch(() => {});
+    if (enOtroPuesto) {
+      return ejecutarConSupervisor(async (codigoSupervisor) => {
+        setError(null);
+        setAperturaPendiente({ codigoSupervisor });
+      });
+    }
+    setError(null);
+    setAperturaPendiente({ codigoSupervisor: null });
   };
 
   // ---- Identificación de cliente ----
@@ -681,7 +685,9 @@ export function CajaPage() {
       const init: Record<number, number | null> = {};
       x.acumulados.forEach((a) => { init[a.idMedioPago] = a.total; });
       setDeclaraciones(init);
-      setIdMotivo(0);
+      // Ya no hay una opción "(sin diferencia)" fija en el combo: ese motivo ahora es uno más de la
+      // lista real (cargado desde Admin), así que se arranca en el primero de la lista.
+      setIdMotivo(m[0]?.id ?? 0);
       setObservacionCierre("");
       setCierreResultado(null);
       setCierreActivo(true);
@@ -810,7 +816,30 @@ export function CajaPage() {
           </div>
         </div>
         {modalSupervisor}
+        {aperturaPendiente && (
+          <IngresoInicialModal
+            idSucursal={idSucursal} idCaja={idCaja}
+            codigoSupervisor={aperturaPendiente.codigoSupervisor}
+            onAbierta={(l, monto) => {
+              setLote(l);
+              caja.misTurnos(idSucursal).then(setTurnos).catch(() => {});
+              if (monto > 0) setIngresoAImprimir({ fecha: new Date(), monto });
+              setAperturaPendiente(null);
+            }}
+            onCerrar={() => setAperturaPendiente(null)}
+          />
+        )}
       </div>
+    );
+  }
+
+  if (ingresoAImprimir) {
+    return (
+      <TicketIngresoInicial
+        fecha={ingresoAImprimir.fecha} monto={ingresoAImprimir.monto}
+        descripcionCaja={descripcionCaja ?? `Caja ${idCaja}`} usuario={usuario ?? ""}
+        onImpreso={() => setIngresoAImprimir(null)}
+      />
     );
   }
 
@@ -925,25 +954,17 @@ export function CajaPage() {
           <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-body">
-          {cierreResultado ? (
-            <div className="ticket-card" style={{ margin: "0 auto" }}>
-              <p className="muted">Cierre de turno confirmado — no se puede anular</p>
-              <div className="ticket-numero">T-{String(cierreResultado.numeroCierre).padStart(6, "0")}</div>
-              <table className="grid" style={{ marginTop: 12 }}>
-                <thead><tr><th>Medio</th><th>Esperado</th><th>Declarado</th><th>Diferencia</th></tr></thead>
-                <tbody>
-                  {cierreResultado.detalle.map((d) => (
-                    <tr key={d.idMedioPago}>
-                      <td>{d.descripcion}</td>
-                      <td className="mono">${d.esperado.toFixed(2)}</td>
-                      <td className="mono">${d.declarado.toFixed(2)}</td>
-                      <td className={d.requiereMotivo ? "error" : "mono"}>${d.diferencia.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button className="primary" onClick={finCierre} style={{ marginTop: 16 }}>Volver a Caja</button>
-            </div>
+          {cierreResultado && arqueo ? (
+            <ReporteCierreTurno
+              arqueo={arqueo}
+              cierre={cierreResultado}
+              idSucursal={idSucursal}
+              usuario={usuario ?? ""}
+              motivoDescripcion={cierreResultado.detalle.some((d) => d.requiereMotivo)
+                ? (motivos.find((m) => m.id === idMotivo)?.descripcion ?? null) : null}
+              observaciones={observacionCierre || null}
+              onCerrar={finCierre}
+            />
           ) : (
             <>
               <h1>Cierre de turno (rendición final)</h1>
@@ -972,7 +993,6 @@ export function CajaPage() {
                 <div className="form-grid">
                   <label>Motivo de diferencia
                     <select value={idMotivo} onChange={(e) => setIdMotivo(Number(e.target.value))}>
-                      <option value={0}>(sin diferencia)</option>
                       {motivos.map((m) => <option key={m.id} value={m.id}>{m.descripcion}</option>)}
                     </select>
                   </label>

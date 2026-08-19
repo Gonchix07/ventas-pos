@@ -28,3 +28,18 @@ mano con Escala 130 % en el diálogo (ver el comentario ahí). Con `--kiosk-prin
 ni escala manual: conviene volver a probar el ancho real en la impresora del puesto y, si sale
 distinto, ajustar el `@page` de los tickets (`retiro-ticket` / `presupuesto-ticket` /
 `vale-ticket`) en ese mismo archivo.
+
+## Rendición de cajero (cierre de turno): necesita el diálogo de impresión
+
+La rendición A4 (`ReporteCierreTurno.tsx` / `cierre-print.css`) es distinta de los tickets: se
+imprime para firmar y presentar en Tesorería, así que conviene poder **elegir la impresora**
+(oficina/Tesorería) en vez de que salga directo a la comandera. Pero `--kiosk-printing` es un flag
+del **proceso completo** del navegador, no de una página — no hay forma de que `window.print()`
+muestre el diálogo en una sola pestaña mientras el resto sigue imprimiendo silencioso.
+
+Solución: un segundo acceso directo, `scripts/puesto-caja-cierre.bat`, que abre la misma app en un
+proceso de navegador **separado** (perfil distinto, sin `--kiosk-printing`). Ahí `window.print()`
+vuelve a comportarse normal: aparece el diálogo de Windows con selección de impresora. El cajero
+usa el acceso directo normal (kiosco) para vender, y este otro solo para cerrar el turno e imprimir
+la rendición — no afecta ni interfiere con el navegador de venta, que sigue corriendo en su propio
+proceso.

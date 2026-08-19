@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pos.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using Pos.Infrastructure.Persistence;
 namespace Pos.Infrastructure.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260819174946_AgregarMovimientoManualTipado")]
+    partial class AgregarMovimientoManualTipado
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1023,72 +1026,6 @@ namespace Pos.Infrastructure.Migrations
                     b.ToTable("Convenios");
                 });
 
-            modelBuilder.Entity("Pos.Domain.Entities.CorreccionCupon", b =>
-                {
-                    b.Property<long>("IdCorreccionCupon")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("IdCorreccionCupon"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("Fecha")
-                        .HasColumnType("datetime2");
-
-                    b.Property<long>("IdMovPagos")
-                        .HasColumnType("bigint");
-
-                    b.Property<int?>("IdPlanCuotaAnterior")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IdPlanCuotaNuevo")
-                        .HasColumnType("int");
-
-                    b.Property<int>("IdUsuario")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Motivo")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("NumeroCuponAnterior")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("NumeroCuponNuevo")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("NumeroLoteAnterior")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("NumeroLoteNuevo")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("IdCorreccionCupon");
-
-                    b.ToTable("CorreccionesCupon");
-                });
-
             modelBuilder.Entity("Pos.Domain.Entities.CuentaCorriente", b =>
                 {
                     b.Property<int>("IdSucursal")
@@ -1130,6 +1067,51 @@ namespace Pos.Infrastructure.Migrations
                     b.HasIndex("IdSucursal", "IdCliente");
 
                     b.ToTable("CuentasCorrientes");
+                });
+
+            modelBuilder.Entity("Pos.Domain.Entities.Cupon", b =>
+                {
+                    b.Property<int>("IdSucursal")
+                        .HasColumnType("int");
+
+                    b.Property<int>("IdCupon")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("IdComprobante")
+                        .HasColumnType("int");
+
+                    b.Property<int>("IdMedioPago")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NroCupon")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NroLote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("IdSucursal", "IdCupon");
+
+                    b.ToTable("Cupones");
                 });
 
             modelBuilder.Entity("Pos.Domain.Entities.DetalleComprobante", b =>
@@ -1890,9 +1872,6 @@ namespace Pos.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("IdMovPagos"));
 
-                    b.Property<bool>("Anulado")
-                        .HasColumnType("bit");
-
                     b.Property<int?>("CantidadCuotas")
                         .HasColumnType("int");
 
@@ -1901,9 +1880,6 @@ namespace Pos.Infrastructure.Migrations
 
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("FechaAnulacion")
-                        .HasColumnType("datetime2");
 
                     b.Property<int>("IdMedioPago")
                         .HasColumnType("int");

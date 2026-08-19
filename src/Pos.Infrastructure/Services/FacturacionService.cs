@@ -538,7 +538,7 @@ public class FacturacionService : IFacturacionService
                     IdSucursal = req.IdSucursal, IdMovCaja = idMovVuelto, IdUsuario = _currentUser.IdUsuario ?? 0,
                     IdCaja = operacion.IdCaja, IdComprobante = null, IdLote = operacion.IdLote,
                     IdMovPagos = movVuelto.IdMovPagos, Estado = "Confirmado", Fecha = DateTime.UtcNow,
-                    Concepto = $"Vuelto (venta {cabecera.NumeroCompleto})"
+                    Concepto = $"Vuelto (venta {cabecera.NumeroCompleto})", TipoManual = TipoMovimientoManual.Vuelto
                 });
             }
 

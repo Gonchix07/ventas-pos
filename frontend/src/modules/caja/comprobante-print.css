@@ -71,6 +71,14 @@
 .cbte--retiro .cbte__totales .total { font-size: 20pt; }
 .cbte--retiro .cbte__leyenda { font-size: 10pt; }
 
+/* Ticket de "Ingreso de fondo inicial": mismo criterio tipográfico que Retiro (comprobante interno
+   grande, para leerse rápido en la comandera). */
+.cbte--ingreso .cbte__tipo h2 { font-size: 22pt; }
+.cbte--ingreso .cbte__meta { font-size: 11pt; }
+.cbte--ingreso .cbte__cliente { font-size: 12pt; }
+.cbte--ingreso .cbte__totales { font-size: 13pt; }
+.cbte--ingreso .cbte__totales .total { font-size: 20pt; }
+
 /* Comprobante de pago (VALE u otro medio marcado "Imprime comprobante"): fuentes grandes igual que
    Retiro (comprobante interno para firmar en el momento, no la factura fiel). Agrega un renglón en
    blanco + etiquetas para la firma y aclaración del empleado. */
@@ -104,6 +112,9 @@
      @page de 76mm de la Factura. */
   @page retiro-ticket { size: 99mm auto; margin: 0; }
   .cbte--retiro { page: retiro-ticket; width: 99mm; }
+
+  @page ingreso-ticket { size: 99mm auto; margin: 0; }
+  .cbte--ingreso { page: ingreso-ticket; width: 99mm; }
 
   @page presupuesto-ticket { size: 99mm auto; margin: 0; }
   .cbte--presupuesto { page: presupuesto-ticket; width: 99mm; }

@@ -40,6 +40,9 @@ export interface ComprobanteAnulableDetalle {
   lineas: LineaAnulable[];
 }
 
+/** Lo devuelto en UN medio de pago concreto (ver NotaCreditoResultado.devoluciones). */
+export interface DevolucionMedio { idMedioPago: number; medioDescripcion: string; monto: number; }
+
 export interface NotaCreditoResultado {
   idSucursal: number;
   idComprobante: number;
@@ -55,6 +58,11 @@ export interface NotaCreditoResultado {
   devueltoEnEfectivo: number;
   impreso: boolean;
   errorImpresion?: string | null;
+  /** Desglose real de por dónde salió la plata (una fila por medio en una reversión completa). */
+  devoluciones: DevolucionMedio[];
+  /** true si esta NC revirtió TODOS los medios de pago originales (cupones incluidos), en vez de
+   *  devolver un monto genérico en efectivo — ver NotaCreditoService.EmitirAsync. */
+  reversionCompleta: boolean;
 }
 
 export interface EmitirNotaCreditoRequest {

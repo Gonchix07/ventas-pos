@@ -288,6 +288,9 @@ table.grid thead th { background: #eef1ef; font-size: 12px; text-transform: uppe
 table.grid tr.inactive { opacity: .55; }
 /* Fila seleccionada (la usan ClustersPage y el buscador de ListasPreciosPage). */
 table.grid tr.sel > td { background: #eef5f2; box-shadow: inset 3px 0 0 var(--petrol); }
+/* Lote expandido en Tesorería: mismo fondo de selección, pero sin la rayita verde por celda del
+   .sel de arriba (con 14 columnas se veía como una fila entera cuadriculada de verde). */
+table.grid tr.lote-sel > td { background: #eef5f2; }
 
 /* Tabla usada como resultado de búsqueda: se limita el alto para que no empuje el formulario
    de abajo cuando hay muchos resultados. El alto entra ~8 filas y el resto se scrollea con el
@@ -329,6 +332,11 @@ table.grid.picker-table {
 td.row-actions { vertical-align: middle; }
 .row-actions { display: flex; gap: 6px; align-items: center; }
 .mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+/* Botón que se ve como un link — para valores clickeables adentro de una tabla (ej. el nombre de un
+   medio de pago que abre el detalle de comprobantes), sin el aspecto de botón que distraería ahí. */
+.link-btn { border: none; background: none; padding: 0; color: var(--petrol); font-weight: 600;
+  text-decoration: underline; cursor: pointer; font-size: inherit; }
+.link-btn:hover { color: var(--ink); }
 .ip-badge { padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; }
 /* Lista de "chips" removibles (ej. terminales de tarjeta asignadas a una caja): cada chip lleva su
    propia × para desasignar sin abrir un formulario aparte. */

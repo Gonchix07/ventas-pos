@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pos.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using Pos.Infrastructure.Persistence;
 namespace Pos.Infrastructure.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260819181111_DescartarCuponAgregarHistorialCorreccion")]
+    partial class DescartarCuponAgregarHistorialCorreccion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1890,9 +1893,6 @@ namespace Pos.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("IdMovPagos"));
 
-                    b.Property<bool>("Anulado")
-                        .HasColumnType("bit");
-
                     b.Property<int?>("CantidadCuotas")
                         .HasColumnType("int");
 
@@ -1901,9 +1901,6 @@ namespace Pos.Infrastructure.Migrations
 
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("FechaAnulacion")
-                        .HasColumnType("datetime2");
 
                     b.Property<int>("IdMedioPago")
                         .HasColumnType("int");

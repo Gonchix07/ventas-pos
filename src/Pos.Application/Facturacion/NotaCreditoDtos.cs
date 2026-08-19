@@ -32,11 +32,25 @@ public record EmitirNotaCreditoRequest(
     // Null si quien emite ya es Supervisor/Administrador (ver ISupervisorAuthService).
     string? CodigoSupervisor = null);
 
+/// <summary>Lo devuelto en UN medio de pago concreto (ver NotaCreditoResponse.Devoluciones).</summary>
+public record DevolucionMedioDto(int IdMedioPago, string MedioDescripcion, decimal Monto);
+
 public record NotaCreditoResponse(
     int IdSucursal, int IdComprobante, string NumeroCompleto, string Letra,
     string? Cae, DateTime? CaeVencimiento, bool EsCaea, string Estado,
     decimal Neto, decimal Iva, decimal Total, decimal DevueltoEnEfectivo,
-    bool Impreso, string? ErrorImpresion);
+    bool Impreso, string? ErrorImpresion,
+    /// <summary>
+    /// Desglose real de por dónde salió la plata. En el caso general tiene una sola fila
+    /// (Efectivo, igual a <see cref="DevueltoEnEfectivo"/>); en una reversión completa (ver
+    /// <see cref="ReversionCompleta"/>) tiene una fila por cada medio de la venta original.
+    /// </summary>
+    List<DevolucionMedioDto> Devoluciones,
+    /// <summary>
+    /// true si esta NC revirtió TODOS los medios de pago originales (venta 100% acreditada, mismo
+    /// día, lote de la venta todavía abierto) en vez de devolver un monto genérico en efectivo.
+    /// </summary>
+    bool ReversionCompleta);
 
 public interface INotaCreditoService
 {

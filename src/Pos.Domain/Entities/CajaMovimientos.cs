@@ -53,10 +53,14 @@ public class MovimientoCaja : AuditableEntity
     public long? IdMovPagos { get; set; }
     public string? Estado { get; set; }
     public DateTime Fecha { get; set; }
-    /// <summary>Etiqueta libre para movimientos que no son venta ni nota de crédito (por ahora,
-    /// solo retiros de efectivo — ver RetiroCajaService). Null en ventas/NC: esas ya se identifican
-    /// por <see cref="IdComprobante"/>.</summary>
+    /// <summary>Descripción libre para mostrar al usuario en un movimiento manual (ej. el texto que
+    /// tipeó el cajero al retirar). Null en ventas/NC: esas ya se identifican por
+    /// <see cref="IdComprobante"/>. Ya NO se usa para clasificar el movimiento — ver
+    /// <see cref="TipoManual"/>.</summary>
     public string? Concepto { get; set; }
+    /// <summary>Tipo de movimiento manual (Ingreso/Retiro/Vuelto/CorreccionTesoreria). Null en
+    /// ventas y notas de crédito (esas se identifican por <see cref="IdComprobante"/> != null).</summary>
+    public TipoMovimientoManual? TipoManual { get; set; }
 }
 
 public class MovimientoPago : AuditableEntity
@@ -79,6 +83,14 @@ public class MovimientoPago : AuditableEntity
     /// </summary>
     public int? IdPlanCuota { get; set; }
     public int? CantidadCuotas { get; set; }
+    /// <summary>
+    /// Si este pago (cupón de tarjeta, vale, o cualquier medio) quedó anulado por una nota de
+    /// crédito de reversión completa — ver NotaCreditoService.EmitirAsync. El registro original NO
+    /// se borra ni se toca su monto: queda como constancia de lo que se cobró, con este flag
+    /// marcando que ya no es válido (ej. para no rendirlo de nuevo contra el operador de tarjeta).
+    /// </summary>
+    public bool Anulado { get; set; }
+    public DateTime? FechaAnulacion { get; set; }
 }
 
 /// <summary>Cierre de lote acumulado por medio de pago (cierre Z).</summary>

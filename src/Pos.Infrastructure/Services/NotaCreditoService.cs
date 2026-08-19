@@ -171,8 +171,9 @@ public class NotaCreditoService : INotaCreditoService
             .FirstOrDefaultAsync(p => p.IdSucursal == req.IdSucursal && p.IdPuntoVenta == lote.IdPuntoVenta, ct)
             ?? throw new DomainException("PUNTO_VENTA_INEXISTENTE", "El punto de venta del lote no existe.");
 
-        var efectivo = await _db.MediosPago.AsNoTracking().Include(m => m.TipoPago)
-            .FirstOrDefaultAsync(m => m.TipoPago!.Fuente == FuentePago.Efectivo, ct)
+        var medios = await _db.MediosPago.AsNoTracking().Include(m => m.TipoPago)
+            .ToDictionaryAsync(m => m.IdMedioPago, m => m, ct);
+        var efectivo = medios.Values.FirstOrDefault(m => m.TipoPago?.Fuente == FuentePago.Efectivo)
             ?? throw new DomainException("MEDIO_EFECTIVO_INEXISTENTE",
                 "No hay un medio de pago en efectivo configurado para devolver el importe.");
 
@@ -202,6 +203,24 @@ public class NotaCreditoService : INotaCreditoService
             if (!NotaCreditoReglas.ImporteAcreditable(totalNc, saldoAhora))
                 throw new DomainException("EXCEDE_SALDO_ANULABLE",
                     $"El saldo anulable del comprobante cambió (${saldoAhora:0.00}). Volvé a intentar.");
+
+            // Reversión completa: mismo día, 100% de la venta en una sola NC, y el lote de la VENTA
+            // ORIGINAL (no el del cajero que emite la NC) todavía abierto — si ya cerró, esa
+            // rendición quedó fija y no se puede tocar retroactivamente. Solo entonces se anulan
+            // todos los medios originales (cupones incluidos); en cualquier otro caso, sigue el
+            // comportamiento de siempre (devolución genérica en efectivo).
+            var loteOrigenAbierto = false;
+            if (req.Tipo == TipoAnulacion.Total && yaAcreditadoAhora == 0m)
+            {
+                var idLoteOrigen = await _db.MovimientosCaja.AsNoTracking()
+                    .Where(m => m.IdSucursal == req.IdSucursal && m.IdComprobante == req.IdComprobanteOrigen)
+                    .Select(m => (int?)m.IdLote).FirstOrDefaultAsync(ct);
+                if (idLoteOrigen is int idLo)
+                    loteOrigenAbierto = await _db.LotesCaja.AsNoTracking()
+                        .AnyAsync(l => l.IdSucursal == req.IdSucursal && l.IdLote == idLo && l.Estado == EstadoLote.Abierto, ct);
+            }
+            var esReversionCompleta = NotaCreditoReglas.EsReversionCompleta(req.Tipo, totalNc, origen.Total,
+                yaAcreditadoAhora, origen.Fecha, DateTime.UtcNow, loteOrigenAbierto);
 
             var idComprobante = (await _db.CabecerasComprobantes.Where(c => c.IdSucursal == req.IdSucursal)
                 .Select(c => c.IdComprobante).MaxAsync(x => (int?)x, ct) ?? 0) + 1;
@@ -236,24 +255,37 @@ public class NotaCreditoService : INotaCreditoService
                 IdComprobanteAsociado = idComprobante
             });
 
-            // Devolución en efectivo: movimiento NEGATIVO. El acumulador del arqueo/cierre lo
-            // clasifica como anulación por el signo del tipo de comprobante, no por el signo del
-            // monto, así que la plata sale de la caja y además se muestra discriminada.
-            var movPago = new MovimientoPago
-            {
-                IdMedioPago = efectivo.IdMedioPago, Total = -totalNc, Redondeo = 0
-            };
-            _db.MovimientosPagos.Add(movPago);
-            await _db.SaveChangesAsync(ct); // la BD asigna IdMovPagos
+            // Devolución: uno o más movimientos NEGATIVOS (uno por medio). El acumulador del
+            // arqueo/cierre los clasifica como anulación por el signo del tipo de comprobante, no
+            // por el signo del monto, así que la plata sale de la caja y además se muestra
+            // discriminada. Caso general: un solo movimiento en Efectivo, como siempre. Reversión
+            // completa: un movimiento por cada medio de la venta original (y esos pagos originales
+            // quedan marcados Anulado=true — ver RevertirPagosOriginalesAsync).
+            var devoluciones = esReversionCompleta
+                ? await RevertirPagosOriginalesAsync(req.IdSucursal, req.IdComprobanteOrigen,
+                    origen.NumeroCompleto ?? "", medios, ct)
+                : new List<(int IdMedioPago, decimal Monto)>();
+            // Si por algún motivo no salió ninguna devolución de la reversión (ej. el vuelto neteó
+            // justo todo el único leg de efectivo), no se puede dejar la NC sin ningún movimiento de
+            // caja: cae al comportamiento genérico para ese resto.
+            if (devoluciones.Count == 0)
+                devoluciones.Add((efectivo.IdMedioPago, totalNc));
 
-            var idMov = (await _db.MovimientosCaja.Where(m => m.IdSucursal == req.IdSucursal)
-                .Select(m => m.IdMovCaja).MaxAsync(x => (int?)x, ct) ?? 0) + 1;
-            _db.MovimientosCaja.Add(new MovimientoCaja
+            foreach (var (idMedioPago, monto) in devoluciones)
             {
-                IdSucursal = req.IdSucursal, IdMovCaja = idMov, IdUsuario = _currentUser.IdUsuario ?? 0,
-                IdCaja = req.IdCaja, IdComprobante = idComprobante, IdLote = lote.IdLote,
-                IdMovPagos = movPago.IdMovPagos, Estado = "Confirmado", Fecha = DateTime.UtcNow
-            });
+                var movPago = new MovimientoPago { IdMedioPago = idMedioPago, Total = -monto, Redondeo = 0 };
+                _db.MovimientosPagos.Add(movPago);
+                await _db.SaveChangesAsync(ct); // la BD asigna IdMovPagos
+
+                var idMov = (await _db.MovimientosCaja.Where(m => m.IdSucursal == req.IdSucursal)
+                    .Select(m => m.IdMovCaja).MaxAsync(x => (int?)x, ct) ?? 0) + 1;
+                _db.MovimientosCaja.Add(new MovimientoCaja
+                {
+                    IdSucursal = req.IdSucursal, IdMovCaja = idMov, IdUsuario = _currentUser.IdUsuario ?? 0,
+                    IdCaja = req.IdCaja, IdComprobante = idComprobante, IdLote = lote.IdLote,
+                    IdMovPagos = movPago.IdMovPagos, Estado = "Confirmado", Fecha = DateTime.UtcNow
+                });
+            }
 
             // Si la factura se había cargado a cuenta corriente, la NC la descarga (Haber).
             if (origen.IdCliente is int idCliente && await TieneAsientoCuentaCorrienteAsync(req.IdSucursal, req.IdComprobanteOrigen, ct))
@@ -287,7 +319,12 @@ public class NotaCreditoService : INotaCreditoService
                 Cliente = await ClienteFiscalAsync(origen.IdCliente, letra, ct),
                 Items = lineasNc.Select(l => new ItemFiscal(l.Descripcion, l.Cantidad,
                     l.PrecioUnitario, l.Alicuota, 0m, l.IdPresentacion.ToString())).ToList(),
-                Pagos = new List<PagoFiscal> { new(efectivo.Descripcion, totalNc, FuentePago.Efectivo, null, 1) }
+                // Caso general: un solo pago en Efectivo por el total, como siempre. Reversión
+                // completa: un renglón por cada medio realmente devuelto.
+                Pagos = devoluciones.Select(d => new PagoFiscal(
+                    medios.GetValueOrDefault(d.IdMedioPago)?.Descripcion ?? $"Medio {d.IdMedioPago}",
+                    d.Monto, medios.GetValueOrDefault(d.IdMedioPago)?.TipoPago?.Fuente ?? FuentePago.Efectivo,
+                    null, 1)).ToList()
             };
 
             ResultadoImpresion impresion;
@@ -306,9 +343,14 @@ public class NotaCreditoService : INotaCreditoService
                 await _db.SaveChangesAsync(ct);
             }
 
+            var devolucionesDto = devoluciones.Select(d => new DevolucionMedioDto(d.IdMedioPago,
+                medios.GetValueOrDefault(d.IdMedioPago)?.Descripcion ?? $"Medio {d.IdMedioPago}", d.Monto)).ToList();
+            var devueltoEnEfectivo = devolucionesDto.Where(d => d.IdMedioPago == efectivo.IdMedioPago).Sum(d => d.Monto);
+
             return new NotaCreditoResponse(req.IdSucursal, idComprobante, cabecera.NumeroCompleto!,
                 letra, cabecera.Cae, cabecera.CaeVencimiento, cabecera.EsCaea, cabecera.Estado.ToString(),
-                totalNeto, totalIva, totalNc, totalNc, impresion.Ok, impresion.Ok ? null : impresion.Error);
+                totalNeto, totalIva, totalNc, devueltoEnEfectivo, impresion.Ok, impresion.Ok ? null : impresion.Error,
+                devolucionesDto, esReversionCompleta);
         }
         catch
         {
@@ -376,6 +418,51 @@ public class NotaCreditoService : INotaCreditoService
     private static LineaNc DesdeDetalle(DetalleComprobante d) =>
         new(d.DescripcionTicket, d.Cantidad, d.PrecioUnit, d.AlicuotaIva, d.Importe,
             d.IdPresentacion, d.IdDetalleComprobante);
+
+    // ---------- Reversión completa (todos los medios originales, cupones incluidos) ----------
+
+    /// <summary>
+    /// Marca Anulado=true en cada MovimientoPago de la venta original (así queda registrado que
+    /// ese cupón/pago ya no es válido) y devuelve cuánto hay que revertir por cada medio. El leg de
+    /// Efectivo se neta contra el vuelto que se haya entregado en esa misma venta (identificado por
+    /// texto en Concepto — no hay FK directa, ver FacturacionService): sin esto, el vuelto se
+    /// devolvería dos veces (una al entregarlo en el momento, otra al revertir el pago completo).
+    /// </summary>
+    private async Task<List<(int IdMedioPago, decimal Monto)>> RevertirPagosOriginalesAsync(
+        int idSucursal, int idComprobanteOrigen, string numeroCompletoOrigen,
+        Dictionary<int, MedioPago> medios, CancellationToken ct)
+    {
+        var pagos = await (
+            from mc in _db.MovimientosCaja.Where(m => m.IdSucursal == idSucursal && m.IdComprobante == idComprobanteOrigen)
+            join mp in _db.MovimientosPagos on mc.IdMovPagos equals mp.IdMovPagos
+            select new { mc.IdLote, mp }
+        ).ToListAsync(ct);
+        if (pagos.Count == 0) return new List<(int, decimal)>();
+
+        var idLoteVenta = pagos[0].IdLote;
+        var vuelto = await (
+            from mc in _db.MovimientosCaja
+                .Where(m => m.IdSucursal == idSucursal && m.IdLote == idLoteVenta
+                         && m.TipoManual == TipoMovimientoManual.Vuelto
+                         && m.Concepto == $"Vuelto (venta {numeroCompletoOrigen})")
+            join mp in _db.MovimientosPagos on mc.IdMovPagos equals mp.IdMovPagos
+            select -mp.Total
+        ).SumAsync(ct);
+
+        var devoluciones = new List<(int IdMedioPago, decimal Monto)>();
+        foreach (var p in pagos)
+        {
+            var esEfectivo = medios.TryGetValue(p.mp.IdMedioPago, out var medio)
+                && medio.TipoPago?.Fuente == FuentePago.Efectivo;
+            var monto = p.mp.Total - (esEfectivo ? vuelto : 0m);
+
+            p.mp.Anulado = true;
+            p.mp.FechaAnulacion = DateTime.UtcNow;
+
+            if (monto > 0.004m) devoluciones.Add((p.mp.IdMedioPago, monto));
+        }
+        return devoluciones;
+    }
 
     // ---------- Consultas de apoyo ----------
 

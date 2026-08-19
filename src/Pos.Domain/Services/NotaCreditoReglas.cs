@@ -55,6 +55,21 @@ public static class NotaCreditoReglas
         monto > 0m && monto - saldo <= Tolerancia;
 
     /// <summary>
+    /// Cuándo una NC revierte TODOS los medios de pago originales (cupones incluidos) en vez de
+    /// devolver un monto genérico en efectivo: tiene que ser el 100% de la venta en una sola
+    /// operación (no una 2ª NC parcial sobre lo que quedó), el mismo día, y el lote de la venta
+    /// original todavía tiene que estar abierto (si ya cerró, la rendición de ese turno ya quedó
+    /// fija y no se puede tocar retroactivamente).
+    /// </summary>
+    public static bool EsReversionCompleta(TipoAnulacion tipo, decimal totalNc, decimal totalOrigen,
+        decimal yaAcreditadoAntes, DateTime fechaOrigen, DateTime ahora, bool loteOrigenAbierto) =>
+        tipo == TipoAnulacion.Total
+        && yaAcreditadoAntes == 0m
+        && Math.Abs(totalNc - totalOrigen) <= Tolerancia
+        && fechaOrigen.Date == ahora.Date
+        && loteOrigenAbierto;
+
+    /// <summary>
     /// Líneas que todavía se pueden anular: las que no fueron acreditadas en una NC previa. Como
     /// la anulación por artículos es siempre de la línea completa, alcanza con el flag por línea.
     /// </summary>

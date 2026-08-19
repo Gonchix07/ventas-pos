@@ -371,7 +371,10 @@ export function OfertasPage() {
               <td className="mono">{o.cantAcciones}</td>
               <td className="row-actions">
                 <button onClick={() => editar(o.idOferta)}>Editar</button>
-                <button className="danger" onClick={() => run(() => ofertas.remove(suc, o.idOferta))}>Eliminar</button>
+                <button className="danger" onClick={() => {
+                  if (!confirm(`¿Eliminar la oferta «${o.descripcion}»?`)) return;
+                  void run(() => ofertas.remove(suc, o.idOferta));
+                }}>Eliminar</button>
               </td>
             </tr>
           ))}

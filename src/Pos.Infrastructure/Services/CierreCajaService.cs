@@ -46,6 +46,7 @@ public class CierreCajaService : ICierreCajaService
         var anulaciones = await _ejecutor.AnulacionesAsync(idSucursal, lote.IdLote, ct);
         var retiros = await _ejecutor.RetirosAsync(idSucursal, lote.IdLote, ct);
         var vueltos = await _ejecutor.VueltosAsync(idSucursal, lote.IdLote, ct);
+        var ingresoInicial = await _ejecutor.IngresoInicialAsync(idSucursal, lote.IdLote, ct);
         // Best-effort: el arqueo X es una vista, no persiste nada — un fallo/timeout de la
         // impresora fiscal no debe impedir mostrar los acumulados.
         var impresion = await ImprimirBestEffortAsync(
@@ -58,7 +59,7 @@ public class CierreCajaService : ICierreCajaService
         return new ArqueoXResponse(idSucursal, lote.IdLote, idCaja, descripcionCaja, lote.FechaApertura,
             acumulados, acumulados.Sum(a => a.Total), impresion.Ok ? impresion.Referencia : null,
             anulaciones, anulaciones.Sum(a => a.Total), retiros, retiros.Sum(r => r.Monto),
-            vueltos, vueltos.Sum(v => v.Monto));
+            vueltos, vueltos.Sum(v => v.Monto), ingresoInicial);
     }
 
     // Cierre del TURNO del cajero: rendición de lo vendido/cobrado en su lote, irreversible en el

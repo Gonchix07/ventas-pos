@@ -66,8 +66,8 @@ public class PosDbContext : DbContext
     public DbSet<MedioPago> MediosPago => Set<MedioPago>();
     public DbSet<TipoPago> TiposPago => Set<TipoPago>();
     public DbSet<PlanCuota> PlanesCuota => Set<PlanCuota>();
-    public DbSet<Cupon> Cupones => Set<Cupon>();
     public DbSet<CuentaCorriente> CuentasCorrientes => Set<CuentaCorriente>();
+    public DbSet<CorreccionCupon> CorreccionesCupon => Set<CorreccionCupon>();
 
     // Comprobantes / operaciones
     public DbSet<CabeceraComprobante> CabecerasComprobantes => Set<CabeceraComprobante>();
@@ -182,8 +182,8 @@ public class PosDbContext : DbContext
         b.Entity<Convenio>().HasKey(x => new { x.IdSucursal, x.IdConvenio });
         b.Entity<CabeceraOferta>().HasKey(x => new { x.IdSucursal, x.IdOferta });
         b.Entity<OfertaMedioPago>().HasKey(x => new { x.IdSucursal, x.IdOfertaMedioPago });
-        b.Entity<Cupon>().HasKey(x => new { x.IdSucursal, x.IdCupon });
         b.Entity<CuentaCorriente>().HasKey(x => new { x.IdSucursal, x.IdCliente, x.IdComprobante });
+        b.Entity<CorreccionCupon>().HasKey(x => x.IdCorreccionCupon);
         b.Entity<CabeceraComprobante>().HasKey(x => new { x.IdSucursal, x.IdComprobante });
         b.Entity<ComprobanteAsociado>().HasKey(x => new { x.IdComprobanteOrigen, x.IdComprobanteAsociado });
         b.Entity<Operacion>().HasKey(x => new { x.IdSucursal, x.IdOperacion });
@@ -356,6 +356,11 @@ public class PosDbContext : DbContext
         b.Entity<TerminalTarjeta>().Property(x => x.NumeroTerminal).HasMaxLength(30);
         b.Entity<MovimientoPago>().Property(x => x.NumeroCupon).HasMaxLength(20);
         b.Entity<MovimientoPago>().Property(x => x.NumeroLote).HasMaxLength(20);
+        b.Entity<CorreccionCupon>().Property(x => x.NumeroCuponAnterior).HasMaxLength(20);
+        b.Entity<CorreccionCupon>().Property(x => x.NumeroCuponNuevo).HasMaxLength(20);
+        b.Entity<CorreccionCupon>().Property(x => x.NumeroLoteAnterior).HasMaxLength(20);
+        b.Entity<CorreccionCupon>().Property(x => x.NumeroLoteNuevo).HasMaxLength(20);
+        b.Entity<CorreccionCupon>().Property(x => x.Motivo).HasMaxLength(200);
         b.Entity<MovimientoCaja>().Property(x => x.Concepto).HasMaxLength(200);
         b.Entity<PlanCuota>().Property(x => x.Denominacion).HasMaxLength(60);
         b.Entity<RefreshToken>().Property(x => x.TokenHash).HasMaxLength(64);

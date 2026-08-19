@@ -1,0 +1,102 @@
+/*
+  Rendición de caja (cierre de turno) en A4, para firmar y presentar en Tesorería. Mismo mecanismo
+  de impresión que el resto de los comprobantes de caja (ver comprobante-print.css: window.print()
+  disparado por código, resto de la app oculto con visibility:hidden) pero con página propia
+  "rendicion-caja" en A4 en vez del ticket de 76/99mm.
+*/
+
+.rendicion {
+  width: 190mm;
+  margin: 0 auto;
+  padding: 10mm 12mm;
+  background: #fff;
+  color: #1a1a1a;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.35;
+}
+
+.rendicion__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2px solid #1a1a1a;
+  padding-bottom: 3mm;
+  margin-bottom: 4mm;
+}
+.rendicion__header h1 { margin: 0; font-size: 17pt; letter-spacing: 0.3px; }
+.rendicion__subtitulo { margin: 1mm 0 0; font-size: 9pt; color: #444; }
+.rendicion__folio { text-align: right; font-size: 8.5pt; color: #444; }
+.rendicion__folio strong { display: block; font-size: 13pt; color: #1a1a1a; margin-top: 1mm; }
+
+.rendicion__meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2mm 6mm;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  padding: 3mm 4mm;
+  margin-bottom: 5mm;
+  font-size: 9pt;
+}
+.rendicion__meta div { display: flex; justify-content: space-between; gap: 3mm; }
+.rendicion__meta span { color: #555; }
+
+.rendicion__bloque { margin-bottom: 5mm; }
+.rendicion__bloque h2 {
+  font-size: 10.5pt;
+  margin: 0 0 2mm;
+  padding-bottom: 1mm;
+  border-bottom: 1px solid #999;
+}
+.rendicion__bloque p { margin: 1mm 0; font-size: 9pt; }
+.rendicion__bloque p span { color: #555; }
+
+.rendicion__tabla { width: 100%; border-collapse: collapse; font-size: 9pt; }
+.rendicion__tabla th {
+  text-align: left; border-bottom: 1px solid #1a1a1a; padding: 1.2mm 1.5mm; font-weight: 600;
+}
+.rendicion__tabla td { padding: 1mm 1.5mm; border-bottom: 1px solid #e2e2e2; }
+.rendicion__tabla tfoot td {
+  border-top: 1.5px solid #1a1a1a; border-bottom: none; font-weight: 700; padding-top: 1.5mm;
+}
+.rendicion__tabla .num { text-align: right; white-space: nowrap; }
+.rendicion__diferencia { color: #a11; font-weight: 700; }
+
+.rendicion__resumen {
+  border: 1.5px solid #1a1a1a;
+  border-radius: 2px;
+  padding: 3mm 4mm;
+  margin-bottom: 6mm;
+}
+.rendicion__resumen h2 { margin: 0 0 2mm; font-size: 10.5pt; }
+.rendicion__resumen-grid { display: flex; flex-direction: column; gap: 1mm; font-size: 9.5pt; }
+.rendicion__resumen-grid > div { display: flex; justify-content: space-between; }
+.rendicion__resumen-total {
+  border-top: 1px solid #999; margin-top: 1.5mm; padding-top: 1.5mm; font-size: 11pt;
+}
+
+.rendicion__firmas {
+  display: flex; justify-content: space-between; gap: 12mm; margin-top: 12mm;
+}
+.rendicion__firma { flex: 1; text-align: center; }
+.rendicion__firma-linea { border-top: 1px solid #1a1a1a; margin-bottom: 1.5mm; }
+.rendicion__firma span { display: block; font-size: 9pt; font-weight: 600; }
+.rendicion__firma small { display: block; font-size: 8pt; color: #555; margin-top: 0.5mm; }
+
+.rendicion__pie { margin-top: 6mm; font-size: 7.5pt; color: #666; text-align: center; }
+
+.rendicion__acciones { display: flex; gap: 8px; justify-content: center; margin: 14px 0; }
+
+@media screen {
+  .rendicion { border: 1px solid #c6cfcb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
+}
+
+@media print {
+  @page rendicion-caja { size: A4; margin: 12mm; }
+  .rendicion { page: rendicion-caja; width: auto; border: none; box-shadow: none; margin: 0; padding: 0; }
+  .cbte-no-print { display: none !important; }
+  body * { visibility: hidden; }
+  .rendicion, .rendicion * { visibility: visible; }
+  .rendicion { position: absolute; left: 0; top: 0; }
+}

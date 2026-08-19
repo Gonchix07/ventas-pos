@@ -26,6 +26,7 @@ import { OfertasMedioPagoPage } from "./modules/admin/OfertasMedioPagoPage";
 import { VentasEstadisticasPage } from "./modules/admin/VentasEstadisticasPage";
 import { CajaPage } from "./modules/caja/CajaPage";
 import { TesoreriaPage } from "./modules/admin/TesoreriaPage";
+import { CuponesPage } from "./modules/admin/CuponesPage";
 import { EtiquetasPage } from "./modules/etiquetas/EtiquetasPage";
 import "./App.css";
 
@@ -54,6 +55,10 @@ export default function App() {
             } />
             <Route path="/tesoreria" element={
               <RequireAuth roles={["Tesorero", "Administrador"]}><TesoreriaPage /></RequireAuth>
+            } />
+            {/* Cupones también lo puede corregir Supervisor (no tiene acceso al resto de Tesorería) */}
+            <Route path="/tesoreria/cupones" element={
+              <RequireAuth roles={["Tesorero", "Supervisor", "Administrador"]}><CuponesPage /></RequireAuth>
             } />
             <Route path="/etiquetas" element={
               <RequireAuth roles={["Repositor", "Tesorero", "Cajero", "Administrador"]}><EtiquetasPage /></RequireAuth>

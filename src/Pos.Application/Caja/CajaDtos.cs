@@ -8,7 +8,10 @@ public record LoteDto(int IdSucursal, int IdLote, int IdCaja, string Descripcion
     DateTime FechaApertura, string Estado, bool AdmitePresupuesto);
 // CodigoSupervisor: null salvo que se esté abriendo en un puesto distinto al propio (ver
 // CajaService.AbrirCajaAsync) y quien abre no sea ya Supervisor/Administrador.
-public record AperturaRequest(int IdSucursal, int IdCaja, string? CodigoSupervisor = null);
+// MontoInicial: fondo de caja con el que arranca el turno (0 = sin fondo inicial, comportamiento de
+// siempre). IdMedioPago null = Efectivo (lo normal para un fondo de caja); explícito = otro medio.
+public record AperturaRequest(int IdSucursal, int IdCaja, string? CodigoSupervisor = null,
+    decimal MontoInicial = 0m, int? IdMedioPago = null);
 
 /// <summary>
 /// Turno abierto del cajero logueado, en cualquier caja de la sucursal. Permite retomar el turno

@@ -116,10 +116,25 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
             <tr><td>Neto</td><td className="mono">{formatearMoneda(emitida.neto)}</td></tr>
             <tr><td>IVA</td><td className="mono">{formatearMoneda(emitida.iva)}</td></tr>
             <tr><td><b>Total acreditado</b></td><td className="mono"><b>{formatearMoneda(emitida.total)}</b></td></tr>
-            <tr><td><b>A devolver en efectivo</b></td><td className="mono"><b>{formatearMoneda(emitida.devueltoEnEfectivo)}</b></td></tr>
+            {emitida.reversionCompleta ? (
+              emitida.devoluciones.map((d) => (
+                <tr key={d.idMedioPago}>
+                  <td><b>Devuelto en {d.medioDescripcion}</b></td>
+                  <td className="mono"><b>{formatearMoneda(d.monto)}</b></td>
+                </tr>
+              ))
+            ) : (
+              <tr><td><b>A devolver en efectivo</b></td><td className="mono"><b>{formatearMoneda(emitida.devueltoEnEfectivo)}</b></td></tr>
+            )}
             {emitida.cae && <tr><td>CAE</td><td className="mono">{emitida.cae}</td></tr>}
           </tbody>
         </table>
+        {emitida.reversionCompleta && (
+          <p className="muted" style={{ margin: 0 }}>
+            Anulación total del mismo día: se revirtieron todos los medios de pago de la venta
+            original (los cupones de tarjeta quedaron marcados como anulados).
+          </p>
+        )}
         {!emitida.impreso && (
           <p className="error">
             La nota de crédito quedó registrada pero NO se imprimió: {emitida.errorImpresion}

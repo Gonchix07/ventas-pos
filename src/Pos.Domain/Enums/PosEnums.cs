@@ -107,6 +107,24 @@ public enum EstadoLote
     Cerrado = 2
 }
 
+/// <summary>
+/// Tipo de un MovimientoCaja manual (IdComprobante null: no es venta ni nota de crédito). Antes se
+/// distinguía por un prefijo de texto en Concepto ("Retiro"/"Vuelto") — este campo lo reemplaza para
+/// que CierreLoteEjecutor no tenga que parsear texto. Concepto sigue existiendo como descripción
+/// libre para mostrar al usuario, pero ya no se usa para clasificar el movimiento.
+/// </summary>
+public enum TipoMovimientoManual
+{
+    /// <summary>Fondo inicial cargado al abrir el turno (ver LoteCaja/CajaService.AbrirCajaAsync).</summary>
+    Ingreso = 1,
+    /// <summary>Retiro de efectivo (u otro medio) del cajero durante su propio turno abierto.</summary>
+    Retiro = 2,
+    /// <summary>Vuelto entregado en una venta (ver FacturacionService).</summary>
+    Vuelto = 3,
+    /// <summary>Corrección +/- cargada por Tesorería, incluso sobre un lote ya cerrado.</summary>
+    CorreccionTesoreria = 4
+}
+
 /// <summary>Estado de una operación de caja (pre-ticket).</summary>
 public enum EstadoOperacion
 {

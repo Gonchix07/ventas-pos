@@ -95,12 +95,18 @@ export interface Retiro {
 export interface Vuelto {
   idMovCaja: number; fecha: string; monto: number; concepto?: string | null; usuario?: string | null;
 }
+/** Fondo inicial cargado al abrir el turno (ver TicketIngresoInicial) — a diferencia de
+ * retiro/vuelto, suma al esperado en vez de restar. Como mucho hay uno por lote. */
+export interface IngresoInicial {
+  idMovCaja: number; fecha: string; idMedioPago: number; monto: number; concepto?: string | null;
+}
 export interface ArqueoX {
   idSucursal: number; idLote: number; idCaja: number; descripcionCaja: string; fechaApertura: string;
   acumulados: Acumulado[]; totalGeneral: number; referencia?: string | null;
   anulaciones: Anulacion[]; totalAnulaciones: number;
   retiros: Retiro[]; totalRetiros: number;
   vueltos: Vuelto[]; totalVueltos: number;
+  ingresoInicial?: IngresoInicial | null;
 }
 export interface DeclaracionPago { idMedioPago: number; montoDeclarado: number; }
 export interface CierreTurnoDetalle {
@@ -131,8 +137,10 @@ export interface Motivo { id: number; descripcion: string; }
 export const caja = {
   // codigoSupervisor: solo hace falta si idCaja no es la que le corresponde a este puesto (PC
   // caída) y quien abre no es ya Supervisor/Administrador — ver shared/ui/SupervisorGate.tsx.
-  abrir: (idSucursal: number, idCaja: number, codigoSupervisor?: string | null) =>
-    unwrap<Lote>(api.post(`/caja/apertura`, { idSucursal, idCaja, codigoSupervisor })),
+  // montoInicial: fondo de caja con el que arranca el turno (0 = sin fondo, default). Se usa en la
+  // rendición de Tesorería como saldo inicial del lote.
+  abrir: (idSucursal: number, idCaja: number, codigoSupervisor?: string | null, montoInicial?: number) =>
+    unwrap<Lote>(api.post(`/caja/apertura`, { idSucursal, idCaja, codigoSupervisor, montoInicial })),
   descripcion: (idSucursal: number, idCaja: number) =>
     unwrap<string | null>(api.get(`/caja/descripcion`, { params: { idSucursal, idCaja } })),
   motivosDiferencia: () => unwrap<Motivo[]>(api.get(`/caja/motivos-diferencia`)),

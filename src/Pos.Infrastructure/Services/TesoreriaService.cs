@@ -219,6 +219,157 @@ public class TesoreriaService : ITesoreriaService
             anulaciones, anulaciones.Sum(a => a.Total));
     }
 
+    public async Task<CorreccionDto> CorregirAsync(int idSucursal, int idLote, CorreccionManualInput req,
+        CancellationToken ct = default)
+    {
+        _currentUser.AsegurarSucursal(idSucursal);
+
+        if (req.Monto == 0)
+            throw new DomainException("MONTO_INVALIDO", "El monto de la corrección no puede ser cero.");
+        if (string.IsNullOrWhiteSpace(req.Concepto))
+            throw new DomainException("CONCEPTO_REQUERIDO", "Una corrección de Tesorería necesita un motivo.");
+
+        // A propósito no exige que el lote siga abierto: esta vía existe justamente para ajustar
+        // rendiciones ya cerradas (o incluso ya validadas) sin tener que reabrir nada.
+        var lote = await _db.LotesCaja.AsNoTracking()
+            .FirstOrDefaultAsync(l => l.IdSucursal == idSucursal && l.IdLote == idLote, ct)
+            ?? throw new DomainException("LOTE_INEXISTENTE", "No existe el lote indicado en esa sucursal.");
+
+        if (!await _db.MediosPago.AsNoTracking().AnyAsync(m => m.IdMedioPago == req.IdMedioPago, ct))
+            throw new DomainException("MEDIO_INEXISTENTE", "El medio de pago indicado no existe.");
+
+        var movCaja = await MovimientoManualCajaHelper.RegistrarAsync(_db, idSucursal, lote.IdCaja, idLote,
+            _currentUser.IdUsuario ?? 0, req.IdMedioPago, req.Monto, TipoMovimientoManual.CorreccionTesoreria,
+            req.Concepto.Trim(), ct);
+
+        var usuario = _currentUser.IdUsuario is int idu
+            ? (await _db.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.IdUsuario == idu, ct))?.NombreUsuario
+            : null;
+        return new CorreccionDto(movCaja.IdMovCaja, movCaja.Fecha, req.IdMedioPago, req.Monto, movCaja.Concepto, usuario);
+    }
+
+    // ---------- Vista principal: lotes por vigencia ----------
+
+    public async Task<IReadOnlyList<LoteResumenDto>> GetLotesAsync(int? idSucursal, DateTime desde, DateTime hasta,
+        CancellationToken ct = default)
+    {
+        idSucursal = _currentUser.AplicarAlcanceSucursal(idSucursal);
+
+        var query = _db.LotesCaja.AsNoTracking()
+            .Where(l => l.FechaApertura.Date >= desde.Date && l.FechaApertura.Date <= hasta.Date);
+        if (idSucursal.HasValue) query = query.Where(l => l.IdSucursal == idSucursal.Value);
+
+        var lotes = await query.OrderByDescending(l => l.FechaApertura).ToListAsync(ct);
+        if (lotes.Count == 0) return Array.Empty<LoteResumenDto>();
+
+        var sucursales = await _db.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.IdSucursal, s => s.Descripcion, ct);
+        var usuarios = await _db.Usuarios.AsNoTracking().ToDictionaryAsync(u => u.IdUsuario, u => u.NombreUsuario, ct);
+        var cajas = await _db.Cajas.AsNoTracking()
+            .ToDictionaryAsync(c => new { c.IdSucursal, c.IdCaja }, c => c.Descripcion, ct);
+
+        var resultado = new List<LoteResumenDto>();
+        foreach (var l in lotes)
+        {
+            var acumulados = await _ejecutor.AcumularAsync(l.IdSucursal, l.IdLote, ct);
+            var ingreso = await _ejecutor.IngresoInicialAsync(l.IdSucursal, l.IdLote, ct);
+            var vueltos = await _ejecutor.VueltosAsync(l.IdSucursal, l.IdLote, ct);
+
+            string estadoCierre;
+            decimal? saldo;
+            if (l.Estado == EstadoLote.Abierto)
+            {
+                estadoCierre = "Abierto";
+                saldo = null;
+            }
+            else
+            {
+                var filasCierre = await _db.CierresLotesCaja.AsNoTracking()
+                    .Where(c => c.IdSucursal == l.IdSucursal && c.IdLote == l.IdLote).ToListAsync(ct);
+                estadoCierre = filasCierre.Count > 0 && filasCierre.All(f => f.VerificaTesoreria)
+                    ? "CierreTesoreria" : "CierreCajero";
+                saldo = filasCierre.Sum(f => f.Total);
+            }
+
+            var saldoInicial = ingreso?.Monto ?? 0m;
+            // El propio ingreso inicial es un movimiento más dentro de "acumulados" (AcumularAsync
+            // suma TODO lo que tenga IdLote, sin distinguir tipo): se resta acá para que
+            // RendicionTotal quede neta, sin el fondo con el que arrancó el turno.
+            var rendicionTotal = acumulados.Sum(a => a.Total) - saldoInicial;
+
+            resultado.Add(new LoteResumenDto(
+                l.IdSucursal, sucursales.GetValueOrDefault(l.IdSucursal), l.IdLote, l.IdCaja,
+                cajas.GetValueOrDefault(new { l.IdSucursal, l.IdCaja }, $"Caja {l.IdCaja}"),
+                usuarios.GetValueOrDefault(l.IdUsuarioApertura), l.FechaApertura, l.FechaCierre,
+                l.Estado.ToString(), estadoCierre,
+                saldoInicial, rendicionTotal, vueltos.Sum(v => v.Monto),
+                saldoInicial + rendicionTotal, saldo));
+        }
+        return resultado;
+    }
+
+    public async Task<LoteDetalleDto> GetDetalleLoteAsync(int idSucursal, int idLote, CancellationToken ct = default)
+    {
+        _currentUser.AsegurarSucursal(idSucursal);
+
+        var lote = await _db.LotesCaja.AsNoTracking()
+            .FirstOrDefaultAsync(l => l.IdSucursal == idSucursal && l.IdLote == idLote, ct)
+            ?? throw new DomainException("LOTE_INEXISTENTE", "No existe el lote indicado en esa sucursal.");
+
+        var acumulados = await _ejecutor.AcumularAsync(idSucursal, idLote, ct);
+        var ingreso = await _ejecutor.IngresoInicialAsync(idSucursal, idLote, ct);
+        var retiros = await _ejecutor.RetirosAsync(idSucursal, idLote, ct);
+        var vueltos = await _ejecutor.VueltosAsync(idSucursal, idLote, ct);
+        var correcciones = await _ejecutor.CorreccionesAsync(idSucursal, idLote, ct);
+        var anulaciones = await _ejecutor.AnulacionesAsync(idSucursal, idLote, ct);
+
+        var declarado = new List<CierreTurnoDetalleDto>();
+        string? observacionesCajero = null;
+        string? motivoCierreDescripcion = null;
+        if (lote.Estado == EstadoLote.Cerrado)
+        {
+            var medios = await _db.MediosPago.AsNoTracking().ToDictionaryAsync(m => m.IdMedioPago, m => m.Descripcion, ct);
+            var filasCierre = await _db.CierresLotesCaja.AsNoTracking()
+                .Where(c => c.IdSucursal == idSucursal && c.IdLote == idLote).ToListAsync(ct);
+            // Lo DECLARADO es una foto fija de lo que dijo el cajero al cerrar (f.Total no cambia
+            // nunca). La DIFERENCIA, en cambio, se recalcula contra el esperado ACTUAL (no
+            // f.DiferenciaTotal, que quedó congelada al momento del cierre): si Tesorería carga una
+            // corrección después, el esperado se mueve y la diferencia tiene que reflejarlo — mostrar
+            // el esperado nuevo al lado de una diferencia vieja es inconsistente (quedaba en $0 aunque
+            // el esperado ya no coincidiera con lo declarado).
+            declarado = filasCierre.Select(f =>
+            {
+                var esperadoActual = acumulados.FirstOrDefault(a => a.IdMedioPago == f.IdMedioPago)?.Total ?? 0m;
+                var eval = DiferenciaCierreReglas.Evaluar(f.Total, esperadoActual);
+                return new CierreTurnoDetalleDto(f.IdMedioPago,
+                    medios.GetValueOrDefault(f.IdMedioPago, $"Medio {f.IdMedioPago}"),
+                    esperadoActual, f.Total, eval.Diferencia, eval.RequiereMotivo);
+            }).ToList();
+
+            // Mismo valor repetido en todas las filas del cierre (se carga una sola vez, no por
+            // medio): alcanza con tomarlo de la primera.
+            observacionesCajero = filasCierre.FirstOrDefault()?.ObservacionesCajero;
+            if (lote.IdMotivoCierre is int idMotivo)
+                motivoCierreDescripcion = await _db.MotivosCierre.AsNoTracking()
+                    .Where(m => m.IdMotivoCierre == idMotivo).Select(m => m.Descripcion).FirstOrDefaultAsync(ct);
+        }
+
+        return new LoteDetalleDto(idSucursal, idLote, acumulados, declarado, ingreso, retiros, vueltos,
+            correcciones, anulaciones, motivoCierreDescripcion, observacionesCajero);
+    }
+
+    public async Task<IReadOnlyList<MedioPagoLookupDto>> GetMediosPagoAsync(CancellationToken ct = default) =>
+        await _db.MediosPago.AsNoTracking().Where(m => m.Activo).OrderBy(m => m.Descripcion)
+            .Select(m => new MedioPagoLookupDto(m.IdMedioPago, m.Descripcion)).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Pos.Application.Cierres.ComprobanteLoteDto>> GetComprobantesLoteAsync(
+        int idSucursal, int idLote, int? idMedioPago, CancellationToken ct = default)
+    {
+        _currentUser.AsegurarSucursal(idSucursal);
+        if (!await _db.LotesCaja.AsNoTracking().AnyAsync(l => l.IdSucursal == idSucursal && l.IdLote == idLote, ct))
+            throw new DomainException("LOTE_INEXISTENTE", "No existe el lote indicado en esa sucursal.");
+        return await _ejecutor.ComprobantesAsync(idSucursal, idLote, idMedioPago, ct);
+    }
+
     public async Task<IReadOnlyList<MotivoCierreDto>> GetMotivosCierreAsync(CancellationToken ct = default) =>
         await _db.MotivosCierre.AsNoTracking().OrderBy(m => m.Descripcion)
             .Select(m => new MotivoCierreDto(m.IdMotivoCierre, m.Descripcion)).ToListAsync(ct);

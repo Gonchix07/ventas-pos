@@ -48,6 +48,29 @@ public class CajaService : ICajaService
         if (!await _db.Cajas.AnyAsync(c => c.IdSucursal == req.IdSucursal && c.IdCaja == req.IdCaja, ct))
             throw new DomainException("CAJA_INEXISTENTE", "La caja indicada no existe en la sucursal.");
 
+        if (req.MontoInicial < 0)
+            throw new DomainException("MONTO_INVALIDO", "El fondo inicial no puede ser negativo.");
+
+        // Se resuelve ANTES del lock/transacción: es solo lectura y así no se retiene el lock más de
+        // lo necesario si el medio no existe.
+        int? idMedioPagoInicial = null;
+        if (req.MontoInicial > 0)
+        {
+            if (req.IdMedioPago is int idm)
+            {
+                if (!await _db.MediosPago.AsNoTracking().AnyAsync(m => m.IdMedioPago == idm, ct))
+                    throw new DomainException("MEDIO_INEXISTENTE", "El medio de pago indicado no existe.");
+                idMedioPagoInicial = idm;
+            }
+            else
+            {
+                var efectivo = await _db.MediosPago.AsNoTracking().Include(m => m.TipoPago)
+                    .FirstOrDefaultAsync(m => m.TipoPago!.Fuente == FuentePago.Efectivo, ct)
+                    ?? throw new DomainException("SIN_MEDIO_EFECTIVO", "No hay un medio de pago de tipo Efectivo configurado.");
+                idMedioPagoInicial = efectivo.IdMedioPago;
+            }
+        }
+
         // Todo el chequeo "un lote por día" + la generación del próximo IdLote se hace bajo un
         // lock de aplicación por caja+cajero: sin esto, dos aperturas simultáneas del MISMO cajero
         // en la MISMA caja (doble clic, dos pestañas) pueden pasar ambas el chequeo antes de que
@@ -94,6 +117,13 @@ public class CajaService : ICajaService
             // dice nada al cajero.
             throw new DomainException("LOTE_YA_ABIERTO", "Ya existe un lote abierto hoy para este cajero en esta caja.");
         }
+
+        if (idMedioPagoInicial is int idMedio)
+        {
+            await MovimientoManualCajaHelper.RegistrarAsync(_db, req.IdSucursal, req.IdCaja, lote.IdLote,
+                idUsuario, idMedio, req.MontoInicial, TipoMovimientoManual.Ingreso, "Fondo inicial de caja", ct);
+        }
+
         await tx.CommitAsync(ct);
         return await MapAsync(lote, ct);
     }

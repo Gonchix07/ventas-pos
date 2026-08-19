@@ -89,23 +89,19 @@ public class CierreLoteEjecutor
             f.IdComprobanteOrigen is int o ? numerosOrigen.GetValueOrDefault(o) : null)).ToList();
     }
 
-    /// <summary>Prefijo del Concepto que distingue un Vuelto de un retiro manual — ambos comparten
-    /// el mismo mecanismo (<c>IdComprobante == null</c>), ver RetirosAsync/VueltosAsync.</summary>
-    private const string PrefijoConceptoVuelto = "Vuelto";
-
     /// <summary>
-    /// Retiros de efectivo del lote (ver RetiroCajaService). Igual que las notas de crédito, ya
-    /// están restados del acumulado por medio de pago (se registran como movimiento negativo); esto
-    /// es el detalle para que el cajero pueda justificar el faltante. Se identifican por
-    /// <c>IdComprobante == null</c>: ventas y NC siempre tienen un comprobante asociado, un retiro
-    /// nunca lo tiene. Se excluye el Vuelto (mismo mecanismo, ver VueltosAsync) para no listarlo dos veces.
+    /// Retiros del lote (ver RetiroCajaService), de cualquier medio de pago. Igual que las notas de
+    /// crédito, ya están restados del acumulado por medio de pago (se registran como movimiento
+    /// negativo); esto es el detalle para que el cajero pueda justificar el faltante. Se identifican
+    /// por <see cref="TipoMovimientoManual.Retiro"/> — antes se distinguía por un prefijo de texto en
+    /// Concepto, reemplazado para no depender de parsear texto libre.
     /// </summary>
     public async Task<List<RetiroDto>> RetirosAsync(int idSucursal, int idLote, CancellationToken ct)
     {
         var query =
             from mc in _db.MovimientosCaja.AsNoTracking()
-                .Where(m => m.IdSucursal == idSucursal && m.IdLote == idLote && m.IdComprobante == null
-                    && (m.Concepto == null || !m.Concepto.StartsWith(PrefijoConceptoVuelto)))
+                .Where(m => m.IdSucursal == idSucursal && m.IdLote == idLote
+                    && m.TipoManual == TipoMovimientoManual.Retiro)
             join mp in _db.MovimientosPagos.AsNoTracking() on mc.IdMovPagos equals mp.IdMovPagos
             join u in _db.Usuarios.AsNoTracking() on mc.IdUsuario equals u.IdUsuario into uj
             from u in uj.DefaultIfEmpty()
@@ -116,21 +112,102 @@ public class CierreLoteEjecutor
 
     /// <summary>
     /// Vuelto entregado en ventas del lote (ver FacturacionService.EmitirAsync). Mismo mecanismo que
-    /// un retiro (movimiento negativo + <c>IdComprobante == null</c>), discriminado por el prefijo
-    /// del Concepto — ya está restado del acumulado de Efectivo; esto es el detalle para justificarlo.
+    /// un retiro (movimiento negativo + <c>IdComprobante == null</c>), identificado por
+    /// <see cref="TipoMovimientoManual.Vuelto"/> — ya está restado del acumulado de Efectivo; esto es
+    /// el detalle para justificarlo.
     /// </summary>
     public async Task<List<VueltoDto>> VueltosAsync(int idSucursal, int idLote, CancellationToken ct)
     {
         var query =
             from mc in _db.MovimientosCaja.AsNoTracking()
-                .Where(m => m.IdSucursal == idSucursal && m.IdLote == idLote && m.IdComprobante == null
-                    && m.Concepto != null && m.Concepto.StartsWith(PrefijoConceptoVuelto))
+                .Where(m => m.IdSucursal == idSucursal && m.IdLote == idLote
+                    && m.TipoManual == TipoMovimientoManual.Vuelto)
             join mp in _db.MovimientosPagos.AsNoTracking() on mc.IdMovPagos equals mp.IdMovPagos
             join u in _db.Usuarios.AsNoTracking() on mc.IdUsuario equals u.IdUsuario into uj
             from u in uj.DefaultIfEmpty()
             orderby mc.Fecha
             select new VueltoDto(mc.IdMovCaja, mc.Fecha, -mp.Total, mc.Concepto, u != null ? u.NombreUsuario : null);
         return await query.ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Fondo inicial cargado al abrir el turno (ver CajaService.AbrirCajaAsync), si lo hubo. Como
+    /// mucho hay uno por lote — a diferencia de retiros/correcciones, que pueden repetirse.
+    /// </summary>
+    public async Task<IngresoDto?> IngresoInicialAsync(int idSucursal, int idLote, CancellationToken ct)
+    {
+        var query =
+            from mc in _db.MovimientosCaja.AsNoTracking()
+                .Where(m => m.IdSucursal == idSucursal && m.IdLote == idLote
+                    && m.TipoManual == TipoMovimientoManual.Ingreso)
+            join mp in _db.MovimientosPagos.AsNoTracking() on mc.IdMovPagos equals mp.IdMovPagos
+            select new IngresoDto(mc.IdMovCaja, mc.Fecha, mp.IdMedioPago, mp.Total, mc.Concepto);
+        return await query.FirstOrDefaultAsync(ct);
+    }
+
+    /// <summary>
+    /// Correcciones +/- cargadas por Tesorería sobre el lote (ver TesoreriaService.CorregirAsync),
+    /// incluso si el lote ya está cerrado — a diferencia de un retiro, que solo el cajero carga sobre
+    /// su propio lote abierto.
+    /// </summary>
+    public async Task<List<CorreccionDto>> CorreccionesAsync(int idSucursal, int idLote, CancellationToken ct)
+    {
+        var query =
+            from mc in _db.MovimientosCaja.AsNoTracking()
+                .Where(m => m.IdSucursal == idSucursal && m.IdLote == idLote
+                    && m.TipoManual == TipoMovimientoManual.CorreccionTesoreria)
+            join mp in _db.MovimientosPagos.AsNoTracking() on mc.IdMovPagos equals mp.IdMovPagos
+            join u in _db.Usuarios.AsNoTracking() on mc.IdUsuario equals u.IdUsuario into uj
+            from u in uj.DefaultIfEmpty()
+            orderby mc.Fecha
+            select new CorreccionDto(mc.IdMovCaja, mc.Fecha, mp.IdMedioPago, mp.Total, mc.Concepto,
+                u != null ? u.NombreUsuario : null);
+        return await query.ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Comprobantes (facturas y notas de crédito) emitidos en el lote — "ver las ventas hechas en
+    /// ese lote", el popup que se abre al hacer click en un valor por medio de pago. Con
+    /// <paramref name="idMedioPago"/> filtra a los comprobantes que tuvieron un pago en ESE medio, y
+    /// <see cref="ComprobanteLoteDto.MontoEnMedio"/> es lo pagado ahí (no el total del comprobante,
+    /// que puede incluir otros medios si la venta se pagó combinada).
+    /// </summary>
+    public async Task<List<ComprobanteLoteDto>> ComprobantesAsync(int idSucursal, int idLote,
+        int? idMedioPago, CancellationToken ct)
+    {
+        var pagos = await (
+            from mc in _db.MovimientosCaja.AsNoTracking()
+                .Where(m => m.IdSucursal == idSucursal && m.IdLote == idLote && m.IdComprobante != null)
+            join mp in _db.MovimientosPagos.AsNoTracking() on mc.IdMovPagos equals mp.IdMovPagos
+            where idMedioPago == null || mp.IdMedioPago == idMedioPago
+            select new { IdComprobante = mc.IdComprobante!.Value, mp.Total }
+        ).ToListAsync(ct);
+        if (pagos.Count == 0) return new List<ComprobanteLoteDto>();
+
+        var montoPorComprobante = pagos.GroupBy(p => p.IdComprobante)
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.Total));
+        var ids = montoPorComprobante.Keys.ToList();
+
+        var filas = await (
+            from c in _db.CabecerasComprobantes.AsNoTracking()
+                .Where(c => c.IdSucursal == idSucursal && ids.Contains(c.IdComprobante))
+            join t in _db.TiposComprobante.AsNoTracking() on c.IdTipoComprobante equals t.IdTipoComprobante
+            join cli in _db.Clientes.AsNoTracking() on c.IdCliente equals cli.IdCliente into clj
+            from cli in clj.DefaultIfEmpty()
+            orderby c.Fecha
+            select new
+            {
+                c.IdComprobante, c.NumeroCompleto, c.Letra, TipoDescripcion = t.Descripcion,
+                c.Fecha, c.Total, ClienteCodigo = cli != null ? cli.CodigoInt : null,
+                ClienteDescripcion = cli != null ? cli.Descripcion : null
+            }
+        ).ToListAsync(ct);
+
+        // El monto por medio sale de un dictionary armado en memoria (arriba): no se puede traducir
+        // un lookup de Dictionary dentro del select de la query de EF.
+        return filas.Select(f => new ComprobanteLoteDto(f.IdComprobante, f.NumeroCompleto, f.Letra,
+            f.TipoDescripcion, f.Fecha, f.Total, montoPorComprobante[f.IdComprobante],
+            f.ClienteCodigo, f.ClienteDescripcion)).ToList();
     }
 
     /// <summary>

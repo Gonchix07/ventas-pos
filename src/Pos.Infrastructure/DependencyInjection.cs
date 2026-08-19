@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<Pos.Application.Cierres.ICierreZFiscalService, Services.CierreZFiscalService>();
         services.AddScoped<Pos.Application.Caja.IRetiroCajaService, Services.RetiroCajaService>();
         services.AddScoped<Pos.Application.Tesoreria.ITesoreriaService, Services.TesoreriaService>();
+        services.AddScoped<Pos.Application.Cupones.ICuponesService, Services.CuponesService>();
         services.AddScoped<Pos.Application.Etiquetas.IEtiquetaService, Services.EtiquetaService>();
         services.AddScoped<Pos.Application.Estadisticas.IEstadisticasService, Services.EstadisticasService>();
         services.AddScoped<IUsuarioRepository, UsuarioRepository>();

@@ -38,7 +38,9 @@ Caja
 	Agregar funcionalidad de cupones en tarjetas
 	Articulos por peso y barras
 	Notas de credito
-	Retiro de dinero	
+	Retiro de dinero
+	Ingreso de dinero como saldo inicial
+	Imprimir planilla de cierre de caja con el detalle
 	
 Padrones
 	Importar desde archivo de ARBA/ARCA	
@@ -69,5 +71,22 @@ Supervisor
 	Control en cajas
 	Cierre Z
 	
-Caja
-	Cheques?	NO
+Tesoreria 2
+	- Vista por lote de cajero (abiertos y cerrados) por vigencia seleccionada (defecto el dia de ayer). Datos:
+		Nro de Lote
+		Usuario
+		Sucursal
+		Fecha y hora de apertura
+		Fecha y hora de cierre
+		Estado Lote
+		Saldo inicial (falta ingreso de dinero en apertura de turno)
+		Rendicion hasta el momento total
+		Cambio acumulado
+		Saldo (si esta cerrado el turno)
+		Estado cierre (abierto, cierre cajero, cierre tesoreria)		
+		Poder cambiar de estado segun corresponda con sus detalles (cierre de lote de cajero, validacion tesoreria) 
+	- Al hacer click en la fila del punto anterior, en una subfila, apertura del detalle de esa rendicion (misma vista Cajero en cierre)
+		Si esta cerrado se visualiza lso datos que cargo el cajero al cierre (comparacion sistema con los ingresado manual)
+	- Click en apertura de entrega de valores (poder incorporar movimientos de correccion + o -) en un pop up con edicion
+	- Click en cada valor por medio de pago, en un pop up apertura de detalle de comprobantes (ver las ventas hechas en ese lote, cabeceras de facturas)
+	- Otro modulo, apertura de detalle de cupones emitidos filtrados por fecha y cajero (posibilidad de correccion, de datos como nro de lote, tarjeta, plan y nro de cupon)

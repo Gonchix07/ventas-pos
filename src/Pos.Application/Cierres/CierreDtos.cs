@@ -24,11 +24,36 @@ public record RetiroDto(int IdMovCaja, DateTime Fecha, decimal Monto, string? Co
 /// </summary>
 public record VueltoDto(int IdMovCaja, DateTime Fecha, decimal Monto, string? Concepto, string? Usuario);
 
+/// <summary>Fondo inicial cargado al abrir el turno (ver CajaService.AbrirCajaAsync). A diferencia
+/// de retiro/vuelto, suma al esperado en vez de restar.</summary>
+public record IngresoDto(int IdMovCaja, DateTime Fecha, int IdMedioPago, decimal Monto, string? Concepto);
+
+/// <summary>
+/// Corrección +/- cargada por Tesorería sobre el lote (ver TesoreriaService.CorregirAsync), incluso
+/// si ya está cerrado. <see cref="Monto"/> viene con su signo propio (a diferencia de Retiro/Vuelto,
+/// que siempre restan): una corrección puede sumar o restar según haga falta.
+/// </summary>
+public record CorreccionDto(int IdMovCaja, DateTime Fecha, int IdMedioPago, decimal Monto, string? Concepto, string? Usuario);
+
+/// <summary>
+/// Cabecera de un comprobante emitido en el lote (ver CierreLoteEjecutor.ComprobantesAsync) — el
+/// "ver las ventas hechas en ese lote" del popup de detalle por medio de pago. <c>MontoEnMedio</c>
+/// es lo pagado en el medio consultado (si se filtró por uno); si no se filtró, es la suma de TODOS
+/// los medios de ese comprobante (equivalente a <see cref="Total"/> salvo redondeos de vuelto).
+/// </summary>
+public record ComprobanteLoteDto(int IdComprobante, string? NumeroCompleto, string? Letra,
+    string TipoDescripcion, DateTime Fecha, decimal Total, decimal MontoEnMedio,
+    string? ClienteCodigo, string? ClienteDescripcion);
+
 public record ArqueoXResponse(int IdSucursal, int IdLote, int IdCaja, string DescripcionCaja, DateTime FechaApertura,
     List<AcumuladoDto> Acumulados, decimal TotalGeneral, string? Referencia,
     List<AnulacionDto> Anulaciones, decimal TotalAnulaciones,
     List<RetiroDto> Retiros, decimal TotalRetiros,
-    List<VueltoDto> Vueltos, decimal TotalVueltos);
+    List<VueltoDto> Vueltos, decimal TotalVueltos,
+    // Fondo con el que arrancó el turno (ver IngresoDto) — null si se abrió sin fondo. Se agrega acá
+    // (no solo en el reporte impreso) para que la rendición del cajero lo pueda mostrar como
+    // "saldo inicial" junto con el resto de los movimientos del lote.
+    IngresoDto? IngresoInicial);
 
 public record DeclaracionPagoInput(int IdMedioPago, decimal MontoDeclarado);
 
