@@ -1,0 +1,30 @@
+Facturacion 
+	CAE, ELECTRONICA DIRECTA
+	CAEA, ELECTRONICA OFFLINE, PEDIDO DE CAEA QUINCENAL
+	iCARD, CONEXION A WRAPPER LOCALHOST DE CADA PC
+	
+Contingencia 
+	SQL Duplicado Online, SOLO CAMBIO DE IP DEL SERVER DESDE LOS PUESTOS	
+
+Importacion a FOX 
+	- Escritura en MySQL
+	- TEST: 192.168.4.4/Interfase
+	- Base de datos Interfase (IGUAL A NOUS)
+		- cja_movi
+		- cupones
+		- movstock
+		- comision
+		- ivavtas
+		- ctacte
+		- newcheques ?
+		- tmp_cja
+
+Integracion ERP Nuevo >  Ventas POS
+	- Articulo
+	- Clientes
+	- Cta Cte
+	- Precios
+
+
+LIMITANTE SIN CORREGIR: 
+	Las PCs internas de Caja deben estar en la misma subred que el servidor para identificarse (Ej: 192.168.4/24)

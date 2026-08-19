@@ -1,0 +1,460 @@
+<title>POS Mayorista — Diseño de arquitectura</title>
+<style>
+  :root{
+    --paper:#f6f7f6; --surface:#ffffff; --surface-2:#eef1ef;
+    --ink:#16211f; --muted:#5c6b67; --faint:#8a9793;
+    --line:#dde3e0; --line-strong:#c6cfcb;
+    --petrol:#0c6b63; --petrol-soft:#e3efec; --petrol-ink:#0a4f49;
+    --amber:#b26a00; --amber-soft:#f6ecdc;
+    --danger:#a3372e;
+    --shadow:0 1px 2px rgba(22,33,31,.05),0 8px 24px rgba(22,33,31,.06);
+    --mono:ui-monospace,"SFMono-Regular","Cascadia Mono","Consolas",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --maxw:1120px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#0d1413; --surface:#141d1b; --surface-2:#1a2523;
+      --ink:#e2ebe7; --muted:#9db0aa; --faint:#6f817c;
+      --line:#243230; --line-strong:#33443f;
+      --petrol:#4bb3a6; --petrol-soft:#12312d; --petrol-ink:#8fd8ce;
+      --amber:#d99a3f; --amber-soft:#2c2415;
+      --danger:#e0776c;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0d1413; --surface:#141d1b; --surface-2:#1a2523;
+    --ink:#e2ebe7; --muted:#9db0aa; --faint:#6f817c;
+    --line:#243230; --line-strong:#33443f;
+    --petrol:#4bb3a6; --petrol-soft:#12312d; --petrol-ink:#8fd8ce;
+    --amber:#d99a3f; --amber-soft:#2c2415;
+    --danger:#e0776c;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --paper:#f6f7f6; --surface:#ffffff; --surface-2:#eef1ef;
+    --ink:#16211f; --muted:#5c6b67; --faint:#8a9793;
+    --line:#dde3e0; --line-strong:#c6cfcb;
+    --petrol:#0c6b63; --petrol-soft:#e3efec; --petrol-ink:#0a4f49;
+    --amber:#b26a00; --amber-soft:#f6ecdc;
+    --danger:#a3372e;
+    --shadow:0 1px 2px rgba(22,33,31,.05),0 8px 24px rgba(22,33,31,.06);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    line-height:1.6;-webkit-font-smoothing:antialiased;font-size:16px}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  section{padding:52px 0;border-top:1px solid var(--line)}
+  section:first-of-type{border-top:none}
+
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--petrol);font-weight:600;margin:0 0 10px}
+  h1,h2,h3{text-wrap:balance;line-height:1.15;margin:0}
+  h2{font-size:clamp(22px,3.2vw,30px);letter-spacing:-.01em;font-weight:750}
+  h3{font-size:16px;font-weight:700;letter-spacing:-.005em}
+  .lead{color:var(--muted);font-size:17px;max-width:64ch;margin:14px 0 0}
+  .section-intro{color:var(--muted);max-width:70ch;margin:8px 0 30px}
+
+  /* Header */
+  header.hero{padding:64px 0 46px;border-top:none}
+  .kicker{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+    border:1px solid var(--line);border-radius:100px;padding:6px 13px;background:var(--surface)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--petrol)}
+  header.hero h1{font-size:clamp(32px,5.4vw,52px);font-weight:800;letter-spacing:-.025em;margin:22px 0 0}
+  header.hero h1 .accent{color:var(--petrol)}
+  .metagrid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:34px}
+  .metagrid div{background:var(--surface);padding:16px 18px}
+  .metagrid dt{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+  .metagrid dd{margin:6px 0 0;font-weight:650;font-size:15px}
+  @media(max-width:720px){.metagrid{grid-template-columns:repeat(2,1fr)}}
+
+  /* Layer diagram */
+  .diagram{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:12px;box-shadow:var(--shadow);overflow-x:auto}
+  .diagram svg{display:block;width:100%;min-width:640px;height:auto}
+
+  /* Cards grid */
+  .grid{display:grid;gap:16px}
+  .cols-3{grid-template-columns:repeat(3,1fr)}
+  .cols-2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:860px){.cols-3{grid-template-columns:1fr 1fr}}
+  @media(max-width:620px){.cols-3,.cols-2{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;
+    box-shadow:var(--shadow)}
+  .card h3{display:flex;align-items:center;gap:10px}
+  .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--petrol-ink);background:var(--petrol-soft);padding:3px 8px;border-radius:6px;font-weight:600}
+  .card p{margin:11px 0 0;color:var(--muted);font-size:14.5px}
+  .card ul{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px}
+  .card li{position:relative;padding-left:18px;font-size:14px;color:var(--ink)}
+  .card li::before{content:"";position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;
+    background:var(--line-strong)}
+  .roles{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .role{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);
+    border-radius:100px;padding:3px 10px}
+
+  /* Data model domains */
+  .domains{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:860px){.domains{grid-template-columns:1fr 1fr}}
+  @media(max-width:620px){.domains{grid-template-columns:1fr}}
+  .domain{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .domain header{padding:12px 15px;border-top:none;border-bottom:1px solid var(--line);
+    background:var(--surface-2);display:flex;align-items:center;justify-content:space-between}
+  .domain header b{font-size:13px;letter-spacing:.01em}
+  .domain header .n{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .domain ul{margin:0;padding:10px 14px;list-style:none;display:flex;flex-direction:column;gap:5px}
+  .domain li{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .domain li b{color:var(--ink);font-weight:600}
+  .domain.pk header{background:var(--petrol-soft)}
+  .domain.pk header b{color:var(--petrol-ink)}
+
+  /* Ports table */
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow)}
+  table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+  th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+  thead th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--faint);font-weight:600;background:var(--surface-2)}
+  tbody tr:last-child td{border-bottom:none}
+  td code,.mono{font-family:var(--mono);font-size:12.5px;color:var(--petrol-ink);
+    background:var(--petrol-soft);padding:2px 6px;border-radius:5px}
+  .pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 9px;border-radius:100px;font-weight:600}
+  .pill.mock{color:var(--amber);background:var(--amber-soft)}
+  .pill.real{color:var(--petrol);background:var(--petrol-soft)}
+
+  /* Sequence */
+  .seq{display:flex;flex-direction:column;gap:0;counter-reset:step}
+  .step{display:grid;grid-template-columns:auto 1fr;gap:18px;padding:16px 0;border-top:1px dashed var(--line)}
+  .step:first-child{border-top:none}
+  .step .num{counter-increment:step;font-family:var(--mono);font-weight:700;color:var(--petrol);
+    width:34px;height:34px;border-radius:50%;border:1.5px solid var(--petrol);display:grid;place-items:center;
+    font-size:14px}
+  .step .num::before{content:counter(step,decimal-leading-zero)}
+  .step h3{margin-bottom:3px}
+  .step p{margin:0;color:var(--muted);font-size:14px}
+  .step.crit .num{color:var(--amber);border-color:var(--amber)}
+
+  /* Roadmap rail */
+  .rail{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:860px){.rail{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.rail{grid-template-columns:1fr}}
+  .phase{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;
+    position:relative;box-shadow:var(--shadow)}
+  .phase .ph{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+  .phase b{display:block;margin:6px 0 4px;font-size:14.5px}
+  .phase .wk{font-family:var(--mono);font-size:12px;color:var(--petrol)}
+  .phase p{margin:8px 0 0;font-size:13px;color:var(--muted)}
+
+  /* callouts */
+  .note{display:flex;gap:12px;background:var(--amber-soft);border:1px solid var(--line);
+    border-left:3px solid var(--amber);border-radius:10px;padding:14px 16px;margin-top:16px}
+  .note .mono{background:transparent;color:var(--amber);padding:0}
+  .note p{margin:0;font-size:14px}
+  .fix{color:var(--amber);font-family:var(--mono);font-weight:700}
+
+  footer{padding:40px 0 60px;color:var(--faint);font-size:13px;font-family:var(--mono)}
+
+  /* ---- Impresión / export a PDF (fiel a la vista, tema claro) ---- */
+  @page{ size:A3 portrait; margin:14mm; }
+  @media print{
+    :root{
+      --paper:#f6f7f6; --surface:#ffffff; --surface-2:#eef1ef;
+      --ink:#16211f; --muted:#5c6b67; --faint:#8a9793;
+      --line:#dde3e0; --line-strong:#c6cfcb;
+      --petrol:#0c6b63; --petrol-soft:#e3efec; --petrol-ink:#0a4f49;
+      --amber:#b26a00; --amber-soft:#f6ecdc; --danger:#a3372e;
+      --shadow:none;
+    }
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    body{ background:#fff; }
+    .wrap{ max-width:none; }
+    section{ padding:30px 0; break-inside:avoid; }
+    header.hero{ padding:10px 0 30px; }
+    .card,.phase,.domain,.step,.note,.diagram,.tablewrap{ break-inside:avoid; }
+    h2{ break-after:avoid; }
+    footer{ padding:24px 0 0; }
+  }
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:18px;font-size:13px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <span class="kicker"><span class="dot"></span>Especificación de arquitectura · SRS</span>
+    <h1>Sistema de Venta <span class="accent">POS Mayorista</span></h1>
+    <p class="lead">Diseño de un punto de venta para comercio mayorista con clientes identificados,
+    facturación fiscal argentina (ARCA · CAE/CAEA), impresoras Hasar, motor de ofertas y convenios,
+    listas de precios con prioridad y gestión completa de caja y tesorería.</p>
+    <dl class="metagrid">
+      <div><dt>Frontend</dt><dd>React · Vite · TypeScript</dd></div>
+      <div><dt>Backend</dt><dd>.NET 8 · EF Core</dd></div>
+      <div><dt>Base de datos</dt><dd>MS SQL Server (propia)</dd></div>
+      <div><dt>Fiscal / Pagos</dt><dd>Puertos + adaptadores mock</dd></div>
+    </dl>
+  </header>
+
+  <!-- ARQUITECTURA -->
+  <section>
+    <p class="eyebrow">01 — Arquitectura</p>
+    <h2>Clean Architecture con puertos y adaptadores</h2>
+    <p class="section-intro">El dominio no conoce EF ni ARCA: las reglas de negocio —precio final,
+    ofertas, redondeo, percepciones— se prueban sin base de datos ni red. Toda integración externa
+    entra por un puerto con un adaptador intercambiable (mock hoy, real mañana).</p>
+    <div class="diagram">
+      <svg viewBox="0 0 900 470" role="img" aria-label="Diagrama de capas de la arquitectura">
+        <defs>
+          <style>
+            .box{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.5}
+            .lbl{font-family:var(--sans);font-weight:700;font-size:15px;fill:var(--ink)}
+            .sub{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+            .layer{font-family:var(--mono);font-size:11px;letter-spacing:.12em;fill:var(--faint)}
+            .acc{fill:var(--petrol-soft);stroke:var(--petrol);stroke-width:1.5}
+            .accT{fill:var(--petrol-ink);font-family:var(--sans);font-weight:700;font-size:14px}
+            .flow{stroke:var(--line-strong);stroke-width:1.5;fill:none}
+            .amb{fill:var(--amber-soft);stroke:var(--amber);stroke-width:1.5}
+          </style>
+          <marker id="arw" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="var(--line-strong)"/>
+          </marker>
+        </defs>
+
+        <!-- Frontend -->
+        <rect class="acc" x="40" y="20" width="820" height="56" rx="12"/>
+        <text class="accT" x="60" y="44">Frontend · React + Vite + TS</text>
+        <text class="sub" x="60" y="62">Caja · Facturación · Tesorería · Etiquetas · Administración (ABM)</text>
+        <line class="flow" x1="450" y1="76" x2="450" y2="100" marker-end="url(#arw)"/>
+        <text class="sub" x="462" y="93">HTTPS · REST · JWT</text>
+
+        <!-- API -->
+        <rect class="box" x="40" y="104" width="820" height="52" rx="12"/>
+        <text class="lbl" x="60" y="127">API · ASP.NET Core</text>
+        <text class="sub" x="60" y="145">Controllers → MediatR (Commands/Queries) → Validación · Auditoría · Transacción</text>
+
+        <!-- Application -->
+        <rect class="box" x="40" y="164" width="820" height="52" rx="12"/>
+        <text class="lbl" x="60" y="187">Application</text>
+        <text class="sub" x="60" y="205">Casos de uso · DTOs · PUERTOS: IFiscalService · IPaymentProvider · IErpGateway · IMailSender</text>
+
+        <!-- Domain -->
+        <rect class="box" x="40" y="224" width="820" height="52" rx="12"/>
+        <text class="lbl" x="60" y="247">Domain</text>
+        <text class="sub" x="60" y="265">Entidades · MotorOfertas · CalculadoraPrecios · Redondeo · IVA/Percepciones</text>
+
+        <!-- Infrastructure -->
+        <rect class="box" x="40" y="284" width="820" height="52" rx="12"/>
+        <text class="lbl" x="60" y="307">Infrastructure</text>
+        <text class="sub" x="60" y="325">EF Core + MS SQL (repos · UnitOfWork · transacciones) · Adaptadores externos</text>
+
+        <!-- Externals -->
+        <line class="flow" x1="180" y1="336" x2="180" y2="372" marker-end="url(#arw)"/>
+        <line class="flow" x1="450" y1="336" x2="450" y2="372" marker-end="url(#arw)"/>
+        <line class="flow" x1="720" y1="336" x2="720" y2="372" marker-end="url(#arw)"/>
+
+        <rect class="box" x="60" y="376" width="240" height="72" rx="10"/>
+        <text class="lbl" x="80" y="404">MS SQL Server</text>
+        <text class="sub" x="80" y="424">~50 tablas · numeración</text>
+        <text class="sub" x="80" y="440">serializada · auditoría</text>
+
+        <rect class="amb" x="330" y="376" width="240" height="72" rx="10"/>
+        <text class="lbl" x="350" y="404" fill="var(--amber)">Adaptadores MOCK</text>
+        <text class="sub" x="350" y="424">CAE/CAEA · Hasar · MODO</text>
+        <text class="sub" x="350" y="440">MercadoPago · Cuenta DNI</text>
+
+        <rect class="box" x="600" y="376" width="240" height="72" rx="10"/>
+        <text class="lbl" x="620" y="404">Servicios locales</text>
+        <text class="sub" x="620" y="424">iCARD Hasar (LAN)</text>
+        <text class="sub" x="620" y="440">Banco de imágenes · Mail</text>
+
+        <text class="layer" x="40" y="12">CAPAS</text>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--petrol)"></span>Frontend / puerto de entrada</span>
+      <span><span class="sw" style="background:var(--amber)"></span>Adaptadores simulados (fase 1)</span>
+      <span><span class="sw" style="background:var(--line-strong)"></span>Capas y dependencias internas</span>
+    </div>
+  </section>
+
+  <!-- MODULOS -->
+  <section>
+    <p class="eyebrow">02 — Módulos y perfiles</p>
+    <h2>Seis módulos, cinco perfiles</h2>
+    <p class="section-intro">Cada módulo se habilita por permiso de rol. Las operaciones sensibles
+    (anulaciones, notas de crédito, cierre Z, validaciones) exigen Supervisor o Tesorero.</p>
+    <div class="grid cols-3">
+      <div class="card">
+        <h3>Caja <span class="tag">operativa</span></h3>
+        <p>Cobro y armado de la operación con lectura de artículos en cola.</p>
+        <ul><li>Apertura de lote e ingreso de efectivo</li><li>Identificación de cliente (1 campo)</li>
+        <li>Cola de escaneo con stop ante no encontrado</li><li>Arqueo X · consulta de precio · recuperación</li></ul>
+        <div class="roles"><span class="role">Cajero</span><span class="role">Supervisor</span></div>
+      </div>
+      <div class="card">
+        <h3>Facturación <span class="tag">fiscal</span></h3>
+        <p>Emisión con CAE, contingencia CAEA e impresión Hasar.</p>
+        <ul><li>Electrónica / fiscal / presupuesto · A-B</li><li>Notas de crédito asociadas</li>
+        <li>Anulaciones · reimpresiones · refacturaciones</li><li>Medios de pago + redondeo</li></ul>
+        <div class="roles"><span class="role">Cajero</span><span class="role">Supervisor</span></div>
+      </div>
+      <div class="card">
+        <h3>Tesorería <span class="tag">reportes</span></h3>
+        <p>Control de cierres y visión global de la operación diaria.</p>
+        <ul><li>Dashboard por sucursal y total</li><li>Vista de cajas abiertas/cerradas</li>
+        <li>Validación de cierres + motivos</li><li>Reporte por mail · fiscalización CAEA</li></ul>
+        <div class="roles"><span class="role">Administrador</span><span class="role">Tesorero</span></div>
+      </div>
+      <div class="card">
+        <h3>Etiquetas <span class="tag">precios</span></h3>
+        <p>Armado e impresión de etiquetas para góndola.</p>
+        <ul><li>Búsqueda o escaneo de productos</li><li>Selección por sector/línea/familia</li>
+        <li>Formatos fleje · A4 · A5</li></ul>
+        <div class="roles"><span class="role">Repositor</span><span class="role">Administrador</span><span class="role">Tesorero</span></div>
+      </div>
+      <div class="card">
+        <h3>Administración <span class="tag">ABM</span></h3>
+        <p>Datos maestros y configuraciones del sistema.</p>
+        <ul><li>Artículos · clientes · precios · ofertas</li><li>Empresas · sucursales · puntos de venta</li>
+        <li>Usuarios · roles · padrones</li><li>Certificados CAE · límites · redondeo</li></ul>
+        <div class="roles"><span class="role">Administrador</span></div>
+      </div>
+      <div class="card">
+        <h3>Auth <span class="tag">acceso</span></h3>
+        <p>Login que resuelve la caja física según la PC (puesto).</p>
+        <ul><li>JWT + refresh · permisos por módulo</li><li>Challenge de Supervisor en línea</li>
+        <li>Bloqueo por inactividad</li></ul>
+        <div class="roles"><span class="role">Todos</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODELO DE DATOS -->
+  <section>
+    <p class="eyebrow">03 — Modelo de datos · MS SQL</p>
+    <h2>~50 tablas agrupadas por dominio</h2>
+    <p class="section-intro">Se respetan los nombres del SRS y se completan claves, tipos e índices.
+    Montos siempre <span class="mono">DECIMAL(18,4)</span> — nunca punto flotante.</p>
+    <div class="domains">
+      <div class="domain pk">
+        <header><b>Seguridad</b><span class="n">5 tablas</span></header>
+        <ul><li><b>Usuarios</b> · Roles</li><li>Permisos · Modulos</li><li><b>MovimientosAuditoria</b> 🔒</li></ul>
+      </div>
+      <div class="domain">
+        <header><b>Catálogo</b><span class="n">8 tablas</span></header>
+        <ul><li><b>Articulos</b> · Presentaciones</li><li>Barras (EAN13 / DUN)</li><li>Sectores · Lineas · Familias · ModosIva</li></ul>
+      </div>
+      <div class="domain">
+        <header><b>Clientes</b><span class="n">6 tablas</span></header>
+        <ul><li><b>Clientes</b> · ClientesEnCuenta</li><li>ClusterClientes · Autorizados</li><li>TarjetasClientes · TiposTarjeta</li></ul>
+      </div>
+      <div class="domain">
+        <header><b>Estructura comercial</b><span class="n">6 tablas</span></header>
+        <ul><li>Empresas · Sucursales</li><li>PuntosVenta · TiposPuntoVenta</li><li>Cajas · PuestosCaja</li></ul>
+      </div>
+      <div class="domain pk">
+        <header><b>Precios y ofertas</b><span class="n">8 tablas</span></header>
+        <ul><li>ListasPrecios · <b>Precios</b></li><li>Convenios</li><li>CabeceraOfertas · Alcance · Accion · Tipos</li></ul>
+      </div>
+      <div class="domain">
+        <header><b>Pagos</b><span class="n">5 tablas</span></header>
+        <ul><li>MediosPago · TiposPago</li><li>Cupones</li><li>CuentasCorrientes</li></ul>
+      </div>
+      <div class="domain pk">
+        <header><b>Comprobantes</b><span class="n">7 tablas</span></header>
+        <ul><li>Cabecera/Detalle Comprobantes</li><li>TiposComprobante · Asociados</li><li>Operaciones · <b>Numeros</b></li></ul>
+      </div>
+      <div class="domain">
+        <header><b>Caja / cierres</b><span class="n">5 tablas</span></header>
+        <ul><li>MovimientosCaja · MovimientosPagos</li><li>CierresLotesCaja</li><li>MotivosDiferencia · MotivosCierre</li></ul>
+      </div>
+      <div class="domain">
+        <header><b>Fiscal / config</b><span class="n">4 tablas</span></header>
+        <ul><li>CondicionesIva</li><li>PadronIngresosBrutos</li><li>PadronExcepcionIVA · Configuraciones</li></ul>
+      </div>
+    </div>
+    <div class="note">
+      <span class="mono">🔧</span>
+      <p><b>Correcciones de diseño sobre el SRS.</b> El precio y las líneas cuelgan de
+      <span class="fix">idPresentacion</span> (no del artículo), porque cada presentación tiene su unidad×bulto y sus
+      barras. <b>Barras</b> recibe PK propia (una presentación admite varios EAN13 + un DUN). <b>Clave</b> de
+      usuario pasa a hash BCrypt/PBKDF2. <b>MovimientosAuditoria</b> queda sin FK, tal como pide el SRS.</p>
+    </div>
+  </section>
+
+  <!-- FISCAL / PAGOS -->
+  <section>
+    <p class="eyebrow">04 — Fiscal y medios de pago</p>
+    <h2>Un puerto por integración, adaptador mock en fase 1</h2>
+    <p class="section-intro">La fuente del tipo de pago decide el adaptador. El efectivo y la cuenta
+    corriente son internos (reales); el resto se simula hasta tener certificados, hardware y credenciales.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Fuente</th><th>Adaptador</th><th>Endpoint / medio</th><th>Fase 1</th></tr></thead>
+        <tbody>
+          <tr><td>Efectivo</td><td><code>EfectivoProvider</code></td><td>interno · redondeo configurable</td><td><span class="pill real">real</span></td></tr>
+          <tr><td>Cuenta corriente</td><td><code>CuentaCorrienteProvider</code></td><td>interno · control de límite</td><td><span class="pill real">real</span></td></tr>
+          <tr><td>Tarjetas</td><td><code>TarjetaHasarProvider</code></td><td>iCARD local (LAN)</td><td><span class="pill mock">mock</span></td></tr>
+          <tr><td>Billetera MODO</td><td><code>ModoProvider</code></td><td><code>localhost:8888/swagger</code></td><td><span class="pill mock">mock</span></td></tr>
+          <tr><td>MercadoPago</td><td><code>MercadoPagoProvider</code></td><td><code>localhost:8888/api/compramp</code></td><td><span class="pill mock">mock</span></td></tr>
+          <tr><td>Cuenta DNI</td><td><code>CuentaDniProvider</code></td><td>wrapper local</td><td><span class="pill mock">mock</span></td></tr>
+          <tr><td>Transferencia</td><td><code>TransferenciaProvider</code></td><td>conciliación bancaria</td><td><span class="pill mock">mock</span></td></tr>
+          <tr><td>Fiscal CAE/CAEA</td><td><code>IFiscalService</code></td><td>ARCA WSFEv1 · CAEA backup</td><td><span class="pill mock">mock</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="mono">↻</span>
+      <p><b>Contingencia CAE → CAEA.</b> Si ARCA no responde, se reintenta hasta el límite configurado;
+      agotado, se emite con <b>CAEA</b> del período y el comprobante queda en estado <em>Contingencia</em>.
+      Cuando el servicio vuelve, Tesorería informa los comprobantes CAEA.</p>
+    </div>
+  </section>
+
+  <!-- FLUJO DE CAJA -->
+  <section>
+    <p class="eyebrow">05 — Flujo operativo</p>
+    <h2>De la identificación del cliente al cierre Z</h2>
+    <p class="section-intro">La operación se persiste server-side de forma incremental: ante caída de
+    red la caja se recupera desde otra terminal manteniendo el mismo lote.</p>
+    <div class="seq">
+      <div class="step"><span class="num"></span><div><h3>Login y apertura de caja</h3><p>La PC (puesto) determina la caja física. Se abre el lote del día — uno por caja; si ya existe, se retoma.</p></div></div>
+      <div class="step"><span class="num"></span><div><h3>Identificación del cliente</h3><p>Un único campo busca por tarjeta, DNI, código, nombre o domicilio. Resultado único → directo; varios → selección. Muestra lista de precios y convenio.</p></div></div>
+      <div class="step"><span class="num"></span><div><h3>Lectura de artículos en cola</h3><p>Cada escaneo entra en una cola (hilo) que resuelve precio y ofertas. Artículo no encontrado → advertencia y stop hasta resolver.</p></div></div>
+      <div class="step"><span class="num"></span><div><h3>Ofertas y finalización</h3><p>El motor recalcula ofertas por cada artículo. Se cierra la operación con totales al ticket y código con barra/QR.</p></div></div>
+      <div class="step crit"><span class="num"></span><div><h3>Pago y facturación (saga)</h3><p>Reservar número → autorizar pago → solicitar CAE/CAEA → persistir → imprimir. Cada paso tiene compensación: un fallo no deja comprobante fiscal a medias.</p></div></div>
+      <div class="step crit"><span class="num"></span><div><h3>Rendición final · cierre Z</h3><p>Confirmación manual por medio de pago. El cierre Z es <b>irreversible</b>, calcula diferencias con motivo y queda pendiente de validación de tesorería.</p></div></div>
+    </div>
+    <div class="note">
+      <span class="mono">§</span>
+      <p><b>Numeración sin saltos.</b> El número se toma con bloqueo pesimista dentro de la transacción y
+      solo se consume al llegar al punto de no retorno — nunca duplicados ni huecos en la secuencia fiscal.</p>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section>
+    <p class="eyebrow">06 — Roadmap</p>
+    <h2>Ocho fases, cada una demostrable</h2>
+    <p class="section-intro">Estimaciones gruesas para dimensionar, no compromisos. Los adaptadores
+    reales llegan al final, cuando el flujo completo ya está probado contra mocks.</p>
+    <div class="rail">
+      <div class="phase"><span class="ph">Fase 0</span><b>Fundación</b><span class="wk">~1 sem</span><p>Solución .NET + React, DbContext + migración inicial, auth y auditoría, CI.</p></div>
+      <div class="phase"><span class="ph">Fase 1</span><b>Datos maestros · ABM</b><span class="wk">~2 sem</span><p>CRUD de estructura, catálogo, clientes, listas de precios y padrones.</p></div>
+      <div class="phase"><span class="ph">Fase 2</span><b>Precios y ofertas</b><span class="wk">~2 sem</span><p>Calculadora de precios, motor de ofertas y batería de tests de negocio.</p></div>
+      <div class="phase"><span class="ph">Fase 3</span><b>Caja</b><span class="wk">~3 sem</span><p>Lote, cola de escaneo, operación, arqueo X, recuperación y avisos.</p></div>
+      <div class="phase"><span class="ph">Fase 4</span><b>Facturación</b><span class="wk">~3 sem</span><p>Saga con compensación, CAE/CAEA mock, medios de pago, notas de crédito.</p></div>
+      <div class="phase"><span class="ph">Fase 5</span><b>Cierres · Tesorería</b><span class="wk">~2 sem</span><p>Cierre Z, dashboard, validaciones, reporte por mail, CAEA.</p></div>
+      <div class="phase"><span class="ph">Fase 6</span><b>Etiquetas</b><span class="wk">~1 sem</span><p>Armado de listas y formatos fleje / A4 / A5.</p></div>
+      <div class="phase"><span class="ph">Fase 7</span><b>Realidad</b><span class="wk">continuo</span><p>Adaptadores reales ARCA, Hasar, MODO, MP y pruebas de carga.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    POS Mayorista · documento de diseño derivado del SRV "Sistema de Venta POS" · fase: solo arquitectura
+  </footer>
+
+</div>

@@ -1,0 +1,322 @@
+
+===== PAG 1 =====
+Impresoras Fiscales 2G – HASAR 
+Modelo SMH/PT-250F v02.00
+         Diferencias con la versión 01.00
+                            Rev 001                        
+===== PAG 2 =====
+                           Compañía HASAR SAIC – Impresora fiscal 2G – Modelo SMH/PT-250F v02.00
+Sumario
+Diferencias con la versión 01.00............................................................................................................................... 3
+Generalidades...................................................................................................................................................... 3
+Comandos modificados....................................................................................................................................... 3
+Nuevos comandos............................................................................................................................................... 5
+Novedades operativas.......................................................................................................................................... 7
+1. El Facturador Remoto................................................................................................................................. 8
+2. El Configurador del Facturador Remoto...................................................................................................... 8
+3. El emulador para la versión v02.00............................................................................................................. 9
+4. Tecnología REST.......................................................................................................................................... 9
+::: 2 :::
+===== PAG 3 =====
+                           Compañía HASAR SAIC – Impresora fiscal 2G – Modelo SMH/PT-250F v02.00
+Diferencias con la versión 01.00
+Generalidades
+La impresora fiscal 2G modelo SMH/PT-250F v02.00 es una nueva versión homologada por HASAR. Este docu -
+mento presenta las diferencias respecto de la versión anterior (01.00) para el mismo modelo.
+Se presenta la lista de comandos/respuestas ya existentes, pero que han sufrido modificaciones (agregado de
+campos), la lista de nuevos comandos, y las novedades operativas que son un valor agregado muy importante a
+considerar a la hora de elegir una impresora fiscal de segunda generación (o nueva tecnología).
+IMPORTANTE
+Quien ya viene soportando en su software a la versión 01.00 del modelo SMH/PT-250F, no debería hacer cambios
+para soportar a la versión 02.00 (salvo que quiera utilizar las modificaciones de comandos/respuestas aquí ex -
+puestas), pero debe tener en cuenta el protocolo soportado por la impresora fiscal 2G, y el soportado por la he -
+rramienta de comunicación (OCX 2G, DLL ‘.Net’, o Librería de JAVA). La herramienta debe soportar un protocolo
+igual o mayor al soportado por la impresora fiscal 2G a manejar.
+Ejemplos:
+                                                       SMH/PT-250F v01.00                 SMH/PT-250F v02.00
+Si en el caso del modelo SMH/PT-250F v02.00, el protocolo manejado por el OCX 2G fuera inferior a ‘2’, habría
+problemas compatibilidad de protocolo.
+Los desarrolladores de software no deben descuidar este aspecto al querer manejar impresoras fiscales 2G de
+distinto modelo y/o versión.                                                               
+Comandos modificados
+• Comando: AbrirDocumento
+Campos de entrada: Sin cambios.
+Campos de salida: Se agrega un nuevo campo.
+IndiceAuditoría: Número de orden del documento dentro de la jornada fiscal.
+• Comando: CerrarDocumento
+Campos de entrada: Sin cambios.
+Campos de salida: Se agrega un nuevo campo.
+IndiceAuditoría: Número de orden del documento dentro de la jornada fiscal.
+ • Comando: ConfigurarRed
+Campos de entrada: Se agrega un nuevo campo.
+DHCP: Activar DHCP.
+Campos de salida: Sin cambios.
+ 
+• Comando: ConfigurarServidorCorreo
+Campos de entrada: Se agregan dos nuevos campos.
+Usuario: Usuario del servidor SMTP.
+Clave: Clave del servidor SMTP.
+Campos de salida: Sin cambios.
+::: 3 :::
+
+===== PAG 4 =====
+                           Compañía HASAR SAIC – Impresora fiscal 2G – Modelo SMH/PT-250F v02.00
+• Comando: ConsultarCapacidadZetas
+Campos de entrada: Sin cambios.
+Campos de salida: Se agregan 23 nuevos campos.
+UltimaZetaBajada: Ultima jornada fiscal descargada.
+UltimaZetaBorrable: Ultima jornada fiscal susceptible de ser borrada.
+FechaUltimaBajada: Fecha de la última vez que se hizo una bajada de AFIP.
+FechaUltimaZetaBajada: Fecha de la última jornada fiscal descargada.
+DigestosGrabados: Cantidad de digestos guardados en la memoria fiscal.
+DigestosDisponibles: Cantidad de digestos que aún pueden almacenarse en la memoria fiscal.
+FechaJornadaActual: Fecha de la jornada fiscal en curso.
+UmbralMemoriaFiscalLlena: Valor a partir del cual no es posible seguir cerrando jornadas fisca-
+les.
+UmbralMemoriaFiscalCasiLlena: Valor a partir del cual se empieza a advertir que la memoria fis-
+cal está en agotamiento.
+PrimeraZetaEnMemoriaAuditoría: Primera jornada fiscal almacenada en memoria de auditoría.
+UltimaZetaEnMemoriaAuditoria: Ultima jornada fiscal almacenada en memoria de auditoría.
+AlmacenamientoTotalMemoriaAuditoria: Cantidad de bytes totales en memoria de auditoría.
+AlmacenamientoLibreMemoriaAuditoria: Cantidad de bytes libres en memoria de auditoría.
+UmbralMemoriaAuditoriaLlena: Valor a partir del cual no es posible seguir almacenando jorna-
+das en memoria de auditoría.
+UmbralMemoriaAuditoriaCasiLlena: Valor a partir del cual se empieza a advertir que la memoria 
+de auditoría está en agotamiento.
+AlmacenamientoSecundario: Indica si hay almacenamiento extendido disponible para memoria 
+de auditoría.
+BajasAnteriores: Cantidad de veces que se ha dado de baja el controlador fiscal 2G con anteriori-
+dad.
+BytesMemoriaDinamicaUsada: Cantidad de bytes utilizados en la memoria RAM del controlador 
+fiscal 2G.
+BytesMemoriaDinamicaLibre: Cantidad de bytes disponibles en la memoria RAM del controlador 
+fiscal 2G.
+BytesAlmacenamientoPrincipal: Cantidad de bytes totales en el almacenamiento persistente pri-
+mario.
+BytesAlmacenamientoPrincipalLibre: Cantidad de bytes disponibles en el almacenamiento persis-
+tente primario.
+BytesAlmacenamientoSecundario: Cantidad de bytes totales en el almacenamiento persistente 
+secundario.
+BytesAlmacenamientoSecundarioLibre: Cantidad de bytes disponibles en el almacenamiento per-
+sistente secundario.
+• Comando: ConsultarConfiguracionRed
+Campos de entrada: Sin cambios.
+Campos de salida: Se agrega un nuevo campo.
+DHCP: DHCP en funciones.
+• Comando: ConfigurarConfiguraciónServidorCorreo
+Campos de entrada: Sin cambios. 
+Campos de salida: Se agregan dos nuevos campos.
+Usuario: Usuario del servidor SMTP.
+Clave: Clave del servidor SMTP.
+• Comando: ConsultarDatosInicializacion
+Campos de entrada: Sin cambios.
+Campos de salida: Se agrega un nuevo campo.
+FechaInicioActividadesCompleta: Fecha de inicio de actividades (año con todos los dígitos).
+::: 4 :::
+===== PAG 5 =====
+                           Compañía HASAR SAIC – Impresora fiscal 2G – Modelo SMH/PT-250F v02.00
+• Comando: ConsultarSubtotal
+Campos de entrada: Sin cambios.
+Campos de salida: Se agrega un nuevo campo.
+AjusteRedondeo: Diferencia entre los totales internos y lo impreso.
+• Comando: ConsultarZona
+Campos de entrada: Sin cambios.
+Campos de salida: Se agrega un nuevo campo.
+MaximaCantidadLineas: Máxima cantidad de líneas admitida en la zona.
+• Comando: CopiarComprobante
+Campos de entrada: Se agrega un nuevo campo.
+Imprimir: Imprimir copia.
+Campos de salida: Se agregan dos nuevos campos.
+Zeta: Número de zeta donde se encuentra el comprobante.
+Indice: Número de índice de memoria de auditoría donde se encuentra el comprobante.
+• Comando: ImprimirAjuste
+Campos de entrada: Sin cambios.
+Campos de salida: Se agregan 2 nuevos campos.
+IndiceAuditoría: Número de orden del registro del comando dentro del comprobante.
+CantidadIVAs: Cantidad de alícuotas de IVA.
+• Comando: ImprimirAnticipoBonificacionEnvases
+Campos de entrada: Sin cambios.
+Campos de salida: Se agrega un nuevo campo.
+IndiceAuditoría: Número de orden del registro del comando dentro del comprobante.
+• Comando: ImprimirDescuentoItem
+Campos de entrada: Sin cambios.
+Campos de salida: Se agrega un nuevo campo.
+IndiceAuditoría: Número de orden del registro del comando dentro del comprobante.
+• Comando: ImprimirItem
+Campos de entrada: Sin cambios.
+Campos de salida: Se agrega un nuevo campo.
+IndiceAuditoría: Número de orden del registro del comando dentro del comprobante.
+• Comando: ImprimirPago
+Campos de entrada: Se agrega un nuevo campo.
+Referencia: Número de referencia.
+Campos de salida: Sin cambios.
+Nuevos comandos
+• Comando: AnularItem
+Campos de entrada:
+IndiceAuditoria: Indice de auditoría electrónica al registro a anular.
+Campos de salida:
+IndiceAuditoria: Indice de auditoría electrónica al registro de anulación.
+• Comando: ConsultarCantidadIvasOtrosTributos
+Campos de entrada: Ninguno.
+Campos de salida:
+::: 5 :::
+===== PAG 6 =====
+                           Compañía HASAR SAIC – Impresora fiscal 2G – Modelo SMH/PT-250F v02.00
+CantiddAlicuotasIVA: Cantidad máxima de alícuotas de IVA soportadas.
+CantidadOtrosTributos: Cantidad máxima de otros tributos soportados.
+• Comando: ConsultarDatosFacturaElectrónica
+   (válido únicamente cuando se trabaja contra el emulador-FE. No aplica contra la impresora fiscal 2G física)
+Campos de entrada: Ninguno.
+Campos de salida:
+CodigoAutorizacion: Código de la autorización.
+TipoAutorizacion: CAE, CAEA, etc..
+PuntoVentaAutorizacion: Punto de venta AFIP.
+VigenciaDesde: Fecha.
+VigenciaHasta: Fecha.
+NumeroComprobanteAutorizado: Numero de comprobante AFIP.
+Observaciones1: Texto.
+Observaciones2: Texto.
+Observaciones3: Texto.
+Errores1: Texto.
+Errores2: Texto.
+Errores3: Texto.
+URLComprobante: URL del comprobante en formato electrónico.
+NOTA: 
+El comando ConsultarDatosFacturaElectrónica es útil para un software que maneja impresoras fiscales 2G y, sin realizar
+cambios, quiere emitir factura electrónica. Necesita tener instalado el emulador-FE y el servidor HASAR-FE.
+• Comando: ConsultarEstadoFacturaElectrónica
+   (válido cuando se trabaja contra el emulador-FE. No aplica contra la impresora fiscal 2G física)
+Campos de entrada: Ninguno.
+Campos de salida:
+Modo: Modo de operación  (homologación/producción).
+ComunicacionServidorLocal: Funcionando/No funcionando/No comprobado.
+ComunicacionServidorAFIP: Funcionando/No funcionando/No comprobado.
+ServidorAFIPOperando: Funcionando/No funcionando/No comprobado.
+DescripcionEstado: Estado o causa de error.
+NOTA: 
+El comando ConsultarEstadoFacturaElectrónica es útil para un software que maneja impresoras fiscales 2G y, sin realizar
+cambios, quiere emitir factura electrónica. Necesita tener instalado el emulador-FE y el servidor HASAR-FE.
+• Comando: ConsultarInformacionAritmetica
+Campos de entrada: 
+IndiceAuditoria: Indice de auditoría electrónica.
+IndiceDiscriminacionIVA: Indice de discriminación para prorrateos.
+Campos de salida: 
+Cantidad: Cantidad de ítems.
+PrecioUnitarioBase: Precio unitario sin impuestos.
+PrecioUnitarioTotal: Precio unitario con impuestos incluidos.
+CondicionIVA: Gravado/No Gravado/Exento.
+TasaIVA: Alícuota de IVA aplicada, vacío si no aplica.
+MontoIVA: Monto de IVA total real acumulado.
+MontoImpuestosInternos: Monto de impuestos internos total real acumulado.
+ImpuestosInternosFijos: Es impuesto interno fijo.
+MontoBase: Monto final real acumulado sin impuestos incluidos.
+MontoTotal: Monto final real acumulado con impuestos incluidos.
+MontoIVAImpreso: Monto de IVA total según impresión.
+MontoImpuestosInternosImpreso: Monto de impuestos internos total según impresión.
+::: 6 :::
+===== PAG 7 =====
+                           Compañía HASAR SAIC – Impresora fiscal 2G – Modelo SMH/PT-250F v02.00
+MontoBaseImpreso: Monto final sin impuestos incluidos según impresión.
+MontoTotalImpreso: Monto final con impuestos incluidos según impresión.
+• Comando: ConsultarInformacionBloqueo
+Campos de entrada: Ninguno
+Campos de salida: 
+CodigoBloqueo: Identificador del error.
+Descripcion: Texto.
+Contexto: Texto.
+BloqueosAnteriores: Cantidad de veces que se ha bloqueado el controlador fiscal 2G con anterio-
+ridad.
+MaximaCantidadBloqueos: Máxima cantidad permitida de bloqueos.
+• Comando: ConsultarParametroHardware
+Campos de entrada:
+Parametro: Parámetro que se desea consultar.
+Campos de salida:
+Unidades: Unidades en que se informa.
+Actual: Valor actual.
+Acumulado: Valor acumulado total (puede estar vacío).
+Referencia: Valor de referencia del fabricante (puede estar vacío).
+• Comando: ConsultarUltimaConexion
+Campos de entrada: Ninguno
+Campos de salida: 
+IdentificadorConexion: Identificador de la interfaz por la que se realizó la última conexión.
+Fecha: Fecha en la que se realizó la última conexión.
+Hora: Hora en la que se realizó la última conexión.
+• Comando: ConsultarVigenciaCertificados
+Campos de entrada: Ninguno
+Campos de salida: 
+Nombre: Nombre del certificado a vencer.
+FechaDesde: Fecha inicial de validez.
+HoraDesde: Hora inicial de validez.
+FechaHasta: Fecha final de validez.
+HoraHasta: Hora final de validez.
+CRTValido: ¿ El certificado CRT es válido?.
+CadenaAFIPValida: ¿ Los certificados de la AFIP son válidos?.
+• Comando: ImprimirTextoPruebaPeriféricos
+Campos de entrada:
+Atributos: Atributos del texto.
+Texto: Texto a imprimir.
+Campos de salida:
+Ninguno.
+Novedades operativas
+NOTA
+Para poder acceder al beneficio de estas novedades operativas, la impresora fiscal 2G modelo SMH/PT-250F v02.00 debe
+estar conectada en red.
+::: 7 :::
+===== PAG 8 =====
+                           Compañía HASAR SAIC – Impresora fiscal 2G – Modelo SMH/PT-250F v02.00
+Para acceder a las novedades operativas sólo se necesita de un navegador de internet, conectarse a la impresora
+fiscal SMH/PT-250F v02.00 y listo.
+1. El Facturador Remoto
+Convierte a la impresora fiscal 2G modelo SMH/PT-250F v02.00 en una registradora fiscal 2G.
+Basta con  especificar en el navegador de internet la siguiente URL:
+http://nnn.nnn.nnn.nnn:8082/ecr-ui.html     
+Donde  “nnn.nnn.nnn.nnn” es la dirección IP programada en la impresora fiscal 2G modelo SMH/PT-250F v02.00.
+Esto permite contener a dos tipos de equipos fiscales 2G en uno solo: la impresora fiscal 2G SMH/PT-250F v 02.00
+(requiere software de facturación), y una registradora fiscal 2G que no requiere de un software externo; o bien,
+puede ser un reemplazo temporal ante inconvenientes con el software o la PC donde éste se ejecuta (y así poder
+seguir facturando).
+La interfaz de usuario del Facturador Remoto tiene un aspecto similar al siguiente:
+2. El Configurador del Facturador Remoto
+Permite cargar los registros de las bases de datos a utilizar en el Facturador Remoto (empleados, artículos, me -
+dios de pago, etc..), y las preferencias de comportamiento de éste.
+Basta con  especificar en el navegador de internet la siguiente URL:
+http://nnn.nnn.nnn.nn:8082/indexcfg.html
+Donde  “nnn.nnn.nnn.nnn” es la dirección IP programada en la impresora fiscal 2G modelo SMH/PT-250F v02.00.
+La interfaz de usuario del configurador del Facturador Remoto tiene un aspecto similar al siguiente:
+::: 8 :::
+
+===== PAG 9 =====
+                           Compañía HASAR SAIC – Impresora fiscal 2G – Modelo SMH/PT-250F v02.00
+NOTA:
+El Facturador Remoto y su Configurador no pueden ejecutarse al mismo tiempo.
+En el paquete de herramientas se incluyen los PDFs que describen el uso del Facturador Remoto y su Configurador.
+3. El emulador para la versión v02.00
+Es importante tener en cuenta que así como hay (o puede haber) diferencias entre distintos modelos y/o versio -
+nes de impresoras fiscales 2G, también hay emuladores asociados a los distintos modelos y/o versiones.
+En el paquete de herramientas correspondiente se incluye al emulador asociado a la impresora fiscal 2G modelo
+SMH/PT-250F v02.00.
+4.  Tecnología REST
+Se admite el intercambio de mensajes en formato XML o JSON para acceder a distintos recursos disponibles en la
+impresora fiscal SMH/PT-250F v02.00.
+• Acceso a las bases de datos internas de la impresora fiscal SMH/PT-250F v02.00, con objeto de realizar 
+altas, bajas y/o modificaciones. La mayoría de las bases de datos están relacionadas con el uso del  
+Facturador Remoto.
+• Extracción de información desde la CTD (cinta testigo digital, o memoria de auditoría). Se pueden  
+extraer jornadas fiscales completas y/o documentos específicos.
+NOTA:
+En el paquete de herramientas se incluye el PDF que describe los recursos accesibles mediante tecnología REST en ambos
+casos.
+::: 9 :::
+
+===== PAG 10 =====
+                           Compañía HASAR SAIC – Impresora fiscal 2G – Modelo SMH/PT-250F v02.00
+::: 10 :::
+  Abril 20, 2021 -  Rev. 001
+                                                             COPYRIGHT © 2021 - Compañía HASAR SAIC
+  _ El presente documento se halla sujeto a cambios sin previo aviso.
+  _ Compañía HASAR SAIC no asume responsabilidad alguna por errores u omisiones contenidas en este documen-  
+     to, ni asume responsabilidad alguna por los datos y/o perjuicios que el uso de esta información pudiera causar.
+  _ Este documento no puede ser reproducido, total o parcialmente, ni almacenado para su posterior reproducción 
+     por cualquier método o medio, sin autorización escrita de Compañía HASAR SAIC.            
+ Marcos Sastre 2214 [B1618CSD] Ricardo Rojas | Tigre | Buenos Aires | Argentina
+       Tel: [54.11] 4117.8900 | Fax: [54.11] 4117.8998 | www.grupohasar.com 

@@ -1,0 +1,73 @@
+
+**********************************	
+OK	- Aplicados
+----------------------------------	
+
+Ticket Factura
+	Formato
+	
+Articulos
+	Encadenar Sector / Familia	
+	
+Clientes
+	Agregar Nombre de fantasia
+	Autorizados y funcion 	
+	
+Tarjetas	
+	Cambiar Busqueda por cliente
+	Planes
+	Numero de terminales por caja
+	
+Lista de Precios
+	Cambiar Busqueda de Articulos
+	
+Cuenta Corriente
+	Formato de pesos
+	
+Tipos de Puntos de Venta
+	Quitar, ya el tipo debe estar predeterminado
+		ELECTRONICA - va a ARCA, usa comandera
+		FISCAL - usa DLL Hasar, impresora fiscal
+		PRESUPUESTO - local, usa comandera
+		
+Punto de venta
+	Incorporar a cada
+		FISCAL - IP CONTROLADOR		
+		
+Caja
+	Agregar funcionalidad de cupones en tarjetas
+	Articulos por peso y barras
+	Notas de credito
+	Retiro de dinero	
+	
+Padrones
+	Importar desde archivo de ARBA/ARCA	
+
+Ofertas
+	Dar funcionalidad a cada tipo
+	Invertir posicion Alcance Accion
+	Ofertas por medios de pago
+	
+Tipos de ofertas
+	Quitar edicion
+	
+Facturacion 
+	FISCAL
+
+Ventas
+	Estadisticas	
+	
+Empresa
+	Importar certificado electronico
+	
+Cuenta Corriente
+	Gestion de cobranzas o alimentar saldos desde API
+	
+Presupuestos
+
+Supervisor
+	Control en cajas
+	Cierre Z
+	
+Caja
+	Cheques?	NO

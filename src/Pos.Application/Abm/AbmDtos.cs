@@ -1,0 +1,105 @@
+﻿namespace Pos.Application.Abm;
+
+// ---- Tipos y Medios de Pago ----
+public record TipoPagoDto(int IdTipoPago, string Descripcion, int Fuente, string FuenteDescripcion,
+    int Canal, string CanalDescripcion, int CantidadMedios);
+public record TipoPagoInput(string Descripcion, int Fuente, int Canal);
+
+public record MedioPagoDto(int IdMedioPago, string Descripcion, int IdTipoPago, string? TipoPagoDescripcion,
+    int Canal, string? CanalDescripcion, bool EsPredeterminado, bool Activo, bool ImprimeComprobante,
+    int? IdCluster, string? ClusterDescripcion);
+/// <summary>IdCluster null = el medio lo puede usar cualquier cliente.</summary>
+public record MedioPagoInput(string Descripcion, int IdTipoPago, bool EsPredeterminado, bool Activo,
+    bool ImprimeComprobante, int? IdCluster);
+
+// Plan de cuotas de un medio de pago (solo Tarjeta — se valida en CreatePlanAsync, no hay
+// restricción de esquema porque el Fuente vive en TipoPago, no en MedioPago).
+public record PlanCuotaDto(int IdPlan, int IdMedioPago, string Denominacion, int CantidadCuotas);
+public record PlanCuotaInput(string Denominacion, int CantidadCuotas);
+
+public interface IPagoAdminService
+{
+    Task<IReadOnlyList<TipoPagoDto>> GetTiposAsync(CancellationToken ct = default);
+    Task<int> CreateTipoAsync(TipoPagoInput input, CancellationToken ct = default);
+    Task<bool> UpdateTipoAsync(int id, TipoPagoInput input, CancellationToken ct = default);
+    Task<bool> DeleteTipoAsync(int id, CancellationToken ct = default);
+
+    Task<IReadOnlyList<MedioPagoDto>> GetMediosAsync(CancellationToken ct = default);
+    Task<int> CreateMedioAsync(MedioPagoInput input, CancellationToken ct = default);
+    Task<bool> UpdateMedioAsync(int id, MedioPagoInput input, CancellationToken ct = default);
+    Task<bool> DeleteMedioAsync(int id, CancellationToken ct = default);
+
+    Task<IReadOnlyList<PlanCuotaDto>> GetPlanesAsync(int idMedioPago, CancellationToken ct = default);
+    Task<int> CreatePlanAsync(int idMedioPago, PlanCuotaInput input, CancellationToken ct = default);
+    Task<bool> UpdatePlanAsync(int idPlan, PlanCuotaInput input, CancellationToken ct = default);
+    Task<bool> DeletePlanAsync(int idPlan, CancellationToken ct = default);
+}
+
+// ---- Empresas y Sucursales ----
+// Los datos fiscales (condición IVA, Ing. Brutos, inicio de actividad) y el domicilio son los que
+// encabezan la factura A/B, por eso viven en la empresa y no en una configuración suelta.
+public record EmpresaDto(int IdEmpresa, string CodigoInterno, string Descripcion, string? Cuit, string? CertificadoAlias,
+    string? CondicionIva, string? IngresosBrutos, DateTime? InicioActividad,
+    string? Domicilio, string? Localidad, string? Provincia, string? CodigoPostal);
+public record EmpresaInput(string CodigoInterno, string Descripcion, string? Cuit, string? CertificadoAlias,
+    string? CondicionIva, string? IngresosBrutos, DateTime? InicioActividad,
+    string? Domicilio, string? Localidad, string? Provincia, string? CodigoPostal);
+
+// El domicilio de la sucursal, si está cargado, es el que sale impreso en la factura.
+public record SucursalDto(int IdSucursal, int IdEmpresa, string? EmpresaDescripcion, string Descripcion,
+    string? Domicilio, string? Localidad, string? Provincia, string? CodigoPostal);
+public record SucursalInput(int IdEmpresa, string Descripcion,
+    string? Domicilio, string? Localidad, string? Provincia, string? CodigoPostal);
+
+// El certificado (.pfx/.p12) se guarda en disco del servidor, no en la base; acá solo viaja la
+// metadata para mostrar el estado en el ABM. La contraseña nunca se expone de vuelta al front.
+public record CertificadoCaeDto(bool Presente, string? NombreArchivo, DateTime? Vencimiento, DateTime? SubidoUtc);
+
+public interface IEstructuraService
+{
+    Task<IReadOnlyList<EmpresaDto>> GetEmpresasAsync(CancellationToken ct = default);
+    Task<int> CreateEmpresaAsync(EmpresaInput input, CancellationToken ct = default);
+    Task<bool> UpdateEmpresaAsync(int id, EmpresaInput input, CancellationToken ct = default);
+    Task<bool> DeleteEmpresaAsync(int id, CancellationToken ct = default);
+
+    Task<CertificadoCaeDto> GetCertificadoAsync(int idEmpresa, CancellationToken ct = default);
+    Task<CertificadoCaeDto> SubirCertificadoAsync(int idEmpresa, byte[] contenidoPfx, string nombreArchivo, string clave, CancellationToken ct = default);
+    // Alternativa cuando no se tiene un .pfx ya armado: ARCA solo entrega el certificado (.crt/.cer)
+    // firmado a partir de un CSR — la clave privada (.key) la genera quien tramita el certificado y
+    // nunca pasa por ARCA. Acá se combinan ambos en el mismo almacenamiento que usa el flujo .pfx.
+    Task<CertificadoCaeDto> SubirCertificadoDesdeClaveYCertAsync(int idEmpresa, byte[] clavePrivadaPem, byte[] certificadoBytes,
+        string? passphraseClavePrivada, CancellationToken ct = default);
+    Task<bool> EliminarCertificadoAsync(int idEmpresa, CancellationToken ct = default);
+
+    Task<IReadOnlyList<SucursalDto>> GetSucursalesAsync(CancellationToken ct = default);
+    Task<int> CreateSucursalAsync(SucursalInput input, CancellationToken ct = default);
+    Task<bool> UpdateSucursalAsync(int id, SucursalInput input, CancellationToken ct = default);
+    Task<bool> DeleteSucursalAsync(int id, CancellationToken ct = default);
+}
+
+// ---- Configuraciones ----
+public record ConfiguracionDto(int IdConfiguracion, string Clave, string Descripcion, string? Valor);
+public record ConfiguracionInput(string Clave, string Descripcion, string? Valor);
+
+public interface IConfiguracionAdminService
+{
+    Task<IReadOnlyList<ConfiguracionDto>> GetAllAsync(CancellationToken ct = default);
+    Task<int> CreateAsync(ConfiguracionInput input, CancellationToken ct = default);
+    Task<bool> UpdateAsync(int id, ConfiguracionInput input, CancellationToken ct = default);
+    Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+}
+
+// ---- Conexión a datos externa (MySQL) ----
+// Fila única (singleton): a futuro, la aplicación deposita en esta base datos para que los consuma
+// otro sistema. TieneContrasena reemplaza al valor real en la lectura (nunca se devuelve
+// descifrada); en el Input, Password null/vacío = conservar la contraseña ya guardada.
+public record ConexionExternaMySqlDto(string Host, int Puerto, string BaseDatos, string Usuario,
+    bool TieneContrasena, bool Habilitada);
+public record ConexionExternaMySqlInput(string Host, int Puerto, string BaseDatos, string Usuario,
+    string? Password, bool Habilitada);
+
+public interface IConexionExternaAdminService
+{
+    Task<ConexionExternaMySqlDto> GetAsync(CancellationToken ct = default);
+    Task UpdateAsync(ConexionExternaMySqlInput input, CancellationToken ct = default);
+}

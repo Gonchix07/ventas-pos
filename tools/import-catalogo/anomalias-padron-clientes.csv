@@ -1,0 +1,630 @@
+﻿tipo;codigo_cliente;detalle
+tipo_tarjeta_ausente;90817;'' en tarjeta 2650000094714 -> TARJETA ROJA
+tipo_tarjeta_ausente;91025;'' en tarjeta 2650000101443 -> TARJETA ROJA
+cuit_invalido;91033;'2 - -' (1 dígitos) -> vacío
+tipo_tarjeta_ausente;91241;'' en tarjeta 2650000073733 -> TARJETA ROJA
+tipo_tarjeta_ausente;91761;'' en tarjeta 2650000071272 -> TARJETA ROJA
+cuit_invalido;92088;'13-928278 -' (8 dígitos) -> vacío
+cuit_invalido;43238;'11-094341 -' (8 dígitos) -> vacío
+tipo_tarjeta_ausente;44027;'' en tarjeta 2650000032280 -> TARJETA ROJA
+tipo_tarjeta_ausente;42862;'' en tarjeta 2650000092659 -> TARJETA ROJA
+tipo_tarjeta_ausente;69732;'00' en tarjeta 2650000109920 -> TARJETA ROJA
+cuit_invalido;04275;'00-16713558-' (10 dígitos) -> vacío
+tipo_tarjeta_ausente;02747;'' en tarjeta 2650000092437 -> TARJETA ROJA
+cuit_invalido;10252;'-17338310-' (8 dígitos) -> vacío
+email_invalido;10681;'MARCE-155-278520' -> vacío
+tipo_tarjeta_ausente;15746;'' en tarjeta 2650000078127 -> TARJETA ROJA
+tipo_tarjeta_ausente;92327;'' en tarjeta 2650000016242 -> TARJETA ROJA
+tipo_tarjeta_ausente;92520;'' en tarjeta 2650000072019 -> TARJETA ROJA
+tipo_tarjeta_ausente;00002;'00' en tarjeta 564565464 -> TARJETA ROJA
+tipo_tarjeta_ausente;92615;'' en tarjeta 2650000063581 -> TARJETA ROJA
+tipo_tarjeta_ausente;16772;'' en tarjeta 2650000081288 -> TARJETA ROJA
+tipo_tarjeta_ausente;16772;'' en tarjeta 2650000081288 -> TARJETA ROJA
+tipo_tarjeta_ausente;17151;'' en tarjeta 2650000124053 -> TARJETA ROJA
+tipo_tarjeta_ausente;92970;'' en tarjeta 2650000098439 -> TARJETA ROJA
+tipo_tarjeta_ausente;93022;'' en tarjeta 2650000049844 -> TARJETA ROJA
+tipo_tarjeta_ausente;93123;'' en tarjeta 2650000090334 -> TARJETA ROJA
+tipo_tarjeta_ausente;93225;'' en tarjeta 2650000057672 -> TARJETA ROJA
+tipo_tarjeta_ausente;93338;'' en tarjeta 2650000103720 -> TARJETA ROJA
+cuit_invalido;93374;'1-11111111-1' (10 dígitos) -> vacío
+tipo_tarjeta_ausente;93375;'' en tarjeta 2650000012367 -> TARJETA ROJA
+tipo_tarjeta_ausente;93606;'' en tarjeta 2650000021154 -> TARJETA ROJA
+tipo_tarjeta_ausente;93666;'' en tarjeta 2650000107001 -> TARJETA ROJA
+cuit_invalido;93910;'11-1111111 -' (9 dígitos) -> vacío
+tipo_tarjeta_ausente;94006;'' en tarjeta 2650000052783 -> TARJETA ROJA
+tipo_tarjeta_ausente;94288;'' en tarjeta 2650000050512 -> TARJETA ROJA
+tipo_tarjeta_ausente;94511;'' en tarjeta 2650000022236 -> TARJETA ROJA
+tipo_tarjeta_ausente;18025;'' en tarjeta 2650000090587 -> TARJETA ROJA
+tipo_tarjeta_ausente;94537;'' en tarjeta 2650000037377 -> TARJETA ROJA
+tipo_tarjeta_ausente;94830;'' en tarjeta 2650000058020 -> TARJETA ROJA
+tipo_tarjeta_ausente;94884;'' en tarjeta 2650000101696 -> TARJETA ROJA
+tipo_tarjeta_ausente;95139;'' en tarjeta 2650000047437 -> TARJETA ROJA
+tipo_tarjeta_ausente;95203;'' en tarjeta 2650000039814 -> TARJETA ROJA
+tipo_tarjeta_ausente;95718;'' en tarjeta 2650000079728 -> TARJETA ROJA
+tipo_tarjeta_ausente;95752;'' en tarjeta 2650000057467 -> TARJETA ROJA
+tipo_tarjeta_ausente;18449;'' en tarjeta 2650000044337 -> TARJETA ROJA
+tipo_tarjeta_ausente;96190;'' en tarjeta 2650000064625 -> TARJETA ROJA
+tipo_tarjeta_ausente;96514;'' en tarjeta 2650000042005 -> TARJETA ROJA
+razon_social_vacia;96563;se completó con un texto de relleno
+email_invalido;96587;'no utiliza' -> vacío
+tipo_tarjeta_ausente;96680;'' en tarjeta 2650000079032 -> TARJETA ROJA
+tipo_tarjeta_ausente;96720;'' en tarjeta 2650000023554 -> TARJETA ROJA
+tipo_tarjeta_ausente;96725;'' en tarjeta 2650000098767 -> TARJETA ROJA
+tipo_tarjeta_ausente;96816;'' en tarjeta 2650000022267 -> TARJETA ROJA
+tipo_tarjeta_ausente;97026;'' en tarjeta 2650000073054 -> TARJETA ROJA
+tipo_tarjeta_ausente;97516;'' en tarjeta 2650000095810 -> TARJETA ROJA
+tipo_tarjeta_ausente;97540;'' en tarjeta 2650000088768 -> TARJETA ROJA
+tipo_tarjeta_ausente;97710;'' en tarjeta 2650000070855 -> TARJETA ROJA
+tipo_tarjeta_ausente;98093;'' en tarjeta 2650000060634 -> TARJETA ROJA
+tipo_tarjeta_ausente;98724;'' en tarjeta 2650000063758 -> TARJETA ROJA
+tipo_tarjeta_ausente;98856;'' en tarjeta 2650000102242 -> TARJETA ROJA
+cuit_invalido;99155;'0-00000000-0' (10 dígitos) -> vacío
+tipo_tarjeta_ausente;99495;'' en tarjeta 2650000092246 -> TARJETA ROJA
+tipo_tarjeta_ausente;99907;'' en tarjeta 2650000090334 -> TARJETA ROJA
+email_invalido;18678;'.' -> vacío
+tipo_tarjeta_ausente;80518;'' en tarjeta 2650000030187 -> TARJETA ROJA
+email_invalido;18709;'.' -> vacío
+email_invalido;18712;'.' -> vacío
+tipo_tarjeta_ausente;81651;'' en tarjeta 2650000063215 -> TARJETA ROJA
+email_invalido;18780;'.' -> vacío
+tipo_tarjeta_ausente;18782;'' en tarjeta 2650000093915 -> TARJETA ROJA
+tipo_tarjeta_ausente;82364;'' en tarjeta 2650000088393 -> TARJETA ROJA
+tipo_tarjeta_ausente;82554;'' en tarjeta 2650000095322 -> TARJETA ROJA
+email_invalido;18817;'.' -> vacío
+tipo_tarjeta_ausente;18835;'' en tarjeta 2650000115228 -> TARJETA ROJA
+email_invalido;18861;'.' -> vacío
+email_invalido;18885;'.' -> vacío
+tipo_tarjeta_ausente;83701;'' en tarjeta 2650000032921 -> TARJETA ROJA
+email_invalido;18889;'.' -> vacío
+email_invalido;18893;'.' -> vacío
+tipo_tarjeta_ausente;83840;'' en tarjeta 2650000083084 -> TARJETA ROJA
+tipo_tarjeta_ausente;83842;'' en tarjeta 2650000086436 -> TARJETA ROJA
+tipo_tarjeta_ausente;83856;'' en tarjeta 2650000093304 -> TARJETA ROJA
+email_invalido;18899;'.' -> vacío
+tipo_tarjeta_ausente;84259;'' en tarjeta 2650000066285 -> TARJETA ROJA
+email_invalido;18927;'.' -> vacío
+tipo_tarjeta_ausente;84712;'' en tarjeta 2650000066629 -> TARJETA ROJA
+tipo_tarjeta_ausente;84748;'' en tarjeta 2650000087570 -> TARJETA ROJA
+tipo_tarjeta_ausente;84805;'' en tarjeta 2650000035892 -> TARJETA ROJA
+tipo_tarjeta_ausente;85057;'' en tarjeta 2650000071555 -> TARJETA ROJA
+tipo_tarjeta_ausente;85209;'' en tarjeta 2650000065080 -> TARJETA ROJA
+email_invalido;18960;'.' -> vacío
+tipo_tarjeta_ausente;85789;'' en tarjeta 2650000082643 -> TARJETA ROJA
+tipo_tarjeta_ausente;86037;'' en tarjeta 2650000093687 -> TARJETA ROJA
+tipo_tarjeta_ausente;86621;'' en tarjeta 2650000071531 -> TARJETA ROJA
+email_invalido;19005;'.' -> vacío
+tipo_tarjeta_ausente;86862;'' en tarjeta 2650000011926 -> TARJETA ROJA
+tipo_tarjeta_ausente;87468;'' en tarjeta 2650000064427 -> TARJETA ROJA
+tipo_tarjeta_ausente;88181;'' en tarjeta 2650000026432 -> TARJETA ROJA
+email_invalido;19073;'.' -> vacío
+tipo_tarjeta_ausente;19083;'' en tarjeta 2650000103782 -> TARJETA ROJA
+tipo_tarjeta_ausente;88683;'' en tarjeta 2650000021949 -> TARJETA ROJA
+tipo_tarjeta_ausente;88869;'' en tarjeta 2650000026869 -> TARJETA ROJA
+tipo_tarjeta_ausente;88961;'' en tarjeta 2650000016242 -> TARJETA ROJA
+tipo_tarjeta_ausente;89301;'' en tarjeta 2650000040155 -> TARJETA ROJA
+tipo_tarjeta_ausente;89466;'' en tarjeta 2650000052868 -> TARJETA ROJA
+tipo_tarjeta_ausente;89514;'' en tarjeta 2650000060221 -> TARJETA ROJA
+tipo_tarjeta_ausente;89525;'' en tarjeta 2650000036592 -> TARJETA ROJA
+tipo_tarjeta_ausente;89983;'' en tarjeta 2650000072460 -> TARJETA ROJA
+tipo_tarjeta_ausente;70740;'' en tarjeta 2650000097241 -> TARJETA ROJA
+tipo_tarjeta_ausente;70834;'00' en tarjeta 2010000230114 -> TARJETA ROJA
+email_invalido;19239;'.' -> vacío
+tipo_tarjeta_ausente;71774;'' en tarjeta 2650000104307 -> TARJETA ROJA
+cuit_invalido;71961;'0 - -' (1 dígitos) -> vacío
+tipo_tarjeta_ausente;72303;'' en tarjeta 2650000071241 -> TARJETA ROJA
+tipo_tarjeta_ausente;72619;'' en tarjeta 2650000061426 -> TARJETA ROJA
+tipo_tarjeta_ausente;72804;'' en tarjeta 2650000046652 -> TARJETA ROJA
+tipo_tarjeta_ausente;73292;'' en tarjeta 2650000057320 -> TARJETA ROJA
+tipo_tarjeta_ausente;74520;'' en tarjeta 2650000097128 -> TARJETA ROJA
+tipo_tarjeta_ausente;74565;'' en tarjeta 2650000090860 -> TARJETA ROJA
+tipo_tarjeta_ausente;74694;'' en tarjeta 2650000073078 -> TARJETA ROJA
+tipo_tarjeta_ausente;74707;'' en tarjeta 2650000069996 -> TARJETA ROJA
+email_invalido;19324;'.' -> vacío
+email_invalido;19327;'.' -> vacío
+tipo_tarjeta_ausente;78569;'' en tarjeta 2650000061969 -> TARJETA ROJA
+tipo_tarjeta_ausente;21143;'' en tarjeta 2010001147671 -> TARJETA ROJA
+tipo_tarjeta_ausente;21258;'' en tarjeta 2650000023745 -> TARJETA ROJA
+tipo_tarjeta_ausente;21261;'' en tarjeta 2650000102167 -> TARJETA ROJA
+email_invalido;19586;'.' -> vacío
+email_invalido;19660;'.' -> vacío
+tipo_tarjeta_ausente;25311;'' en tarjeta 2650000073207 -> TARJETA ROJA
+tipo_tarjeta_ausente;26487;'' en tarjeta 2650000107476 -> TARJETA ROJA
+tipo_tarjeta_ausente;26949;'' en tarjeta 2650000104109 -> TARJETA ROJA
+tipo_tarjeta_ausente;28009;'' en tarjeta 2650000085767 -> TARJETA ROJA
+cuit_invalido;00193;'11- -' (2 dígitos) -> vacío
+tipo_tarjeta_ausente;59475;'' en tarjeta 2650000069781 -> TARJETA ROJA
+email_invalido;55681;'no utiliza' -> vacío
+tipo_tarjeta_ausente;56123;'' en tarjeta 2650000080946 -> TARJETA ROJA
+tipo_tarjeta_ausente;57588;'' en tarjeta 2650000079957 -> TARJETA ROJA
+cuit_invalido;68186;'00-00000000-' (10 dígitos) -> vacío
+tipo_tarjeta_ausente;61702;'' en tarjeta 2650000055975 -> TARJETA ROJA
+tipo_tarjeta_ausente;61903;'' en tarjeta 2650000092192 -> TARJETA ROJA
+razon_social_vacia;61964;se completó con un texto de relleno
+tipo_tarjeta_ausente;61992;'' en tarjeta 2650000085583 -> TARJETA ROJA
+tipo_tarjeta_ausente;65704;'00' en tarjeta 2010001386612 -> TARJETA ROJA
+tipo_tarjeta_ausente;65738;'' en tarjeta 2010000425589 -> TARJETA ROJA
+tipo_tarjeta_ausente;59226;'' en tarjeta 2650000103577 -> TARJETA ROJA
+tipo_tarjeta_ausente;02882;'' en tarjeta 2650000086832 -> TARJETA ROJA
+tipo_tarjeta_ausente;67153;'' en tarjeta 2650000056835 -> TARJETA ROJA
+tipo_tarjeta_ausente;35050;'' en tarjeta 2650000074556 -> TARJETA ROJA
+tipo_tarjeta_ausente;35025;'' en tarjeta 2650000101948 -> TARJETA ROJA
+tipo_tarjeta_ausente;38664;'' en tarjeta 2650000108237 -> TARJETA ROJA
+tipo_tarjeta_ausente;39846;'' en tarjeta 2650000097470 -> TARJETA ROJA
+tipo_tarjeta_ausente;40811;'' en tarjeta 2650000098828 -> TARJETA ROJA
+tipo_tarjeta_ausente;40816;'' en tarjeta 2650000065523 -> TARJETA ROJA
+tipo_tarjeta_ausente;47451;'' en tarjeta 2650000047734 -> TARJETA ROJA
+tipo_tarjeta_ausente;48955;'' en tarjeta 2650000095117 -> TARJETA ROJA
+cuit_invalido;49970;'11- -' (2 dígitos) -> vacío
+tipo_tarjeta_ausente;50463;'00' en tarjeta 2010001169888 -> TARJETA ROJA
+tipo_tarjeta_ausente;84223;'' en tarjeta 2650000105076 -> TARJETA ROJA
+tipo_tarjeta_ausente;86345;'' en tarjeta 2650000081196 -> TARJETA ROJA
+tipo_tarjeta_ausente;87395;'' en tarjeta 2650000067831 -> TARJETA ROJA
+tipo_tarjeta_ausente;87441;'' en tarjeta 2650000064137 -> TARJETA ROJA
+cuit_invalido;30588;'11- -' (2 dígitos) -> vacío
+cuit_invalido;00446;'1 - -' (1 dígitos) -> vacío
+tipo_tarjeta_ausente;01714;'' en tarjeta 2650000023561 -> TARJETA ROJA
+tipo_tarjeta_ausente;01715;'' en tarjeta 2650000023561 -> TARJETA ROJA
+tipo_tarjeta_ausente;01718;'' en tarjeta 2650000023561 -> TARJETA ROJA
+tipo_tarjeta_ausente;01719;'' en tarjeta 2650000023561 -> TARJETA ROJA
+cuit_invalido;02213;'11- -' (2 dígitos) -> vacío
+cuit_invalido;03903;'11- -' (2 dígitos) -> vacío
+tipo_tarjeta_ausente;05126;'' en tarjeta 2650000103294 -> TARJETA ROJA
+tipo_tarjeta_ausente;A0924;'' en tarjeta 2650000096879 -> TARJETA ROJA
+cuit_invalido;A1064;'1 - -' (1 dígitos) -> vacío
+tipo_tarjeta_ausente;A1917;'' en tarjeta 2650000106851 -> TARJETA ROJA
+tipo_tarjeta_ausente;A2299;'' en tarjeta 2650000084241 -> TARJETA ROJA
+tipo_tarjeta_ausente;A2496;'' en tarjeta 2650000054039 -> TARJETA ROJA
+tipo_tarjeta_ausente;A6381;'' en tarjeta 2650000077632 -> TARJETA ROJA
+tipo_tarjeta_ausente;A7329;'' en tarjeta 2650000081585 -> TARJETA ROJA
+cuit_invalido;A8422;'1 - -' (1 dígitos) -> vacío
+email_invalido;A8470;'64' -> vacío
+tipo_tarjeta_ausente;A8912;'' en tarjeta 2650000102556 -> TARJETA ROJA
+tipo_tarjeta_ausente;A9104;'' en tarjeta 2650000096046 -> TARJETA ROJA
+cuit_invalido;A9296;'1 - -' (1 dígitos) -> vacío
+tipo_tarjeta_ausente;B1379;'' en tarjeta 2650000089024 -> TARJETA ROJA
+tipo_tarjeta_ausente;B1861;'' en tarjeta 2650000104956 -> TARJETA ROJA
+tipo_tarjeta_ausente;B2966;'' en tarjeta 2650000082803 -> TARJETA ROJA
+tipo_tarjeta_ausente;05703;'' en tarjeta 2010000888353 -> TARJETA ROJA
+tipo_tarjeta_ausente;05704;'' en tarjeta 2010000888049 -> TARJETA ROJA
+tipo_tarjeta_ausente;05706;'' en tarjeta 2010000889671 -> TARJETA ROJA
+tipo_tarjeta_ausente;05707;'' en tarjeta 2010000903254 -> TARJETA ROJA
+tipo_tarjeta_ausente;05711;'' en tarjeta 2010000888803 -> TARJETA ROJA
+tipo_tarjeta_ausente;05713;'' en tarjeta 2010000888988 -> TARJETA ROJA
+tipo_tarjeta_ausente;05716;'' en tarjeta 2010000889718 -> TARJETA ROJA
+tipo_tarjeta_ausente;05718;'' en tarjeta 2010000889961 -> TARJETA ROJA
+tipo_tarjeta_ausente;05719;'' en tarjeta 2010000889725 -> TARJETA ROJA
+cuit_invalido;05720;'0 - -' (1 dígitos) -> vacío
+cuit_invalido;B6238;'1 - -' (1 dígitos) -> vacío
+cuit_invalido;B6526;'1 - -' (1 dígitos) -> vacío
+tipo_tarjeta_ausente;B6984;'' en tarjeta 2650000081783 -> TARJETA ROJA
+tipo_tarjeta_ausente;B7486;'' en tarjeta 2650000099344 -> TARJETA ROJA
+tipo_tarjeta_ausente;B8800;'' en tarjeta 2650000085361 -> TARJETA ROJA
+cuit_invalido;B8830;'1 - -' (1 dígitos) -> vacío
+tipo_tarjeta_ausente;B9534;'' en tarjeta 2650000081974 -> TARJETA ROJA
+tipo_tarjeta_ausente;B9774;'' en tarjeta 2650000095599 -> TARJETA ROJA
+razon_social_vacia;B9964;se completó con un texto de relleno
+email_invalido;C0170;'walter javier' -> vacío
+cuit_invalido;C0171;'1 - -' (1 dígitos) -> vacío
+tipo_tarjeta_ausente;C3134;'' en tarjeta 2650000102198 -> TARJETA ROJA
+tipo_tarjeta_ausente;C5079;'' en tarjeta 2650000092536 -> TARJETA ROJA
+tipo_tarjeta_ausente;C7501;'' en tarjeta 2650000056972 -> TARJETA ROJA
+tipo_tarjeta_ausente;C7685;'' en tarjeta 2650000063901 -> TARJETA ROJA
+tipo_tarjeta_ausente;C7998;'' en tarjeta 2650000088836 -> TARJETA ROJA
+tipo_tarjeta_ausente;C8980;'' en tarjeta 2650000092000 -> TARJETA ROJA
+tipo_tarjeta_ausente;D0108;'' en tarjeta 2650000064045 -> TARJETA ROJA
+tipo_tarjeta_ausente;D1816;'00' en tarjeta 2650000121922 -> TARJETA ROJA
+tipo_tarjeta_ausente;D2107;'' en tarjeta 2650000095957 -> TARJETA ROJA
+tipo_tarjeta_ausente;D2848;'00' en tarjeta 2010001102113 -> TARJETA ROJA
+tipo_tarjeta_ausente;D7334;'00' en tarjeta 2010001138365 -> TARJETA ROJA
+tipo_tarjeta_ausente;D7715;'00' en tarjeta 2010001142904 -> TARJETA ROJA
+tipo_tarjeta_ausente;D8198;'00' en tarjeta 2010001149163 -> TARJETA ROJA
+tipo_tarjeta_ausente;D8776;'00' en tarjeta 2010001153702 -> TARJETA ROJA
+tipo_tarjeta_ausente;F0084;'00' en tarjeta 2010001159551 -> TARJETA ROJA
+tipo_tarjeta_ausente;F0497;'00' en tarjeta 2650000125043 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1376;'' en tarjeta 2650000110483 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1441;'' en tarjeta 2010001170679 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1449;'' en tarjeta 2010001171102 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1460;'' en tarjeta 2010001170402 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1461;'' en tarjeta 2010001170396 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1462;'' en tarjeta 2010001170389 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1463;'' en tarjeta 2010001170372 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1464;'' en tarjeta 2010001170365 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1465;'' en tarjeta 2010001170341 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1466;'' en tarjeta 2010001170334 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1468;'' en tarjeta 26500000106288 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1472;'' en tarjeta 201001170143 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1475;'' en tarjeta 2010001170112 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1476;'' en tarjeta 2010001180272 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1479;'' en tarjeta 2010001170099 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1480;'' en tarjeta 2010001170082 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1482;'' en tarjeta 2010001170051 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1483;'' en tarjeta 2010001170044 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1484;'' en tarjeta 2010001170037 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1485;'' en tarjeta 2010001170020 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1486;'' en tarjeta 20100011700013 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1487;'' en tarjeta 2010001170006 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1488;'' en tarjeta 2010001169994 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1494;'' en tarjeta 2010001169987 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1496;'' en tarjeta 2010001170273 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1501;'' en tarjeta 2010001170228 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1505;'' en tarjeta 2010001170181 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1506;'' en tarjeta 2010001170167 -> TARJETA ROJA
+tipo_tarjeta_ausente;F1509;'' en tarjeta 20100001169956 -> TARJETA ROJA
+razon_social_vacia;F2264;se completó con un texto de relleno
+email_invalido;F2581;'morgante diego ariel' -> vacío
+email_invalido;F2906;'fabiaoreoblack42yahoo.com' -> vacío
+email_invalido;F3146;'-' -> vacío
+email_invalido;F3186;'?4' -> vacío
+email_invalido;F3349;'?4' -> vacío
+email_invalido;F3662;'reservascorbellhotel.com' -> vacío
+email_invalido;F3738;'grupowilson64yahoo.com.ar' -> vacío
+email_invalido;F3797;'florenciaiaradeloàhotmail.com' -> vacío
+email_invalido;F4466;'?4' -> vacío
+email_invalido;F6143;'distribuidora jade takem sa' -> vacío
+email_invalido;F6253;'-' -> vacío
+email_invalido;F6305;'-' -> vacío
+email_invalido;F6340;'-' -> vacío
+email_invalido;F6349;'-' -> vacío
+email_invalido;F6355;'-' -> vacío
+email_invalido;F6377;'-' -> vacío
+email_invalido;F6378;'-' -> vacío
+email_invalido;F8250;'?4' -> vacío
+email_invalido;F8403;'-' -> vacío
+email_invalido;F8592;'-' -> vacío
+email_invalido;F9137;'-' -> vacío
+email_invalido;F9676;'-' -> vacío
+email_invalido;G0372;'-' -> vacío
+email_invalido;G1002;'-' -> vacío
+email_invalido;G1108;'-' -> vacío
+email_invalido;G1550;'-' -> vacío
+email_invalido;G1715;'-' -> vacío
+email_invalido;G1891;'-' -> vacío
+email_invalido;G2515;'-' -> vacío
+email_invalido;G2650;'-' -> vacío
+email_invalido;G2927;'-' -> vacío
+email_invalido;G3806;'-' -> vacío
+email_invalido;G4234;'-' -> vacío
+email_invalido;G4390;'-' -> vacío
+email_invalido;G5128;'-' -> vacío
+email_invalido;G5781;'64' -> vacío
+email_invalido;G5904;'-' -> vacío
+email_invalido;G6064;'-' -> vacío
+email_invalido;G6267;'no tiene' -> vacío
+email_invalido;G6285;'no tiene' -> vacío
+email_invalido;G6315;'no tiene' -> vacío
+email_invalido;G6375;'no tiene' -> vacío
+email_invalido;G6387;'no tiene' -> vacío
+email_invalido;G6388;'no tiene' -> vacío
+email_invalido;G6406;'no tiene' -> vacío
+email_invalido;G6407;'no tiene' -> vacío
+email_invalido;G6409;'no tiene' -> vacío
+email_invalido;G6411;'no tiene' -> vacío
+email_invalido;G6413;'no tiene' -> vacío
+email_invalido;G6414;'no tiene' -> vacío
+email_invalido;G6434;'?4' -> vacío
+email_invalido;G6441;'no tiene' -> vacío
+email_invalido;G6450;'no tiene' -> vacío
+email_invalido;G6459;'no tiene' -> vacío
+email_invalido;G6466;'no tiene' -> vacío
+email_invalido;G6468;'no tine' -> vacío
+email_invalido;G6469;'no tiene' -> vacío
+email_invalido;G6476;'no tiene' -> vacío
+email_invalido;G6496;'no tiene' -> vacío
+email_invalido;G6540;'no tiene' -> vacío
+email_invalido;G6541;'no tiene' -> vacío
+email_invalido;G6543;'no tiene' -> vacío
+email_invalido;G6544;'no tiene' -> vacío
+email_invalido;G6575;'no tiene' -> vacío
+email_invalido;G6581;'no tiene' -> vacío
+email_invalido;G6583;'no tiene' -> vacío
+email_invalido;G6586;'no tiene' -> vacío
+email_invalido;G6588;'no tiene' -> vacío
+email_invalido;G6590;'no tiene' -> vacío
+email_invalido;G6591;'no tiene.' -> vacío
+email_invalido;G6598;'no tiene' -> vacío
+email_invalido;G6607;'no tiene' -> vacío
+email_invalido;G6608;'no tiene' -> vacío
+email_invalido;G6609;'no tiene' -> vacío
+email_invalido;G6614;'no tiene' -> vacío
+email_invalido;G6616;'no tiene' -> vacío
+email_invalido;G6632;'no tiene' -> vacío
+email_invalido;G6634;'no tiene' -> vacío
+email_invalido;G6635;'no tiene' -> vacío
+email_invalido;G6636;'no tiene' -> vacío
+email_invalido;G6637;'no tiene' -> vacío
+email_invalido;G6648;'no tinee' -> vacío
+email_invalido;G6649;'no tine' -> vacío
+email_invalido;G6659;'no tiene' -> vacío
+email_invalido;G6660;'no tinee' -> vacío
+email_invalido;G6662;'no tiene' -> vacío
+email_invalido;G6663;'no tiene' -> vacío
+email_invalido;G6664;'no tiene' -> vacío
+email_invalido;G6665;'no tiene' -> vacío
+email_invalido;G6667;'no tiene' -> vacío
+email_invalido;G6690;'no tiene' -> vacío
+email_invalido;G6751;'-' -> vacío
+email_invalido;G6766;'-' -> vacío
+email_invalido;G6772;'-' -> vacío
+email_invalido;G6780;'no tiene' -> vacío
+email_invalido;G6783;'no tiene' -> vacío
+email_invalido;G6787;'-' -> vacío
+email_invalido;G6799;'no tiene' -> vacío
+email_invalido;G6800;'no tiewne' -> vacío
+email_invalido;G6802;'no tiene' -> vacío
+email_invalido;G6815;'no tiene' -> vacío
+email_invalido;G6818;'no tine' -> vacío
+email_invalido;G6819;'no tiene' -> vacío
+email_invalido;G6820;'no tioene' -> vacío
+email_invalido;G6822;'no tiene' -> vacío
+email_invalido;G6824;'no tiene' -> vacío
+email_invalido;G6825;'no tiene' -> vacío
+email_invalido;G6853;'-' -> vacío
+email_invalido;G6854;'-' -> vacío
+email_invalido;G6858;'balverdehector6?hotmail.com' -> vacío
+email_invalido;G6869;'no tiene' -> vacío
+email_invalido;G6875;'no tiene' -> vacío
+email_invalido;G6876;'no tiene' -> vacío
+email_invalido;G6880;'no tiene' -> vacío
+email_invalido;G6889;'no tiene' -> vacío
+email_invalido;G6903;'no tine' -> vacío
+email_invalido;G6905;'no tiene' -> vacío
+email_invalido;G6923;'no tiene' -> vacío
+email_invalido;G6924;'no tiene' -> vacío
+email_invalido;G6944;'no tiene' -> vacío
+email_invalido;G6945;'no tiene' -> vacío
+email_invalido;G6946;'no tiene' -> vacío
+email_invalido;G6960;'-' -> vacío
+email_invalido;G6963;'-' -> vacío
+email_invalido;G6964;'-' -> vacío
+email_invalido;G6965;'-' -> vacío
+email_invalido;G6966;'-' -> vacío
+email_invalido;G6967;'-' -> vacío
+email_invalido;G6968;'-' -> vacío
+email_invalido;G6972;'-' -> vacío
+email_invalido;G6973;'-' -> vacío
+email_invalido;G6975;'-' -> vacío
+email_invalido;G6976;'-' -> vacío
+email_invalido;G6977;'-' -> vacío
+email_invalido;G6978;'-' -> vacío
+email_invalido;G6988;'no tinee' -> vacío
+email_invalido;G6989;'-' -> vacío
+email_invalido;G6990;'-' -> vacío
+email_invalido;G6991;'-' -> vacío
+email_invalido;G6992;'-' -> vacío
+email_invalido;G6993;'-' -> vacío
+email_invalido;G6994;'-' -> vacío
+email_invalido;G6995;'-' -> vacío
+email_invalido;G7014;'-' -> vacío
+email_invalido;G7016;'-' -> vacío
+email_invalido;G7038;'no tiene' -> vacío
+email_invalido;G7041;'no tiene' -> vacío
+email_invalido;G7077;'iriarrperlaguadalupeägmauil.com' -> vacío
+email_invalido;G7089;'-' -> vacío
+email_invalido;G7107;'-' -> vacío
+email_invalido;G7126;'-' -> vacío
+email_invalido;G7238;'no teien' -> vacío
+email_invalido;G7239;'no tiene' -> vacío
+email_invalido;G7908;'-' -> vacío
+email_invalido;G8017;'-' -> vacío
+email_invalido;G8544;'-' -> vacío
+email_invalido;G8611;'moscoloni victoria' -> vacío
+email_invalido;G8874;'-' -> vacío
+email_invalido;G8886;'-' -> vacío
+email_invalido;G8906;'-' -> vacío
+email_invalido;G8907;'-' -> vacío
+email_invalido;G8909;'-' -> vacío
+email_invalido;G8910;'-' -> vacío
+email_invalido;G8911;'-' -> vacío
+email_invalido;G9176;'-' -> vacío
+email_invalido;G9200;'-' -> vacío
+email_invalido;G9564;'-' -> vacío
+email_invalido;H0127;'-' -> vacío
+email_invalido;H0164;'-' -> vacío
+email_invalido;H0288;'-' -> vacío
+email_invalido;H0291;'-' -> vacío
+email_invalido;H0292;'-' -> vacío
+email_invalido;H0294;'-' -> vacío
+email_invalido;H0295;'-' -> vacío
+email_invalido;H0296;'-' -> vacío
+email_invalido;H0297;'-' -> vacío
+choque_de_mayusculas;c9840;choca con 'C9840' en el índice único (que no distingue caso) pero es otro cliente: se importa como 'C9840-2'
+tarjeta_en_varios_clientes;72375,D2372;tarjeta 2010000109014
+tarjeta_en_varios_clientes;55301,99557;tarjeta 2010000300183
+tarjeta_en_varios_clientes;C2152,D4310;tarjeta 2010000991824
+tarjeta_en_varios_clientes;26151,27269;tarjeta 2010000258972
+tarjeta_en_varios_clientes;00424,05078,A4878,D2427,G6105,G9460,H0624,H0840,H0854,H1682,H2156,H2246,H2976,H3376,H3517,H3599,H3611,H3815,H3964,H4240,H4241,H4903,H5351,H5353,H5359,H6346,H7225,H7375,H7578,H7864,H8816,H8939,H8998,H9072,H9157,H9462,J3200,J7878,K0614;tarjeta 2650000131532
+tarjeta_en_varios_clientes;85870,96562;tarjeta 2010000750377
+tarjeta_en_varios_clientes;12686,54410,60807;tarjeta 2650000014323
+tarjeta_en_varios_clientes;87799,A5430;tarjeta 2010000186091
+tarjeta_en_varios_clientes;59410,67369;tarjeta 2010000103951
+tarjeta_en_varios_clientes;49820,88659;tarjeta 2010000610985
+tarjeta_en_varios_clientes;90141,95388;tarjeta 2650000166152
+tarjeta_en_varios_clientes;01710,46204;tarjeta 2010000595497
+tarjeta_en_varios_clientes;19637,35117;tarjeta 2650000036103
+tarjeta_en_varios_clientes;24287,A1868;tarjeta 2010000272169
+tarjeta_en_varios_clientes;B1068,D0720;tarjeta 2010000851388
+tarjeta_en_varios_clientes;F9058,F9059;tarjeta 2010001269236
+tarjeta_en_varios_clientes;65389,79310,88148;tarjeta 2010000155547
+tarjeta_en_varios_clientes;C5335,C7514;tarjeta 2010001027515
+tarjeta_en_varios_clientes;73768,A4131;tarjeta 2010000684887
+tarjeta_en_varios_clientes;21130,90148;tarjeta 2650000069392
+tarjeta_en_varios_clientes;20602,C8967;tarjeta 2010000167342
+tarjeta_en_varios_clientes;82366,83789;tarjeta 2650000002771
+tarjeta_en_varios_clientes;86620,86621;tarjeta 2650000071531
+tarjeta_en_varios_clientes;26632,55214;tarjeta 2010000570074
+tarjeta_en_varios_clientes;12204,97770;tarjeta 2650000163786
+tarjeta_en_varios_clientes;F7614,H7143;tarjeta 2650000161553
+tarjeta_en_varios_clientes;51158,85256;tarjeta 2010000024690
+tarjeta_en_varios_clientes;44523,50744,82255,98905,F1519,F1527,F1540,F1631,F1632,F1640,F1654,F1730,F1740,F1900,F2609,F5030,F5249,F8184,F8185,G2100,G2708,G5271,G5523,G5579,H0336,H1468,H1471,H1473,H1475,H1568,H1570,H1583,H1594,H1601,H1603,H1705,H1706,H1771,H1781,H1782,H1884,H7502,H7688,H7720,H7723,H7823,H7875,H7899,H7978,J3567;tarjeta 2010001173816
+tarjeta_en_varios_clientes;70155,90719;tarjeta 2650000093274
+tarjeta_en_varios_clientes;85727,C2099;tarjeta 2650000095421
+tarjeta_en_varios_clientes;00466,39365;tarjeta 2010000543252
+tarjeta_en_varios_clientes;46140,53304;tarjeta 2010000376874
+tarjeta_en_varios_clientes;04071,C1580,G1624,G2152,G4319,G6970,G8567,G9402,H0269,H1981,H2630;tarjeta 2650000106127
+tarjeta_en_varios_clientes;16521,96013;tarjeta 2650000018208
+tarjeta_en_varios_clientes;71893,71895;tarjeta 2650000019342
+tarjeta_en_varios_clientes;72725,D7653;tarjeta 2650000176991
+tarjeta_en_varios_clientes;12563,13369;tarjeta 2650000052936
+tarjeta_en_varios_clientes;D8794,J8008;tarjeta 2650000131587
+tarjeta_en_varios_clientes;12936,12937;tarjeta 2650000026524
+tarjeta_en_varios_clientes;27436,52773;tarjeta 2010000281901
+tarjeta_en_varios_clientes;59276,96147;tarjeta 2650000098460
+tarjeta_en_varios_clientes;50892,79604;tarjeta 2010000158470
+tarjeta_en_varios_clientes;16859,24773,92844,A9109;tarjeta 2650000012961
+tarjeta_en_varios_clientes;00107,82697,84960;tarjeta 2010000020258
+tarjeta_en_varios_clientes;95609,95821;tarjeta 2010000571828
+tarjeta_en_varios_clientes;59712,59713;tarjeta 2010000319451
+tarjeta_en_varios_clientes;03060,77671;tarjeta 2010000009383
+tarjeta_en_varios_clientes;12889,71187;tarjeta 2650000115273
+tarjeta_en_varios_clientes;38035,92412;tarjeta 2650000057511
+tarjeta_en_varios_clientes;16416,16601;tarjeta 2650000006496
+tarjeta_en_varios_clientes;33622,57911,C6393;tarjeta 2010000131428
+tarjeta_en_varios_clientes;24161,72902;tarjeta 2010000273142
+tarjeta_en_varios_clientes;01888,03969,06013,11197,40116,98072,D1099,D5868,F5782,F8006,G1722,G1959,G2219,G2572,G4568,H2188;tarjeta 2650000106097
+tarjeta_en_varios_clientes;08956,90304;tarjeta 2650000006410
+tarjeta_en_varios_clientes;58017,65314;tarjeta 2010000355718
+tarjeta_en_varios_clientes;26483,26492;tarjeta 2010000255087
+tarjeta_en_varios_clientes;14139,16059;tarjeta 2650000047598
+tarjeta_en_varios_clientes;34501,74492;tarjeta 2010000133316
+tarjeta_en_varios_clientes;43991,C3208;tarjeta 2010000574423
+tarjeta_en_varios_clientes;58152,76425;tarjeta 2010000202739
+tarjeta_en_varios_clientes;56547,95631;tarjeta 2010000085264
+tarjeta_en_varios_clientes;F9466,F9467;tarjeta 2010001274803
+tarjeta_en_varios_clientes;03410,54718,92906;tarjeta 2010000450017
+tarjeta_en_varios_clientes;C6386,D3380;tarjeta 2010001035343
+tarjeta_en_varios_clientes;03744,22670;tarjeta 2010000182550
+tarjeta_en_varios_clientes;20809,49806;tarjeta 2010000175552
+tarjeta_en_varios_clientes;61113,74315;tarjeta 2010000131695
+tarjeta_en_varios_clientes;43352,B0895;tarjeta 2010000476703
+tarjeta_en_varios_clientes;45006,57113;tarjeta 2010000363256
+tarjeta_en_varios_clientes;15466,70027;tarjeta 2650000020812
+tarjeta_en_varios_clientes;61062,87798;tarjeta 2010000386705
+tarjeta_en_varios_clientes;87309,B3367;tarjeta 2010000912393
+tarjeta_en_varios_clientes;38195,41153;tarjeta 2010000382165
+tarjeta_en_varios_clientes;01711,01714,01715,01718,01719;tarjeta 2650000023561
+tarjeta_en_varios_clientes;27133,56007,85236;tarjeta 2010000901410
+tarjeta_en_varios_clientes;00922,60636;tarjeta 2010000373729
+tarjeta_en_varios_clientes;29608,78407;tarjeta 2010000868560
+tarjeta_en_varios_clientes;42451,82039;tarjeta 2010000569115
+tarjeta_en_varios_clientes;19022,80747;tarjeta 2650000058440
+tarjeta_en_varios_clientes;35725,A4340;tarjeta 2010000509579
+tarjeta_en_varios_clientes;61652,69274;tarjeta 2010000334027
+tarjeta_en_varios_clientes;45539,C9805;tarjeta 2010000589267
+tarjeta_en_varios_clientes;82679,92785;tarjeta 2010000068076
+tarjeta_en_varios_clientes;41252,41333;tarjeta 2010000556726
+tarjeta_en_varios_clientes;C7130,F9918;tarjeta 2650000177899
+tarjeta_en_varios_clientes;62391,62392;tarjeta 2010000405031
+tarjeta_en_varios_clientes;A5214,C8879;tarjeta 2010000790540
+tarjeta_en_varios_clientes;86607,A1944;tarjeta 2010000042717
+tarjeta_en_varios_clientes;53566,98201;tarjeta 2010000096345
+tarjeta_en_varios_clientes;43873,49382;tarjeta 2010000480748
+tarjeta_en_varios_clientes;23815,A2270;tarjeta 2010000194775
+tarjeta_en_varios_clientes;32163,89067;tarjeta 2010000699348
+tarjeta_en_varios_clientes;94664,C0258;tarjeta 2650000107575
+tarjeta_en_varios_clientes;52111,61125;tarjeta 2010000667453
+tarjeta_en_varios_clientes;40759,79649;tarjeta 2010000159460
+tarjeta_en_varios_clientes;22824,88931;tarjeta 2650000090952
+tarjeta_en_varios_clientes;90007,91042;tarjeta 2650000014026
+tarjeta_en_varios_clientes;91935,96506;tarjeta 2010000594452
+tarjeta_en_varios_clientes;32830,D0228;tarjeta 2010000499931
+tarjeta_en_varios_clientes;A1339,C8654;tarjeta 2010000648377
+tarjeta_en_varios_clientes;52862,74851;tarjeta 2010000446164
+tarjeta_en_varios_clientes;G0512,G9596;tarjeta 2650000139392
+tarjeta_en_varios_clientes;15800,18363,G5215;tarjeta 2650000013500
+tarjeta_en_varios_clientes;56883,56884;tarjeta 2010000299920
+tarjeta_en_varios_clientes;F3260,F3261;tarjeta 2010001185611
+tarjeta_en_varios_clientes;02964,05313;tarjeta 2010000445150
+tarjeta_en_varios_clientes;25881,26224,66298;tarjeta 2010000360934
+tarjeta_en_varios_clientes;60523,70513;tarjeta 2010000399965
+tarjeta_en_varios_clientes;21353,33950;tarjeta 2010000299357
+tarjeta_en_varios_clientes;03405,67052;tarjeta 2010000452493
+tarjeta_en_varios_clientes;25542,25543,27572;tarjeta 2010000269688
+tarjeta_en_varios_clientes;77473,B4902;tarjeta 2010000210901
+tarjeta_en_varios_clientes;17288,91165;tarjeta 2650000038756
+tarjeta_en_varios_clientes;66527,88367;tarjeta 2010000065587
+tarjeta_en_varios_clientes;60949,60957;tarjeta 2010000385333
+tarjeta_en_varios_clientes;45360,74060;tarjeta 2010000129470
+tarjeta_en_varios_clientes;26738,74156;tarjeta 2010000130087
+tarjeta_en_varios_clientes;A6528,A8040;tarjeta 2010000820810
+tarjeta_en_varios_clientes;33901,D1379;tarjeta 2010000494950
+tarjeta_en_varios_clientes;46265,88010;tarjeta 2010000062531
+tarjeta_en_varios_clientes;07007,41963,84059;tarjeta 2650000003815
+tarjeta_en_varios_clientes;D8608,D8846;tarjeta 2650000141920
+tarjeta_en_varios_clientes;60989,60990;tarjeta 2010000371275
+tarjeta_en_varios_clientes;C3661,D2355;tarjeta 2010001007708
+tarjeta_en_varios_clientes;87469,95477;tarjeta 2010000581643
+tarjeta_en_varios_clientes;76038,76077;tarjeta 2010000198780
+tarjeta_en_varios_clientes;03747,64822;tarjeta 2010000678466
+tarjeta_en_varios_clientes;33445,C4407;tarjeta 2650000024292
+tarjeta_en_varios_clientes;34806,C6890;tarjeta 2010000272343
+tarjeta_en_varios_clientes;26998,52770,58135;tarjeta 2010000250792
+tarjeta_en_varios_clientes;22529,57818;tarjeta 2010000182246
+tarjeta_en_varios_clientes;C7034,D0178;tarjeta 2650000089321
+tarjeta_en_varios_clientes;21371,33104;tarjeta 2010000369876
+tarjeta_en_varios_clientes;23564,24559;tarjeta 2650000027057
+tarjeta_en_varios_clientes;53021,54149;tarjeta 2010000396131
+tarjeta_en_varios_clientes;16645,91994;tarjeta 2650000105465
+tarjeta_en_varios_clientes;66073,85536,D0205;tarjeta 2010000027776
+tarjeta_en_varios_clientes;65032,A9313,C9851;tarjeta 2650000041589
+tarjeta_en_varios_clientes;84925,96461;tarjeta 2650000007042
+tarjeta_en_varios_clientes;35449,A1154;tarjeta 2010000510353
+tarjeta_en_varios_clientes;81287,C7791;tarjeta 2010000239810
+tarjeta_en_varios_clientes;90206,90497,90498;tarjeta 2650000046294
+tarjeta_en_varios_clientes;10266,84814;tarjeta 2650000048533
+tarjeta_en_varios_clientes;15661,91787,91842,A9325;tarjeta 2650000052479
+tarjeta_en_varios_clientes;52463,82464;tarjeta 2010000610626
+tarjeta_en_varios_clientes;82130,84817;tarjeta 2010000147207
+tarjeta_en_varios_clientes;53101,81772;tarjeta 2010000039243
+tarjeta_en_varios_clientes;32720,64306;tarjeta 2010000499085
+tarjeta_en_varios_clientes;37570,A7632,C7041;tarjeta 2010000530672
+tarjeta_en_varios_clientes;93414,93672;tarjeta 2650000024780
+tarjeta_en_varios_clientes;86252,86351;tarjeta 2010000039298
+tarjeta_en_varios_clientes;35959,59991;tarjeta 2010000611098
+tarjeta_en_varios_clientes;F0886,G9533,H3307;tarjeta 2650000106462
+tarjeta_en_varios_clientes;69315,87008;tarjeta 2010000336212
+tarjeta_en_varios_clientes;35647,C7847;tarjeta 2010000840139
+tarjeta_en_varios_clientes;44538,56664;tarjeta 2650000063239
+tarjeta_en_varios_clientes;36021,68603;tarjeta 2010000315026
+tarjeta_en_varios_clientes;12555,89466;tarjeta 2650000052868
+tarjeta_en_varios_clientes;33813,A0894;tarjeta 2010000728420
+tarjeta_en_varios_clientes;F2177,F2180,F2182;tarjeta 2650000119493
+tarjeta_en_varios_clientes;18971,95215;tarjeta 2650000024636
+tarjeta_en_varios_clientes;38266,C6406;tarjeta 2010000533499
+tarjeta_en_varios_clientes;F4821,F4822;tarjeta 2010001205265
+tarjeta_en_varios_clientes;A5922,C7716;tarjeta 2010000938300
+tarjeta_en_varios_clientes;52530,78250;tarjeta 2010000299692
+tarjeta_en_varios_clientes;29072,52396;tarjeta 2010000325490
+tarjeta_en_varios_clientes;23266,88714;tarjeta 2010000072554
+tarjeta_en_varios_clientes;76100,84393;tarjeta 2010000010884
+tarjeta_en_varios_clientes;28905,A6487;tarjeta 2010000329658
+tarjeta_en_varios_clientes;58792,85839;tarjeta 2010000033548
+tarjeta_en_varios_clientes;26946,58249;tarjeta 2010000826546
+tarjeta_en_varios_clientes;27899,71539;tarjeta 2010000285633
+tarjeta_en_varios_clientes;47383,65571;tarjeta 2010000422144
+tarjeta_en_varios_clientes;88639,A1945;tarjeta 2010000068267
+tarjeta_en_varios_clientes;76317,98657;tarjeta 2010000296400
+tarjeta_en_varios_clientes;62307,80262;tarjeta 2010000405147
+tarjeta_en_varios_clientes;89008,D5294;tarjeta 2010000079997
+tarjeta_en_varios_clientes;21977,H5074;tarjeta 2010001461449
+tarjeta_en_varios_clientes;15199,22461,27347,55390,94646;tarjeta 2650000041374
+tarjeta_en_varios_clientes;09301,18561,93120,93121,A7236;tarjeta 2650000009374
+tarjeta_en_varios_clientes;C4747,G6357;tarjeta 2650000085132
+tarjeta_en_varios_clientes;46893,66367;tarjeta 2010000888810
+tarjeta_en_varios_clientes;94711,94721;tarjeta 2010000095423
+tarjeta_en_varios_clientes;30866,35073;tarjeta 2650000072835
+tarjeta_en_varios_clientes;31450,72594;tarjeta 2010000815816
+tarjeta_en_varios_clientes;13536,70740;tarjeta 2650000097241
+tarjeta_en_varios_clientes;F9037,F9038;tarjeta 2010001267539
+tarjeta_en_varios_clientes;G2408,G9875;tarjeta 2650000123810
+tarjeta_en_varios_clientes;53400,87619,A8005;tarjeta 2010000057957
+tarjeta_en_varios_clientes;53505,53788;tarjeta 2010000377826
+tarjeta_en_varios_clientes;81639,92838;tarjeta 2650000003617
+tarjeta_en_varios_clientes;59130,61571;tarjeta 2010000400142
+tarjeta_en_varios_clientes;43350,B3395;tarjeta 2010000873908
+tarjeta_en_varios_clientes;21806,26640;tarjeta 2010000337240
+tarjeta_en_varios_clientes;08562,24371,B6858,C6237,D5865,F8076,F8617,F8667,F8742,F9305,F9837,F9865,G1500,G1515,G1579,G1789,G1811,G2494,G5231,G5312,H7849;tarjeta 2650000103089
+tarjeta_en_varios_clientes;29636,33290;tarjeta 2010000310182
+tarjeta_en_varios_clientes;01160,43596;tarjeta 2010000482384
+tarjeta_en_varios_clientes;I0494,I0513;tarjeta 100019500406
+tarjeta_en_varios_clientes;79613,83141;tarjeta 2010000836583
+tarjeta_en_varios_clientes;03222,34909;tarjeta 2010000448854

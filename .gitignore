@@ -1,0 +1,31 @@
+# Build outputs
+bin/
+obj/
+out/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Secretos y configuración local (NUNCA commitear)
+appsettings.*.local.json
+appsettings.Local.json
+*.secrets.json
+secrets.json
+
+# Certificados CAE subidos + claves de Data Protection (Storage:CertificadosPath, ver Program.cs)
+App_Data/
+src/Pos.Api/App_Data/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
+.DS_Store

@@ -1,0 +1,113 @@
+/*
+  Factura A y B en formato ticket (rollo de 76 mm, ancho real de la comandera), fiel a las muestras reales:
+  - A: importes NETOS por línea + IVA discriminado por alícuota al pie.
+  - B: importes con IVA incluido, sin discriminar.
+  Se imprime desde el navegador (window.print()), igual que las etiquetas: acá conviene que
+  imprima la impresora real del puesto y no un puerto mockeado.
+*/
+
+.cbte {
+  width: 76mm;
+  margin: 0 auto;
+  padding: 4mm 4mm 6mm;
+  background: #fff;
+  color: #000;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 8.5pt;
+  line-height: 1.3;
+}
+
+.cbte__tipo { text-align: center; margin-bottom: 3mm; }
+.cbte__tipo h2 { margin: 0; font-size: 16pt; font-weight: 700; letter-spacing: 0.5px; }
+.cbte__tipo small { display: block; font-size: 8pt; }
+.cbte__x-grande { font-size: 28pt; font-weight: 700; line-height: 1; margin-bottom: 1mm; }
+
+.cbte__emisor { border-bottom: 1px solid #000; padding-bottom: 2mm; margin-bottom: 2mm; }
+.cbte__emisor strong { display: block; font-size: 10pt; }
+.cbte__emisor div { font-size: 8pt; }
+
+.cbte__meta { display: flex; justify-content: space-between; gap: 4mm; font-size: 8pt; margin-bottom: 2mm; }
+
+.cbte__cliente { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 1.5mm 0; margin-bottom: 2mm; font-size: 8pt; }
+.cbte__cliente div { display: flex; gap: 2mm; }
+.cbte__cliente span:first-child { min-width: 22mm; }
+
+.cbte__lineas { width: 100%; border-collapse: collapse; font-size: 8pt; }
+.cbte__lineas th { border-bottom: 1px solid #000; text-align: left; padding: 1mm 0; font-weight: 600; }
+.cbte__lineas td { padding: 0.8mm 0; vertical-align: top; }
+.cbte__lineas .num { text-align: right; white-space: nowrap; }
+.cbte__lineas .desc small { display: block; color: #333; }
+/* En la B la línea se lee en dos renglones ("1.00 x 170.00" arriba, descripción abajo), como
+   en el ticket de mostrador; en la A entra en columnas porque hay cantidad, unitario y total. */
+.cbte__lineas tr.b-linea td { border: none; }
+
+.cbte__totales { margin-top: 2mm; border-top: 1px solid #000; padding-top: 1.5mm; font-size: 8.5pt; }
+.cbte__totales div { display: flex; justify-content: space-between; }
+.cbte__totales .total { font-size: 13pt; font-weight: 700; margin-top: 1.5mm; }
+
+.cbte__pagos { margin-top: 1.5mm; font-size: 8pt; }
+.cbte__pagos div { display: flex; justify-content: space-between; }
+
+.cbte__cae { margin-top: 2.5mm; border-top: 1px solid #000; padding-top: 1.5mm; font-size: 8pt; text-align: center; }
+.cbte__cae .mono { font-family: Consolas, "Courier New", monospace; }
+.cbte__leyenda { margin-top: 2mm; font-size: 6.5pt; text-align: center; color: #333; }
+
+.cbte__acciones { display: flex; gap: 8px; justify-content: center; margin: 14px 0; }
+
+@media screen {
+  .cbte { border: 1px solid #c6cfcb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
+  /* El ticket de retiro no se muestra en pantalla (solo se imprime): se saca de la vista en vez de
+     display:none, que también lo ocultaría al imprimir. */
+  .cbte--sinPantalla { position: absolute; left: -9999px; top: -9999px; }
+}
+
+/* Ticket de "Retiro de dinero": fuentes bien más grandes que el resto de los tickets (que siguen
+   el formato fiel de la factura real) — este es un comprobante interno, no fiscal, pensado para
+   leerse rápido en la comandera. */
+.cbte--retiro .cbte__tipo h2 { font-size: 22pt; }
+.cbte--retiro .cbte__meta { font-size: 11pt; }
+.cbte--retiro .cbte__cliente { font-size: 12pt; }
+.cbte--retiro .cbte__totales { font-size: 13pt; }
+.cbte--retiro .cbte__totales .total { font-size: 20pt; }
+.cbte--retiro .cbte__leyenda { font-size: 10pt; }
+
+/* Comprobante de pago (VALE u otro medio marcado "Imprime comprobante"): fuentes grandes igual que
+   Retiro (comprobante interno para firmar en el momento, no la factura fiel). Agrega un renglón en
+   blanco + etiquetas para la firma y aclaración del empleado. */
+.cbte--vale .cbte__tipo h2 { font-size: 18pt; }
+.cbte--vale .cbte__meta { font-size: 10pt; }
+.cbte--vale .cbte__cliente { font-size: 10pt; }
+.cbte--vale .cbte__pagos { font-size: 11pt; margin-top: 2mm; }
+.cbte--vale .cbte__totales .total { font-size: 16pt; }
+.cbte__firma { margin-top: 10mm; }
+.cbte__firma-linea { border-top: 1px solid #000; margin: 0 4mm; }
+.cbte__firma-etiquetas { display: flex; justify-content: space-between; margin: 1mm 4mm 0; font-size: 7.5pt; color: #333; }
+
+@media print {
+  @page { size: 76mm auto; margin: 0; }
+  .cbte-no-print { display: none !important; }
+  .cbte { border: none; box-shadow: none; margin: 0; width: 76mm; }
+  /* El resto de la app (header de caja, nav) no va al papel. */
+  body * { visibility: hidden; }
+  .cbte, .cbte * { visibility: visible; }
+  .cbte { position: absolute; left: 0; top: 0; }
+
+  /* Compensación empírica para "POS Printer 203DPI...": declarado a 76mm sale angosto en el papel
+     real (confirmado imprimiendo con Escala 130% en el diálogo, que sí sale bien — y esa
+     preferencia NO queda guardada de una impresión a la otra). Como estos tickets se imprimen
+     solos (window.print() disparado por código, sin que nadie toque el diálogo), se compensa acá
+     con una página propia ~30% más ancha en vez de depender de que alguien recuerde tocar la
+     escala a mano cada vez. Mismo ajuste para Retiro y Presupuesto — son los dos tickets que se
+     imprimen por el navegador contra esta impresora (Factura A/B sale por el controlador fiscal
+     Hasar, no por acá). Si el día de mañana se usa OTRA impresora sin este defecto, queda
+     encapsulado en cada ticket (named pages "retiro-ticket"/"presupuesto-ticket"): no toca el
+     @page de 76mm de la Factura. */
+  @page retiro-ticket { size: 99mm auto; margin: 0; }
+  .cbte--retiro { page: retiro-ticket; width: 99mm; }
+
+  @page presupuesto-ticket { size: 99mm auto; margin: 0; }
+  .cbte--presupuesto { page: presupuesto-ticket; width: 99mm; }
+
+  @page vale-ticket { size: 99mm auto; margin: 0; }
+  .cbte--vale { page: vale-ticket; width: 99mm; }
+}

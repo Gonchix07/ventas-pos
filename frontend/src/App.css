@@ -1,0 +1,571 @@
+:root {
+  --bg: #f6f7f6;
+  --surface: #ffffff;
+  --ink: #16211f;
+  --muted: #5c6b67;
+  --line: #dde3e0;
+  --petrol: #0c6b63;
+  --petrol-ink: #0a4f49;
+  --danger: #a3372e;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+.brand { display: flex; align-items: baseline; gap: 8px; }
+.brand-mark { font-weight: 800; letter-spacing: -0.02em; color: var(--petrol); font-size: 20px; }
+.brand-sub { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+.brand-logo { margin-left: auto; width: 32px; height: 32px; object-fit: contain; align-self: center; }
+
+/* ---- Login ---- */
+.login-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.login-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  padding: 32px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 10px 30px rgba(22,33,31,0.08); }
+.login-card h1 { margin: 8px 0 4px; font-size: 22px; }
+.login-card label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.login-card input { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; }
+.login-card input:focus { outline: 2px solid var(--petrol); border-color: var(--petrol); }
+.login-card button { margin-top: 8px; padding: 11px; border: none; border-radius: 9px;
+  background: var(--petrol); color: #fff; font-weight: 600; font-size: 15px; cursor: pointer; }
+.login-card button:disabled { opacity: 0.6; cursor: default; }
+.login-card .error { color: var(--danger); font-size: 13px; margin: 0; }
+.login-card .hint { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+/* ---- App shell ---- */
+.app-header { display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.user-box { display: flex; align-items: center; gap: 14px; font-size: 14px; color: var(--muted); }
+.user-box button { border: 1px solid var(--line); background: transparent; border-radius: 8px;
+  padding: 6px 12px; cursor: pointer; color: var(--ink); }
+.app-main { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
+
+/* Margen extra para pantallas que quedaban pegadas al borde: Tesorería (dentro de admin-content,
+   que ya tiene su propio padding) y Etiquetas (ruta suelta, sin ningún contenedor con margen). No
+   se toca `.admin-content` en general porque el resto de los ABM ya está bien como está. En
+   impresión (Etiquetas genera la vista de las etiquetas físicas) el margen se anula: no tiene
+   que mover la posición real de lo que sale por la impresora. */
+.page-shell { padding: 20px 32px; }
+@media print { .page-shell { padding: 0; } }
+.app-main h1 { font-size: 20px; }
+.module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
+.module-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.module-card h3 { margin: 0 0 6px; color: var(--petrol-ink); }
+.module-card p { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
+.module-card.disabled { opacity: 0.5; }
+.badge { font-size: 11px; font-weight: 600; color: var(--petrol-ink); background: #e3efec;
+  padding: 3px 9px; border-radius: 100px; }
+.badge.on { color: var(--petrol-ink); background: #e3efec; }
+.badge.off { color: #a3372e; background: #f6e3e0; }
+/* Estado a mitad de camino (ej. venta a medio escanear en la recuperación de operaciones). */
+.badge.warn { color: #6b5518; background: #fdf6e3; }
+/* Listas de precios del negocio, con los colores con los que se las nombra en el mostrador. */
+.badge.lista-azul { color: #10429c; background: #d6e6fb; }
+.badge.lista-roja { color: #b3231c; background: #fbdcdb; }
+.module-card.clickable { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.module-card.clickable:hover { border-color: var(--petrol); box-shadow: 0 6px 18px rgba(12,107,99,.12); }
+
+/* ---- Admin ---- */
+.admin { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+.admin-side { background: var(--surface); border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; padding: 18px 14px; gap: 18px; }
+.admin-side nav { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.admin-side nav a { text-decoration: none; color: var(--ink); padding: 9px 12px; border-radius: 8px; font-size: 14px; }
+.admin-side nav a:hover { background: #eef1ef; }
+.admin-side nav a.active { background: var(--petrol); color: #fff; }
+
+/* Menú agrupado: encabezado de grupo + submenú indentado. El encabezado puede ser un link
+   (grupos que tienen su propio ABM, como Artículos) o solo un botón para plegar/desplegar. */
+.nav-grupo { display: flex; flex-direction: column; }
+.nav-grupo + .nav-grupo { margin-top: 6px; }
+.nav-grupo-head { display: flex; align-items: center; gap: 2px; }
+.nav-grupo-head > a, .nav-grupo-label { flex: 1; text-align: left; }
+.nav-grupo-label { border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--ink);
+  padding: 9px 12px; border-radius: 8px; cursor: pointer; }
+.nav-grupo-label:hover { background: #eef1ef; }
+.nav-grupo-head > a, .nav-grupo-label { font-weight: 600; }
+.nav-grupo-caret { border: 0; background: transparent; color: var(--muted); cursor: pointer;
+  padding: 6px 8px; border-radius: 6px; font-size: 16px; line-height: 1; }
+.nav-grupo-caret:hover { background: #eef1ef; color: var(--ink); }
+.nav-sub { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 0 10px;
+  padding-left: 8px; border-left: 1px solid var(--line); }
+.nav-sub a { font-size: 13px; padding: 7px 10px; color: var(--muted); }
+.nav-sub a.active { color: #fff; }
+/* Bloque de usuario logueado: ahora va debajo de la marca "POS Admin" (antes al pie del
+   sidebar) para que quede visible sin tener que mirar abajo del todo. */
+.admin-user { display: flex; flex-direction: column; gap: 8px; padding-bottom: 16px;
+  margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.admin-user-nombre { font-size: 13px; }
+.admin-user-usuario { color: var(--petrol-ink); font-weight: 600; }
+.admin-user-ip { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: #eef1ef; font-size: 12px; color: var(--muted); }
+.admin-user-salir { width: 100%; border: 1px solid var(--line); background: transparent;
+  border-radius: 8px; padding: 8px 10px; cursor: pointer; color: var(--ink); font-weight: 600; }
+.admin-user-salir:hover { background: #eef1ef; }
+.admin-content { padding: 28px 32px; max-width: 1100px; }
+.admin-content h1 { font-size: 22px; margin: 0 0 18px; }
+
+/* Pantallas angostas (tablet/celular): el sidebar de 240px fijos no deja lugar para el contenido
+   (tablas de Artículos/Clientes, sobre todo). Se apila arriba en vez de al costado y se recorta el
+   padding, que a este ancho ya sobra. */
+@media (max-width: 860px) {
+  .admin { grid-template-columns: 1fr; }
+  .admin-side { border-right: none; border-bottom: 1px solid var(--line); padding: 14px; }
+  .admin-side nav { max-height: 220px; }
+  .admin-content { padding: 20px 16px; }
+}
+/* Ventas: sin el ancho fijo de los ABM, y estirado a todo el alto visible (el sidebar ya fija
+   min-height:100vh en `.admin`, esto hace que el panel de contenido lo acompañe en vez de quedar
+   con la altura justa de lo que tiene adentro). */
+.admin-content-full { max-width: none; width: 100%; box-sizing: border-box;
+  display: flex; flex-direction: column; }
+.admin-content-full > * { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.toolbar { display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap; }
+/* Tablas anchas (Artículos, Clientes): en vez de romper el layout de la página entera, la que
+   scrollea horizontalmente es la tabla sola. `table.grid` ya trae `overflow:hidden` (para las
+   esquinas redondeadas), así que el scroll tiene que ir en este contenedor, no en la tabla. */
+.table-scroll { width: 100%; overflow-x: auto; }
+/* line-height explícito: sin esto el <select> (que abajo lleva el suyo) quedaba 4px más alto que
+   los inputs de al lado y la fila se veía despareja. */
+.toolbar input, .form-grid input, .barra-row input {
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px;
+  line-height: 1.25; }
+
+/* Fila de campos con etiqueta arriba (para toolbars donde un input/select suelto no se entiende
+   solo). Alineada abajo para que el botón quede a la altura de los campos. */
+.field-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin: 10px 0 4px; }
+.field-row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.field-row input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px;
+  line-height: 1.25; }
+
+/* Bloque de importación de archivo (ver PadronesPage): el selector y el check ocupan toda la línea
+   del panel, con el botón al final. El input[type=file] nativo se ve distinto en cada navegador,
+   así que se estila el recuadro y su botón interno (::file-selector-button). */
+.import-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; width: 100%; }
+.import-row .file-field { flex: 1 1 320px; min-width: 240px; }
+.import-row input[type="file"] {
+  width: 100%; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 10px;
+  background: var(--surface); font-size: 13px; color: var(--muted); cursor: pointer;
+}
+.import-row input[type="file"]:hover { border-color: var(--petrol); }
+.import-row input[type="file"]::file-selector-button {
+  margin-right: 10px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: #eef1ef; color: var(--ink); font-size: 13px; font-family: inherit; cursor: pointer;
+}
+.import-row input[type="file"]::file-selector-button:hover { background: #e3e8e5; }
+.import-row input[type="file"]:disabled { opacity: .6; cursor: not-allowed; }
+/* Check con recuadro propio para que no quede "suelto" al lado de otros campos — pensado
+   originalmente para el selector de archivo (import-row) pero es genérico: se reusa en cualquier
+   toolbar/field-row que necesite un checkbox con el mismo aspecto que selects/inputs de al lado
+   (ej. "Admite Presupuesto" en Cajas, "Vender como Presupuesto" en Caja). */
+.check-box {
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 12px; font-size: 13px;
+  color: var(--ink); border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+  cursor: pointer; white-space: nowrap;
+}
+.check-box:hover { border-color: #bcc7c3; }
+.check-box input { accent-color: var(--petrol); width: 16px; height: 16px; margin: 0; }
+.import-row > button { flex: 0 0 auto; }
+.badge.muted { color: var(--muted); background: #eef1ef; }
+
+/* ---- Certificado CAE (EstructuraPage) ---- */
+.cert-cae { border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-top: 14px;
+  background: linear-gradient(180deg, #fbfcfb 0%, var(--surface) 60px); }
+.cert-cae-head { display: flex; align-items: center; gap: 10px; }
+.cert-cae-icon { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 9px; display: grid;
+  place-items: center; background: #e3efec; color: var(--petrol-ink); }
+.cert-cae-head h3 { margin: 0; font-size: 15px; }
+.cert-cae-desc { margin: 6px 0 14px; font-size: 13px; color: var(--muted); }
+.cert-cae-estado { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 13px; }
+.cert-cae-estado .badge { font-size: 11px; }
+.cert-cae input[type="password"] { flex: 0 1 220px; min-width: 160px; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 8px; font-size: 14px; line-height: 1.25; }
+/* Selector de modo (.pfx armado vs. clave + certificado sueltos): segmented control chico, no son
+   dos pantallas distintas, solo dos formas de llegar al mismo resultado. */
+.cert-cae-modo { display: inline-flex; border: 1px solid var(--line); border-radius: 8px;
+  overflow: hidden; margin-bottom: 12px; }
+.cert-cae-modo button { border: 0; background: var(--surface); color: var(--muted); font-size: 12px;
+  padding: 7px 12px; cursor: pointer; }
+.cert-cae-modo button + button { border-left: 1px solid var(--line); }
+.cert-cae-modo button.activo { background: var(--petrol); color: #fff; }
+
+/* Barra de progreso de la importación de padrones. Mientras se sube tiene un porcentaje real (el
+   servidor procesa el archivo A MEDIDA que lo recibe, así que el avance de la subida es el avance
+   real del import); al llegar al 100% queda el tramo final —insertar desde la tabla temporal y
+   commitear— que no reporta avance, y ahí pasa a indeterminada. */
+.progress { height: 10px; width: 100%; border-radius: 999px; background: #e6ebe8;
+  overflow: hidden; margin: 6px 0 2px; }
+.progress__barra { height: 100%; width: 0; border-radius: 999px; background: var(--petrol);
+  transition: width .2s ease; }
+.progress--indeterminada .progress__barra {
+  width: 35%; transition: none; animation: progress-vaiven 1.1s ease-in-out infinite;
+}
+@keyframes progress-vaiven {
+  0% { margin-left: -35%; }
+  100% { margin-left: 100%; }
+}
+
+/* Fila de un pago en el cobro: medio, monto, cupón, lote y los botones van SIEMPRE en una sola
+   línea (el cajero la lee de un vistazo). Por eso nowrap + scroll horizontal en vez de wrap: que
+   los campos se acomoden en dos renglones haría perder la correspondencia entre ellos. */
+.pago-row { display: flex; flex-wrap: nowrap; gap: 8px; align-items: flex-end; margin-bottom: 8px;
+  overflow-x: auto; padding-bottom: 2px; }
+.pago-row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.pago-row input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px;
+  line-height: 1.25; width: 100%; }
+.pago-row button { flex: 0 0 auto; white-space: nowrap; }
+/* Ancho FIJO (no flex: 1): si el select de medio se estira según el contenido de la fila, cada
+   pago lo dibuja de un ancho distinto —los que llevan cupón y lote tienen más campos— y los
+   montos de las distintas filas dejan de estar alineados en columna. Achicados (antes 220/150/130)
+   para que la fila completa (medio+monto+cupón+lote+plan+botón) entre sin scroll horizontal en un
+   ancho de pantalla normal — con tarjeta son 5 campos + botón en la misma línea. */
+.pago-row .campo-medio { flex: 0 0 160px; }
+.pago-row .campo-medio select { width: 100%; }
+.pago-row .campo-monto { flex: 0 0 110px; }
+.pago-row .campo-monto .moneda-input { display: flex; width: 100%; }
+.pago-row .campo-cupon { flex: 0 0 90px; }
+
+/* Los <select> quedaban con el aspecto default del navegador, que desentonaba al lado de los
+   inputs (gris, esquinas rectas, alto distinto). Se estilan de forma global para que todos los
+   combos de la app se vean igual; la flecha es un SVG embebido (no se puede usar la nativa
+   después de appearance:none, y un asset externo rompería el CSP de producción). */
+select {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  padding: 8px 32px 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+  font-size: 14px; font-family: inherit; line-height: 1.25;
+  color: var(--ink); background-color: var(--surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%235c6b67' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 11px;
+  cursor: pointer;
+}
+select:hover { border-color: #bcc7c3; }
+select:focus-visible { outline: none; border-color: var(--petrol); box-shadow: 0 0 0 3px rgba(12,107,99,0.15); }
+select:disabled { background-color: #f2f4f3; color: var(--muted); cursor: not-allowed; }
+/* Opción "vacía" (ej. "(sin lista de precios)"): se distingue de una selección real. */
+select.sin-valor { color: var(--muted); font-style: italic; }
+button { cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+button.primary { background: var(--petrol); color: #fff; border-color: var(--petrol); font-weight: 600; }
+button.danger { color: #a3372e; border-color: #e3c4bf; }
+/* Variante sólida del rojo, para botones que necesitan destacar como acción sensible en el header
+   de caja (ej. Notas de Crédito), no solo el texto en rojo de `.danger`. */
+button.danger-solid { background: var(--danger); color: #fff; border-color: var(--danger); font-weight: 600; }
+/* Naranja suave para "Anular Operación": es una acción de retroceso, no tan grave como Notas de
+   Crédito (que sí modifica un comprobante fiscal ya emitido) — por eso un color de aviso más tenue
+   en vez del rojo sólido de danger-solid. */
+button.warning-solid { background: #fdedd7; color: #9a5b13; border-color: #f4cd9a; font-weight: 600; }
+button.warning-solid:hover { background: #fbe1ba; }
+
+/* Bloqueo de pantalla mientras se espera arqueo/cierre (varios requests + impresora fiscal, tarda
+   unos segundos): tapa toda la vista con blur para que el cajero no piense que se colgó. */
+.pantalla-bloqueada {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(22, 33, 31, 0.35);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+.pantalla-bloqueada-caja {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  background: var(--surface); border-radius: 14px; padding: 28px 36px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+.pantalla-bloqueada-caja p { margin: 0; color: var(--ink); font-weight: 600; }
+.spinner {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 4px solid var(--line); border-top-color: var(--petrol);
+  animation: girar 0.8s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+table.grid { width: 100%; border-collapse: collapse; margin-top: 12px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+table.grid th, table.grid td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 14px; }
+table.grid thead th { background: #eef1ef; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+table.grid tr.inactive { opacity: .55; }
+/* Fila seleccionada (la usan ClustersPage y el buscador de ListasPreciosPage). */
+table.grid tr.sel > td { background: #eef5f2; box-shadow: inset 3px 0 0 var(--petrol); }
+
+/* Tabla usada como resultado de búsqueda: se limita el alto para que no empuje el formulario
+   de abajo cuando hay muchos resultados. El alto entra ~8 filas y el resto se scrollea con el
+   encabezado fijo (por eso el thead necesita fondo opaco: si no, se ven las filas por detrás). */
+/* OJO con el selector: tiene que ser `table.grid.picker-table` y no `.picker-table` a secas. La
+   regla `table.grid` de arriba trae `overflow: hidden` (para redondear las esquinas) y le gana en
+   especificidad a una clase sola, así que el `overflow-y: auto` no se aplicaba: la tabla recortaba
+   las filas de más pero no scrolleaba. */
+table.grid.picker-table {
+  display: block; max-height: 340px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable;
+}
+.picker-table thead, .picker-table tbody { display: table; width: 100%; table-layout: fixed; }
+.picker-table thead th { position: sticky; top: 0; z-index: 1; background: #eef1ef; }
+.picker-table tbody tr:hover > td { background: #f4f7f5; }
+
+/* Buscador destacado: es la acción principal de la pantalla (asignar precio empieza por encontrar
+   el artículo), así que se ve como un campo de búsqueda y no como un input más del formulario.
+   La lupa es un SVG embebido en data: URI — un asset externo rompería el CSP de producción. */
+.search-field { display: flex; flex-direction: column; gap: 6px; max-width: 560px; }
+.search-field > label, .search-field > span { font-size: 12px; color: var(--muted); }
+.search-box { position: relative; display: flex; align-items: center; }
+.search-box input {
+  width: 100%; padding: 12px 40px 12px 42px; font-size: 15px; line-height: 1.25;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--surface) no-repeat 14px center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='%235c6b67' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.5'/%3E%3Cpath d='M10.4 10.4 14 14'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 16px;
+}
+.search-box input:hover { border-color: #bcc7c3; }
+.search-box input:focus-visible {
+  outline: none; border-color: var(--petrol); box-shadow: 0 0 0 3px rgba(12, 107, 99, 0.15);
+}
+.search-box .search-clear {
+  position: absolute; right: 6px; width: 28px; height: 28px; padding: 0; border: 0;
+  border-radius: 50%; background: transparent; color: var(--muted); font-size: 17px; line-height: 1;
+}
+.search-box .search-clear:hover { background: #eef1ef; color: var(--ink); }
+.search-hint { font-size: 12px; color: var(--muted); }
+.precio-editor { border-top: 1px dashed var(--line); margin-top: 12px; }
+td.row-actions { vertical-align: middle; }
+.row-actions { display: flex; gap: 6px; align-items: center; }
+.mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+.ip-badge { padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; }
+/* Lista de "chips" removibles (ej. terminales de tarjeta asignadas a una caja): cada chip lleva su
+   propia × para desasignar sin abrir un formulario aparte. */
+.chip-list { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 10px;
+  border: 1px solid var(--line); border-radius: 999px; font-size: 12px; background: var(--surface); }
+.chip button { border: none; background: none; padding: 0; line-height: 1; color: var(--muted); cursor: pointer; font-size: 13px; }
+.chip button:hover { color: #a3372e; }
+.muted { color: var(--muted); }
+.error { color: #a3372e; font-size: 14px; }
+/* Vuelto en el cobro: tiene que saltar a la vista de lejos (el cajero se lo dice al cliente en
+   voz alta), por eso mucho más grande y en un color que no se confunda con error (rojo) ni con
+   éxito (verde/petrol) — naranja, reservado solo para esto. */
+.vuelto { color: #d9720b; font-size: 20px; font-weight: 700; }
+.thumb { width: 40px; height: 40px; object-fit: contain; border: 1px solid var(--line); border-radius: 6px; background:#fff; }
+
+.card.form { background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 18px; margin: 16px 0; display: flex; flex-direction: column; gap: 14px; }
+.card.form h3 { margin: 0; }
+.form-con-imagen { display: flex; gap: 16px; align-items: flex-start; }
+.form-con-imagen .form-grid { flex: 1; }
+.form-imagen { width: 160px; height: 160px; object-fit: contain; border: 1px solid var(--line);
+  border-radius: 8px; background: #fff; flex-shrink: 0; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: end; }
+.form-grid label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); }
+.form-grid label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--ink); font-size: 14px; }
+.presentaciones { border-top: 1px dashed var(--line); padding-top: 12px; }
+.pres-card { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin: 10px 0; background: #fafbfa; }
+.barras { margin-top: 8px; }
+.barra-row { display: flex; gap: 8px; margin: 6px 0; align-items: center; }
+.art-results { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.art-results button { font-size: 13px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+.two-col h3 { margin: 0 0 8px; }
+.inline-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+
+/* Barra de filtros de listados del ABM (ver ArticulosPage). */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin: 12px 0;
+  padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.filter-bar label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.filter-bar input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px;
+  line-height: 1.25; }
+.filter-bar .grow { flex: 1; min-width: 220px; }
+.filter-bar .filter-count { margin-left: auto; font-size: 13px; color: var(--muted); }
+td.stack { line-height: 1.35; }
+td.stack small { display: block; color: var(--muted); font-size: 12px; }
+
+/* Input de importe: el "$" es fijo (parte del recuadro) y el número se alinea a la derecha,
+   como en una calculadora. Ver shared/ui/moneda.tsx. */
+.moneda-input { display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface); font-size: 14px; line-height: 1.25; }
+.moneda-input:focus-within { border-color: var(--petrol); box-shadow: 0 0 0 3px rgba(12,107,99,0.15); }
+.moneda-input.disabled { background: #f2f4f3; }
+.moneda-signo { color: var(--muted); font-size: 13px; }
+.moneda-input input { border: 0; outline: none; background: transparent; padding: 0;
+  font-size: 14px; font-family: ui-monospace, Consolas, monospace; text-align: right;
+  width: 100%; min-width: 0; color: inherit; }
+td.money, th.money { text-align: right; font-family: ui-monospace, Consolas, monospace;
+  white-space: nowrap; }
+
+/* Selector de a varios con checkboxes (ver ClustersPage). */
+.picker { max-height: 260px; overflow-y: auto; margin: 8px 0;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.picker-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  border-bottom: 1px solid var(--line); font-size: 14px; cursor: pointer; }
+.picker-row:last-child { border-bottom: 0; }
+.picker-row:hover { background: #f4f7f5; }
+.picker-row.marcado { background: #eef5f2; }
+.picker-row .grow { flex: 1; }
+.picker p.muted { padding: 10px 12px; margin: 0; }
+
+/* Barra de cambios pendientes de guardar. */
+.pending-bar { display: flex; align-items: center; gap: 12px; margin: 10px 0;
+  padding: 10px 14px; border-radius: 10px; font-size: 14px;
+  background: #fdf6e3; border: 1px solid #e8d9a8; color: #6b5518; }
+.pending-bar span { flex: 1; }
+.ok-msg { color: var(--petrol-ink); background: #e3efec; border: 1px solid #cfe3dd;
+  padding: 8px 12px; border-radius: 8px; font-size: 14px; }
+
+/* ---- Caja ---- */
+.caja-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.caja-header { display: flex; align-items: center; gap: 16px; justify-content: space-between;
+  padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.lote-badge { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--petrol-ink);
+  background: #e3efec; padding: 5px 12px; border-radius: 100px; }
+.caja-center { flex: 1; display: grid; place-items: center; padding: 24px; }
+.caja-body { max-width: 1000px; margin: 0 auto; padding: 24px; width: 100%; }
+/* Pantalla a todo el ancho con márgenes estrechos: la usa la identificación de cliente, donde la
+   tabla de resultados necesita todas las columnas del padrón visibles de una sola pasada. */
+.caja-wide { flex: 1; width: 100%; padding: 16px 20px; }
+.ident-head h1 { margin: 0 0 2px; font-size: 26px; }
+.ident-head p { margin: 0 0 14px; font-size: 15px; }
+.ident-search { display: flex; gap: 10px; margin-bottom: 14px; }
+.ident-search input { flex: 1; padding: 12px 14px; font-size: 18px; line-height: 1.25;
+  border: 1px solid var(--line); border-radius: 10px; }
+.ident-search button { padding: 12px 22px; font-size: 16px; }
+/* `table.` es necesario: `table.grid th/td` (de arriba) le gana en especificidad a `.ident-table td`. */
+table.ident-table th, table.ident-table td { padding: 12px 14px; font-size: 15px; }
+table.ident-table tbody tr { cursor: pointer; }
+table.ident-table tbody tr:hover > td { background: #eef5f2; }
+/* Destello de la fila que acabó de cambiar en la lista de artículos escaneados. Se hace con
+   animación (no con un color fijo) para que se apague sola sin depender del estado de React. */
+@keyframes destello-linea { from { background: #fbeec4; } to { background: transparent; } }
+table.grid tr.linea-tocada > td { animation: destello-linea 1.6s ease-out; }
+/* Precio que salió de una lista de folder (promoción vigente), no del precio habitual. */
+td.precio-folder { color: #c2620d; font-weight: 700; }
+.caja-cliente { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 15px; }
+/* Autorizados del cliente: van pegados debajo del nombre, uno por línea y en un tono más claro
+   para que se lean como dato de control y no compitan con el nombre del cliente. */
+.caja-autorizados { margin: -8px 0 12px; padding: 0 0 0 62px;
+  font-size: 13px; line-height: 1.5; color: var(--muted); }
+.caja-autorizados .tit { font-weight: 600; }
+.caja-autorizados ul { list-style: none; margin: 0; padding: 0; }
+.caja-autorizados .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.caja-totales { display: flex; align-items: center; gap: 24px; justify-content: flex-end;
+  margin-top: 16px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.caja-totales div { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 2px; }
+.caja-totales div b { font-size: 16px; color: var(--ink); font-family: ui-monospace, Consolas, monospace; }
+.caja-totales div.total b { font-size: 22px; color: var(--petrol-ink); }
+/* Variante de la pantalla de escaneo: va arriba de la lista de artículos y se queda pegada al
+   borde superior mientras el cajero baja por las líneas. El z-index la deja por encima del
+   thead de la tabla; el modal del buscador (z-index mayor) sigue tapándola. */
+.caja-totales-fija { position: sticky; top: 0; z-index: 4; margin-top: 0; margin-bottom: 14px;
+  box-shadow: 0 4px 12px rgba(22,33,31,0.06); }
+.ticket-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  padding: 36px; text-align: center; min-width: 320px; box-shadow: 0 10px 30px rgba(22,33,31,0.08); }
+.ticket-numero { font-family: ui-monospace, Consolas, monospace; font-size: 40px; font-weight: 800;
+  letter-spacing: 0.05em; color: var(--petrol-ink); margin: 10px 0 20px; }
+.ticket-totales { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+.ticket-totales div { display: flex; justify-content: space-between; font-size: 14px; }
+.ticket-totales div.total { font-size: 20px; font-weight: 700; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; }
+
+/* ---- Ofertas: buscador de artículo y canasta (ver OfertasPage) ---- */
+.art-box { position: relative; }
+.art-box .picker { position: absolute; z-index: 5; left: 0; right: 0; max-height: 200px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .12); }
+.art-box p.muted { margin: 4px 0 0; font-size: 12px; }
+.art-elegido { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 4px 4px 10px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+  font-size: 13px; color: var(--ink); }
+.art-elegido .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: ui-monospace, Consolas, monospace; }
+/* Descripción del artículo elegido, debajo del campo: se lee entera, sin recortar. */
+.art-desc { margin: 4px 0 0; font-size: 12px; line-height: 1.35; color: var(--muted); }
+.canasta { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.canasta h5 { margin: 0; font-size: 13px; }
+
+/* ---- Campo de escaneo con lupa (búsqueda manual) ---- */
+.campo-lupa { position: relative; flex: 1; display: flex; }
+.campo-lupa input { width: 100%; padding-right: 40px; }
+.campo-lupa .lupa { position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  border: 0; background: transparent; padding: 4px 8px; font-size: 17px; line-height: 1;
+  cursor: pointer; color: var(--muted); }
+.campo-lupa .lupa:hover { color: var(--ink); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Cantidad editable desde la tabla de artículos leídos. */
+.cant-cell { white-space: nowrap; }
+.cant-cell button { min-width: 28px; padding: 2px 6px; font-size: 15px; line-height: 1.2; }
+.cant-cell span { display: inline-block; min-width: 34px; text-align: center; }
+
+/* ---- Modal genérico (buscador de artículos) ---- */
+.modal-fondo { position: fixed; inset: 0; background: rgba(15, 23, 21, .45); z-index: 50;
+  display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px; overflow-y: auto; }
+.modal-caja { background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 20px; width: min(860px, 100%); box-shadow: 0 18px 48px rgba(0, 0, 0, .25); }
+.modal-caja .page-head { margin-bottom: 12px; }
+.modal-caja h3 { margin: 0; }
+
+/* ---- Popup de código de supervisor (ver shared/ui/SupervisorGate.tsx) ---- */
+/* Angosto a propósito: es un solo campo, no un formulario — que no ocupe toda la pantalla. */
+.modal-pin { width: min(340px, 100%); text-align: center; }
+.pin-input { width: 100%; margin-top: 10px; padding: 12px; border: 1px solid var(--line);
+  border-radius: 10px; font-size: 28px; letter-spacing: 0.5em; text-align: center;
+  font-family: ui-monospace, Consolas, monospace; }
+.pin-input:focus { outline: 2px solid var(--petrol); border-color: var(--petrol); }
+
+/* ---- Notas de crédito (modal desde la barra de caja) ---- */
+.nc-numero { font-size: 22px; margin: 4px 0 12px; }
+.nc-numero .nc-letra { display: inline-block; margin-left: 8px; padding: 1px 9px;
+  border: 1px solid var(--line); border-radius: 6px; font-size: 15px; }
+.nc-saldos { display: flex; flex-wrap: wrap; gap: 20px; margin: 12px 0 16px;
+  font-size: 13px; color: var(--muted); }
+.nc-saldos b { display: block; font-size: 16px; color: var(--ink); }
+.nc-tipos { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 14px; }
+.nc-tipos label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.nc-monto { margin: 12px 0; }
+.nc-monto label, .nc-motivo label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.nc-monto .muted { margin: 8px 0 0; font-size: 12px; }
+.nc-motivo { margin: 12px 0; }
+.nc-motivo input { width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: 8px; font-size: 15px; }
+
+/* ---- Ventas (dashboard de estadísticas del Admin) ---- */
+.periodo-selector { display: flex; gap: 6px; }
+.periodo-selector button { font-size: 13px; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 16px; }
+/* container-type: permite que .kpi-valor escale su tamaño en base al ANCHO REAL de la tarjeta
+   (unidades cqi) y no del viewport — una tarjeta angosta (ej. 6 columnas en pantalla chica)
+   achica la fuente del número lo que haga falta para que entre completo sin partir el "$". */
+.kpi-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; container-type: inline-size; }
+.kpi-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.kpi-valor { font-size: clamp(14px, 7.5cqi, 22px); font-weight: 700; color: var(--petrol-ink);
+  font-family: ui-monospace, Consolas, monospace; white-space: nowrap; }
+.kpi-valor-nc { color: var(--danger); }
+.kpi-valor-descuento { color: #b8763e; }
+
+/* Gráficos propios en SVG (ver shared/ui/charts.tsx): sin librería externa. */
+.chart-svg { width: 100%; height: auto; }
+.chart-grid { stroke: var(--line); stroke-width: 1; }
+.chart-eje-y, .chart-eje-x { font-size: 10px; fill: var(--muted); }
+.chart-area { fill: rgba(12, 107, 99, 0.12); stroke: none; }
+.chart-linea { fill: none; stroke: var(--petrol); stroke-width: 2; }
+.chart-punto { fill: var(--surface); stroke: var(--petrol); stroke-width: 2; }
+.chart-barra { fill: var(--petrol); }
+
+/* Torta de familias más vendidas: círculo a la izquierda, referencias a la derecha (se apilan en
+   columna si no entran, ver two-col ya en @media max-width:900px). */
+.torta-wrap { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.torta-svg { width: 220px; height: 220px; flex-shrink: 0; }
+.torta-centro-valor { font-size: 15px; font-weight: 700; fill: var(--ink); font-family: ui-monospace, Consolas, monospace; }
+.torta-centro-label { font-size: 11px; fill: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.torta-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; flex: 1; min-width: 160px; }
+.torta-legend li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.torta-color { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+.torta-legend-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.torta-legend-valor { flex-shrink: 0; color: var(--muted); }
+
+/* Lista rankeada (top sectores/productos/clientes): barra proporcional al máximo de la lista. */
+.ranking-lista { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ranking-cabecera { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+.ranking-pos { color: var(--muted); font-family: ui-monospace, Consolas, monospace; width: 16px; flex-shrink: 0; }
+.ranking-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ranking-valor { flex-shrink: 0; font-size: 13px; }
+.ranking-barra-fondo { height: 6px; background: #eef1ef; border-radius: 4px; margin-top: 4px; margin-left: 24px; }
+.ranking-barra { height: 100%; background: var(--petrol); border-radius: 4px; }
