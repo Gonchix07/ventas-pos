@@ -66,6 +66,8 @@ export function VoucherComprobantePago({
       <div className="cbte__totales">
         <div className="total"><span>Total</span><span>{formatearMoneda(total)}</span></div>
       </div>
+      {/* 4 saltos de línea de aire antes de la firma, para que el empleado tenga lugar de sobra. */}
+      <br /><br /><br /><br />
       <div className="cbte__firma">
         <div className="cbte__firma-linea" />
         <div className="cbte__firma-etiquetas"><span>Firma</span><span>Aclaración</span></div>
