@@ -9,12 +9,6 @@ type Grupo = { id: string; label: string; to?: string; items: Item[] };
 // (Artículos, Clientes) tienen además su ABM principal en el encabezado del grupo.
 const GRUPOS: Grupo[] = [
   {
-    id: "ventas",
-    label: "Ventas",
-    to: "/admin/ventas",
-    items: [],
-  },
-  {
     id: "articulos",
     label: "Artículos",
     to: "/admin/articulos",
@@ -54,6 +48,7 @@ const GRUPOS: Grupo[] = [
       { to: "/admin/asignacion-cajas", label: "Asignación de cajas" },
       { to: "/admin/motivos-diferencia", label: "Motivos de diferencia" },
       { to: "/admin/motivos-cierre", label: "Motivos de cierre" },
+      { to: "/admin/bancos", label: "Bancos" },
     ],
   },
   {
@@ -102,6 +97,7 @@ export function AdminLayout() {
             <span className="muted"> · {rol}</span>
           </div>
           <div className="admin-user-ip mono">IP {ip ?? "—"}</div>
+          <button onClick={() => navigate("/")}>Módulos</button>
           <button className="admin-user-salir" onClick={logout}>Salir</button>
         </div>
         <nav>
@@ -149,9 +145,7 @@ export function AdminLayout() {
           })}
         </nav>
       </aside>
-      {/* Ventas es un dashboard, no un ABM: en vez del ancho fijo del resto de las pantallas de
-          Admin, ocupa todo el espacio disponible (útil con muchos gráficos lado a lado). */}
-      <section className={`admin-content${pathname.startsWith("/admin/ventas") ? " admin-content-full" : ""}`}>
+      <section className="admin-content">
         <Outlet />
       </section>
     </div>

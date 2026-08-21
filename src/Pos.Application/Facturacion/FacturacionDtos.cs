@@ -2,12 +2,14 @@
 
 /// <summary>
 /// Un pago del cobro. <c>NumeroCupon</c>/<c>NumeroLote</c> son obligatorios cuando el medio es de
-/// tipo Tarjeta (quedan guardados para la rendición de cupones) y se ignoran en el resto.
+/// tipo Tarjeta (quedan guardados para la rendición de cupones); <c>IdBanco</c>/<c>NumeroCheque</c>
+/// son obligatorios cuando el medio es Cheque (<c>ObservacionesCheque</c> queda libre, no se exige).
+/// Todos se ignoran cuando no corresponden a la fuente del medio.
 /// </summary>
 // IdPlan: plan de cuotas elegido junto con el medio (solo tiene sentido si es Tarjeta; opcional —
 // no todo medio Tarjeta tiene planes cargados, y no se obliga a elegir uno si los hay).
 public record PagoInput(int IdMedioPago, decimal Monto, string? NumeroCupon = null, string? NumeroLote = null,
-    int? IdPlan = null);
+    int? IdPlan = null, int? IdBanco = null, string? NumeroCheque = null, string? ObservacionesCheque = null);
 
 /// <summary>
 /// <c>Modo</c>: Presupuesto (0, comprobante X sin valor fiscal), Electronica (1) o Fiscal (2).
@@ -34,7 +36,9 @@ public record EmitirComprobanteResponse(
     decimal PercepcionIva21 = 0, decimal PercepcionIva105 = 0, decimal PercepcionIibb = 0,
     /// <summary>Sobrante devuelto en efectivo (0 si no hubo). Ya se registró aparte como una salida
     /// de caja — ver FacturacionService.EmitirAsync — así que se resta sola de la rendición.</summary>
-    decimal Vuelto = 0);
+    decimal Vuelto = 0,
+    /// <summary>Alícuota (%) con la que se calculó PercepcionIibb (0 si no corresponde).</summary>
+    decimal AlicuotaIibb = 0);
 
 public record DetalleComprobanteDto(int IdPresentacion, string DescripcionTicket,
     decimal Cantidad, decimal PrecioUnit, decimal Descuento, decimal AlicuotaIva, decimal Importe);
@@ -83,7 +87,9 @@ public record ComprobanteImpresionDto(
     decimal Descuento, decimal Neto, decimal Iva, decimal Total,
     List<IvaDiscriminadoDto> IvaDiscriminado, List<PagoComprobanteDto> Pagos,
     string? Cae, DateTime? CaeVencimiento, bool EsCaea, string Estado,
-    decimal PercepcionIva21 = 0, decimal PercepcionIva105 = 0, decimal PercepcionIibb = 0);
+    decimal PercepcionIva21 = 0, decimal PercepcionIva105 = 0, decimal PercepcionIibb = 0,
+    /// <summary>Alícuota (%) con la que se calculó PercepcionIibb (0 si no corresponde).</summary>
+    decimal AlicuotaIibb = 0);
 
 public interface IFacturacionService
 {

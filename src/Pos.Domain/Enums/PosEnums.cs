@@ -38,7 +38,8 @@ public enum FuentePago
     Tarjeta = 2,
     BilleteraVirtual = 3,
     Transferencia = 4,
-    CuentaCorriente = 5
+    CuentaCorriente = 5,
+    Cheque = 6
 }
 
 /// <summary>

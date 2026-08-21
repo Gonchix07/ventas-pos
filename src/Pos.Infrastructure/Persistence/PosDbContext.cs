@@ -68,6 +68,7 @@ public class PosDbContext : DbContext
     public DbSet<PlanCuota> PlanesCuota => Set<PlanCuota>();
     public DbSet<CuentaCorriente> CuentasCorrientes => Set<CuentaCorriente>();
     public DbSet<CorreccionCupon> CorreccionesCupon => Set<CorreccionCupon>();
+    public DbSet<Banco> Bancos => Set<Banco>();
 
     // Comprobantes / operaciones
     public DbSet<CabeceraComprobante> CabecerasComprobantes => Set<CabeceraComprobante>();
@@ -141,6 +142,7 @@ public class PosDbContext : DbContext
         b.Entity<Barra>().HasKey(x => x.IdBarra);
         b.Entity<Sector>().HasKey(x => x.IdSector);
         b.Entity<Linea>().HasKey(x => x.IdLinea);
+        b.Entity<Banco>().HasKey(x => x.IdBanco);
         b.Entity<Familia>().HasKey(x => x.IdFamilia);
         b.Entity<ModoIva>().HasKey(x => x.IdModoIva);
         b.Entity<Cliente>().HasKey(x => x.IdCliente);
@@ -356,6 +358,13 @@ public class PosDbContext : DbContext
         b.Entity<TerminalTarjeta>().Property(x => x.NumeroTerminal).HasMaxLength(30);
         b.Entity<MovimientoPago>().Property(x => x.NumeroCupon).HasMaxLength(20);
         b.Entity<MovimientoPago>().Property(x => x.NumeroLote).HasMaxLength(20);
+        b.Entity<MovimientoPago>().Property(x => x.NumeroCheque).HasMaxLength(8);
+        b.Entity<MovimientoPago>().Property(x => x.ObservacionesCheque).HasMaxLength(250);
+        // Explícito: "IdBanco" no lo detecta la convención de EF como FK de la navegación Banco acá
+        // (a diferencia de Familia.IdSector) — sin esto, EF crea una FK "fantasma" aparte
+        // (BancoIdBanco) y deja IdBanco como una columna suelta sin relación.
+        b.Entity<MovimientoPago>().HasOne(x => x.Banco).WithMany()
+            .HasForeignKey(x => x.IdBanco).OnDelete(DeleteBehavior.Restrict);
         b.Entity<CorreccionCupon>().Property(x => x.NumeroCuponAnterior).HasMaxLength(20);
         b.Entity<CorreccionCupon>().Property(x => x.NumeroCuponNuevo).HasMaxLength(20);
         b.Entity<CorreccionCupon>().Property(x => x.NumeroLoteAnterior).HasMaxLength(20);

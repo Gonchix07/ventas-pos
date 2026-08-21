@@ -36,6 +36,9 @@ public record MedioPagoResumen(int IdMedioPago, string Descripcion, int Fuente, 
 /// <summary>Plan de cuotas de un medio de pago Tarjeta, para elegir junto con el medio al cobrar.</summary>
 public record PlanCuotaResumen(int IdPlan, string Denominacion, int CantidadCuotas);
 
+/// <summary>Banco emisor, para el combo del pago con Cheque (ver MovimientoPago.IdBanco).</summary>
+public record BancoResumen(int IdBanco, string Descripcion);
+
 // ---- Identificación de cliente ----
 // La pantalla de caja muestra estos datos en tabla para que el cajero pueda distinguir homónimos:
 // además del padrón (domicilio/localidad), la tarjeta del cliente y la lista de precios con la que
@@ -72,10 +75,13 @@ public record OperacionLineaDto(long IdDetalle, int IdPresentacion, string Codig
 /// <param name="PercepcionIva21">Percepción de IVA sobre el neto gravado al 21% (0 si no corresponde).</param>
 /// <param name="PercepcionIva105">Percepción de IVA sobre el neto gravado al 10,5% (0 si no corresponde).</param>
 /// <param name="PercepcionIibb">Percepción de Ingresos Brutos según el padrón del cliente (0 si no corresponde).</param>
+/// <param name="AlicuotaIibb">Alícuota (%) con la que se calculó PercepcionIibb — la del padrón, o
+/// la general por defecto si el cliente tiene CUIT pero no está en el padrón (0 si no corresponde).</param>
 /// <param name="TotalACobrar">Neto + las 3 percepciones — este es el monto real que hay que cobrar.</param>
 public record OperacionDto(int IdSucursal, int IdOperacion, int? IdCliente, string? ClienteDescripcion,
     string Estado, List<OperacionLineaDto> Lineas, decimal Bruto, decimal Descuento, decimal Neto,
-    decimal PercepcionIva21 = 0, decimal PercepcionIva105 = 0, decimal PercepcionIibb = 0, decimal TotalACobrar = 0);
+    decimal PercepcionIva21 = 0, decimal PercepcionIva105 = 0, decimal PercepcionIibb = 0, decimal TotalACobrar = 0,
+    decimal AlicuotaIibb = 0);
 
 /// <summary>
 /// Venta sin terminar de un cliente, para retomarla después de una caída del sistema (o de un F5:
@@ -134,6 +140,8 @@ public interface ICajaService
     Task<IReadOnlyList<PlanCuotaResumen>> GetPlanesMedioAsync(int idMedioPago, CancellationToken ct = default);
     /// <summary>Ofertas por medio de pago activas de la sucursal, para calcular en vivo el importe con descuento.</summary>
     Task<IReadOnlyList<OfertaMedioPagoVigenteDto>> GetOfertasMedioPagoVigentesAsync(int idSucursal, CancellationToken ct = default);
+    /// <summary>Bancos para el combo de banco emisor al cobrar con Cheque.</summary>
+    Task<IReadOnlyList<BancoResumen>> GetBancosAsync(CancellationToken ct = default);
 
     /// <summary>Descripción de la caja resuelta por login (para mostrar antes de que exista un lote).</summary>
     Task<string?> ObtenerDescripcionCajaAsync(int idSucursal, int idCaja, CancellationToken ct = default);

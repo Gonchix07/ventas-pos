@@ -249,7 +249,7 @@ export interface PlanCuotaInput { denominacion: string; cantidadCuotas: number; 
 /** Familia genérica del tipo de pago (clasifica; no decide por dónde se cobra). */
 export const FUENTES_PAGO = [
   { v: 1, l: "Efectivo" }, { v: 2, l: "Tarjetas" }, { v: 3, l: "Billetera virtual" },
-  { v: 4, l: "Transferencia" }, { v: 5, l: "Cuenta corriente" },
+  { v: 4, l: "Transferencia" }, { v: 5, l: "Cuenta corriente" }, { v: 6, l: "Cheque" },
 ];
 
 /** Por dónde se efectúa el cobro. Se configura en el tipo y lo heredan todos sus medios. */

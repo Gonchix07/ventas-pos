@@ -84,6 +84,15 @@ public class MovimientoPago : AuditableEntity
     public int? IdPlanCuota { get; set; }
     public int? CantidadCuotas { get; set; }
     /// <summary>
+    /// Banco emisor y número del pago con Cheque — análogo a cupón/lote de Tarjeta, pero para poder
+    /// identificar el cheque físico al presentarlo en Tesorería/banco. Solo se cargan cuando el tipo
+    /// de pago es Cheque; en el resto quedan en null. Observaciones es libre (no se exige).
+    /// </summary>
+    public int? IdBanco { get; set; }
+    public Banco? Banco { get; set; }
+    public string? NumeroCheque { get; set; }
+    public string? ObservacionesCheque { get; set; }
+    /// <summary>
     /// Si este pago (cupón de tarjeta, vale, o cualquier medio) quedó anulado por una nota de
     /// crédito de reversión completa — ver NotaCreditoService.EmitirAsync. El registro original NO
     /// se borra ni se toca su monto: queda como constancia de lo que se cobró, con este flag

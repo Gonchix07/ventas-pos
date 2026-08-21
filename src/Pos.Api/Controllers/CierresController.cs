@@ -27,9 +27,13 @@ public class CierresController : ControllerBase
     public async Task<IActionResult> MotivosDiferencia(CancellationToken ct) =>
         Ok(ApiResult<IReadOnlyList<MotivoDto>>.Success(await _service.GetMotivosDiferenciaAsync(ct)));
 
+    // imprimir=false: solo trae los acumulados para armar una pantalla (ej. el preview de "Cerrar
+    // turno"), sin disparar la impresión del reporte X en el controlador fiscal. El botón "Arqueo X"
+    // de la caja no manda este parámetro (default true): ahí sí corresponde imprimir.
     [HttpGet("arqueo-x")]
-    public async Task<IActionResult> ArqueoX([FromQuery] int idSucursal, [FromQuery] int idCaja, CancellationToken ct) =>
-        Ok(ApiResult<ArqueoXResponse>.Success(await _service.ArqueoXAsync(idSucursal, idCaja, ct)));
+    public async Task<IActionResult> ArqueoX([FromQuery] int idSucursal, [FromQuery] int idCaja,
+        [FromQuery] bool imprimir = true, CancellationToken ct = default) =>
+        Ok(ApiResult<ArqueoXResponse>.Success(await _service.ArqueoXAsync(idSucursal, idCaja, imprimir, ct)));
 
     [HttpPost("cerrar-turno")]
     public async Task<IActionResult> CerrarTurno([FromQuery] int idSucursal, [FromQuery] int idCaja,

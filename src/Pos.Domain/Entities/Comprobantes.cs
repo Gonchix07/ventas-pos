@@ -36,6 +36,10 @@ public class CabeceraComprobante : AuditableEntity
     public decimal PercepcionIva105 { get; set; }
     /// <summary>Percepción de Ingresos Brutos según el padrón del cliente (0 si no correspondió).</summary>
     public decimal PercepcionIibb { get; set; }
+    /// <summary>Alícuota (%) con la que se calculó <see cref="PercepcionIibb"/> — la del padrón, o la
+    /// alícuota general por defecto si el cliente tenía CUIT pero no estaba en el padrón. Se guarda
+    /// (no se recalcula al reimprimir) porque el padrón puede cambiar después de emitido.</summary>
+    public decimal AlicuotaIibb { get; set; }
     public decimal Total { get; set; }
     public string? Cae { get; set; }
     public DateTime? CaeVencimiento { get; set; }

@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Globalization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Pos.Application.Abstractions;
 using Pos.Application.Abstractions.Fiscal;
@@ -85,7 +86,7 @@ public class FacturacionService : IFacturacionService
         // este es el AUTORITATIVO. El presupuesto no tiene valor fiscal: no percibe nada.
         var detallesList = operacion.Detalles.ToList();
         var percepcionResultado = esPresupuesto
-            ? new PercepcionesResultado(0, 0, 0, 0, Array.Empty<decimal>())
+            ? new PercepcionesResultado(0, 0, 0, 0, Array.Empty<decimal>(), Array.Empty<decimal>(), Array.Empty<decimal>())
             : await _percepciones.CalcularAsync(req.IdSucursal, operacion.IdCliente,
                 detallesList.Select(d => new LineaParaPercepcion(d.IdPresentacion, d.Cantidad, d.Precio, d.Descuento, d.IdListaPrecio)).ToList(), ct);
 
@@ -177,6 +178,19 @@ public class FacturacionService : IFacturacionService
                     $"La factura A exige el domicilio del cliente. Cargalo en el ABM de clientes ({datosCliente?.Descripcion}).");
         }
 
+        // Norma AFIP: una venta a Consumidor Final (letra B, sin discriminar IVA) por encima de un
+        // monto no se puede facturar de forma anónima — hay que identificar al comprador con su
+        // CUIT. No aplica a la A (ya exige CUIT siempre, sin importar el monto, arriba) ni al
+        // Presupuesto (sin valor fiscal).
+        if (!esPresupuesto && letra != LetraComprobante.A && string.IsNullOrWhiteSpace(datosCliente?.Cuit))
+        {
+            var limiteConsumidorFinal = await ObtenerConfigDecimalAsync("LimiteConsumidorFinal", 417400m, ct);
+            if (totalACobrar > limiteConsumidorFinal)
+                throw new DomainException("LIMITE_CONSUMIDOR_FINAL",
+                    $"Las ventas a Consumidor Final por más de ${limiteConsumidorFinal:N2} no se pueden facturar de forma anónima: " +
+                    "identificá al cliente con su CUIT (buscalo en caja o cargalo en el ABM de clientes).");
+        }
+
         // Signo +1: la letra sola no alcanza, hay una nota de crédito por cada letra.
         var tipoComprobante = await _db.TiposComprobante.AsNoTracking()
             .FirstOrDefaultAsync(t => t.Letra == letra && t.Signo == 1, ct)
@@ -184,10 +198,10 @@ public class FacturacionService : IFacturacionService
 
         var clienteCuit = datosCliente?.Cuit;
 
-        // Descripción de ticket por línea (presentación→artículo). La alícuota YA no sale de acá:
-        // sale de percepcionResultado.AlicuotaEfectivaPorLinea, calculada arriba, que además de la
-        // alícuota "de catálogo" del artículo ya contempla el ajuste "impuesto interno → Exento"
-        // (pedido explícito: un artículo con impuesto interno no discrimina IVA propio).
+        // Descripción de ticket por línea (presentación→artículo). La alícuota, el Neto y el Iva YA
+        // no salen de acá: salen de percepcionResultado.AlicuotaPorLinea/NetoPorLinea/IvaPorLinea,
+        // calculados arriba — ahí es donde se resta el Impuesto Interno de la base antes de
+        // discriminar IVA, así que no se repite (ni se puede desincronizar) esa cuenta acá.
         var idsPres = detallesList.Select(d => d.IdPresentacion).Distinct().ToList();
         var infoPresentaciones = await (
             from pr in _db.Presentaciones.AsNoTracking().Where(p => idsPres.Contains(p.IdPresentacion))
@@ -204,10 +218,20 @@ public class FacturacionService : IFacturacionService
                 throw new DomainException("PRESENTACION_INEXISTENTE", $"La presentación {det.IdPresentacion} ya no existe.");
 
             var importe = det.Precio * det.Cantidad - det.Descuento;
-            // El presupuesto no discrimina impuestos (alícuota 0 → Neto = precio final, Iva = 0),
-            // sin importar la alícuota real del artículo ni la condición del cliente frente al IVA.
-            var alicuotaEfectiva = esPresupuesto ? 0m : percepcionResultado.AlicuotaEfectivaPorLinea[idx];
-            var (neto, iva) = DesglioIva.Calcular(importe, alicuotaEfectiva);
+            decimal alicuotaEfectiva, neto, iva;
+            if (esPresupuesto)
+            {
+                // El presupuesto no discrimina impuestos (alícuota 0 → Neto = precio final, Iva = 0),
+                // sin importar la alícuota real del artículo ni la condición del cliente frente al IVA.
+                alicuotaEfectiva = 0m;
+                (neto, iva) = DesglioIva.Calcular(importe, 0m);
+            }
+            else
+            {
+                alicuotaEfectiva = percepcionResultado.AlicuotaPorLinea[idx];
+                neto = percepcionResultado.NetoPorLinea[idx];
+                iva = percepcionResultado.IvaPorLinea[idx];
+            }
             totalNeto += neto; totalIva += iva;
             detallesCalculados.Add((det, info.DescripcionTicket, alicuotaEfectiva, importe, neto, iva));
         }
@@ -230,6 +254,10 @@ public class FacturacionService : IFacturacionService
                 && o.FechaInicio <= hoyOfertasMp && o.FechaFin >= hoyOfertasMp)
             .Select(o => new OfertaMedioPagoDef(o.IdMedioPago, o.IdPlanCuota, o.Porcentaje, o.TopeMaximo))
             .ToListAsync(ct);
+
+        // Solo para armar la referencia fiscal de los pagos con Cheque (ver más abajo) — el nombre
+        // del banco no viaja en PagoInput, solo el IdBanco.
+        var bancos = await _db.Bancos.AsNoTracking().ToDictionaryAsync(b => b.IdBanco, b => b.Descripcion, ct);
 
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
         var pagosAprobados = new List<(IPaymentProvider Provider, string IdTransaccion)>();
@@ -270,6 +298,7 @@ public class FacturacionService : IFacturacionService
                     throw new DomainException("PRESUPUESTO_SOLO_EFECTIVO", "El presupuesto se cobra siempre en efectivo.");
 
                 ValidarCuponYLote(medio, pago);
+                ValidarCheque(medio, pago);
 
                 var esEfectivo = medio.TipoPago!.Fuente == FuentePago.Efectivo;
                 // Lo que este pago realmente "compra" de la venta: en Efectivo, tope al saldo que
@@ -293,10 +322,12 @@ public class FacturacionService : IFacturacionService
                 // lo que hacía falta cobrar, así que también se devuelve como parte del vuelto.
                 if (esEfectivo) vuelto += excedente + descuentoMp;
 
-                var refCupon = string.IsNullOrWhiteSpace(pago.NumeroCupon) ? null
-                    : $"CUPON {pago.NumeroCupon}" + (string.IsNullOrWhiteSpace(pago.NumeroLote) ? "" : $" LOTE {pago.NumeroLote}");
+                var referenciaPago = medio.TipoPago!.Fuente == FuentePago.Cheque
+                    ? $"CHEQUE {pago.NumeroCheque} BANCO {bancos.GetValueOrDefault(pago.IdBanco ?? 0, "")}".TrimEnd()
+                    : (string.IsNullOrWhiteSpace(pago.NumeroCupon) ? null
+                        : $"CUPON {pago.NumeroCupon}" + (string.IsNullOrWhiteSpace(pago.NumeroLote) ? "" : $" LOTE {pago.NumeroLote}"));
                 pagosFiscales.Add(new PagoFiscal(medio.Descripcion, montoACobrar,
-                    medio.TipoPago!.Fuente, refCupon, 1));
+                    medio.TipoPago!.Fuente, referenciaPago, 1));
                 await ValidarClusterDelMedioAsync(medio, operacion.IdCliente, ct);
 
                 if (medio.TipoPago!.Fuente == FuentePago.CuentaCorriente)
@@ -396,12 +427,9 @@ public class FacturacionService : IFacturacionService
                     tipoComprobante.Descripcion, letra, 0, clienteCuit, totalNeto, totalIva,
                     totalNeto + totalIva + percepcionResultado.Total, DateTime.UtcNow,
                     req.IdSucursal, operacion.IdCaja,
-                    datosCliente is null ? null : new ClienteFiscal(
-                        datosCliente.Descripcion,
-                        datosCliente.Cuit ?? datosCliente.Documento,
-                        string.IsNullOrWhiteSpace(datosCliente.Cuit) ? TipoDocumentoFiscal.Dni : TipoDocumentoFiscal.Cuit,
-                        ResponsabilidadFiscal(datosCliente.CondIva, datosCliente.LetraCondIva),
-                        datosCliente.Domicilio),
+                    datosCliente is null ? null : ConstruirClienteFiscal(datosCliente.Descripcion,
+                        datosCliente.Cuit, datosCliente.Documento, datosCliente.Domicilio,
+                        datosCliente.CondIva, datosCliente.LetraCondIva),
                     // Se manda el precio unitario CON IVA y el descuento de la línea por separado: es
                     // como los tiene el POS y como los espera el controlador fiscal (modo precio total).
                     // El descuento por medio de pago va prorrateado dentro de estos ítems reales, NUNCA
@@ -453,6 +481,7 @@ public class FacturacionService : IFacturacionService
                 PercepcionIva21 = percepcionResultado.PercepcionIva21,
                 PercepcionIva105 = percepcionResultado.PercepcionIva105,
                 PercepcionIibb = percepcionResultado.PercepcionIibb,
+                AlicuotaIibb = percepcionResultado.AlicuotaIibb,
                 Percepciones = percepcionResultado.Total,
                 Total = totalNeto + totalIva + percepcionResultado.Total, Cae = null, CaeVencimiento = null, EsCaea = false,
                 // Presupuesto: siempre Persistido (no hay impresora fiscal que lo pase a Impreso).
@@ -504,7 +533,9 @@ public class FacturacionService : IFacturacionService
                 {
                     IdMedioPago = pago.IdMedioPago, Total = resultado.Monto, Redondeo = 0,
                     NumeroCupon = Limpiar(pago.NumeroCupon), NumeroLote = Limpiar(pago.NumeroLote),
-                    IdPlanCuota = pago.IdPlan, CantidadCuotas = cuotas
+                    IdPlanCuota = pago.IdPlan, CantidadCuotas = cuotas,
+                    IdBanco = pago.IdBanco, NumeroCheque = Limpiar(pago.NumeroCheque),
+                    ObservacionesCheque = Limpiar(pago.ObservacionesCheque)
                 };
                 _db.MovimientosPagos.Add(movPago);
                 await _db.SaveChangesAsync(ct); // la DB asigna IdMovPagos; queda disponible para referenciarlo abajo
@@ -549,7 +580,8 @@ public class FacturacionService : IFacturacionService
             return new EmitirComprobanteResponse(req.IdSucursal, idComprobante, cabecera.NumeroCompleto!,
                 letra, null, null, false, cabecera.Estado.ToString(), totalNeto, totalIva,
                 cabecera.Total, resultadosPago, impresion.Ok, impresion.Ok ? null : impresion.Error,
-                cabecera.PercepcionIva21, cabecera.PercepcionIva105, cabecera.PercepcionIibb, vuelto);
+                cabecera.PercepcionIva21, cabecera.PercepcionIva105, cabecera.PercepcionIibb, vuelto,
+                cabecera.AlicuotaIibb);
         }
         catch
         {
@@ -690,7 +722,7 @@ public class FacturacionService : IFacturacionService
             Round2(descuento), Round2(cab.Neto), Round2(cab.Iva), Round2(cab.Total),
             discriminado, pagos,
             cab.Cae, cab.CaeVencimiento, cab.EsCaea, cab.Estado.ToString(),
-            cab.PercepcionIva21, cab.PercepcionIva105, cab.PercepcionIibb);
+            cab.PercepcionIva21, cab.PercepcionIva105, cab.PercepcionIibb, cab.AlicuotaIibb);
     }
 
     /// <summary>
@@ -715,6 +747,27 @@ public class FacturacionService : IFacturacionService
     }
 
     /// <summary>
+    /// Los pagos con cheque guardan banco emisor y número de cheque — análogo a cupón/lote de
+    /// Tarjeta, pero para poder identificar el cheque físico al presentarlo en Tesorería/banco.
+    /// Observaciones queda libre (aclaraciones del cajero: titular, fecha de pago diferido, etc.),
+    /// no se exige.
+    /// </summary>
+    private static void ValidarCheque(MedioPago medio, PagoInput pago)
+    {
+        if (medio.TipoPago!.Fuente != FuentePago.Cheque) return;
+        if (pago.IdBanco is null)
+            throw new DomainException("BANCO_REQUERIDO",
+                $"El pago con {medio.Descripcion} necesita el banco emisor del cheque.");
+        var numero = pago.NumeroCheque?.Trim() ?? "";
+        if (numero.Length == 0)
+            throw new DomainException("NUMERO_CHEQUE_REQUERIDO",
+                $"El pago con {medio.Descripcion} necesita el número de cheque.");
+        if (numero.Length > 8)
+            throw new DomainException("NUMERO_CHEQUE_INVALIDO",
+                "El número de cheque no puede tener más de 8 caracteres.");
+    }
+
+    /// <summary>
     /// Un medio restringido a un cluster solo lo pueden usar los clientes de ese cluster. La caja ya
     /// no lo ofrece, pero se revalida acá: es una regla de negocio, no un filtro de pantalla.
     /// </summary>
@@ -730,6 +783,17 @@ public class FacturacionService : IFacturacionService
     }
 
     private static string? Limpiar(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+
+    /// <summary>Lee un valor numérico de la tabla Configuracion (clave/valor); si no está cargada o
+    /// no es un número válido, devuelve <paramref name="porDefecto"/> en vez de fallar.</summary>
+    private async Task<decimal> ObtenerConfigDecimalAsync(string clave, decimal porDefecto, CancellationToken ct)
+    {
+        var valor = await _db.Configuraciones.AsNoTracking()
+            .Where(c => c.Clave == clave).Select(c => c.Valor).FirstOrDefaultAsync(ct);
+        return valor is not null
+            && decimal.TryParse(valor, NumberStyles.Number, CultureInfo.InvariantCulture, out var n)
+            ? n : porDefecto;
+    }
 
     /// <summary>
     /// Responsabilidad frente a IVA para la impresora fiscal. Se resuelve por la descripción de la
@@ -748,6 +812,25 @@ public class FacturacionService : IFacturacionService
         return string.Equals(letra, "A", StringComparison.OrdinalIgnoreCase)
             ? ResponsabilidadIvaFiscal.ResponsableInscripto
             : ResponsabilidadIvaFiscal.ConsumidorFinal;
+    }
+
+    /// <summary>
+    /// Datos de cliente para la controladora fiscal. Si es Consumidor Final NO se lo identifica:
+    /// se manda "CONSUMIDOR FINAL" sin número de documento (aunque el cliente tenga CUIT/DNI
+    /// cargado en el sistema para uso interno del POS) — la identificación fiscal del receptor solo
+    /// corresponde a quien factura discriminando IVA/percepciones (Responsable Inscripto,
+    /// Monotributista, Exento, etc.).
+    /// </summary>
+    private static ClienteFiscal ConstruirClienteFiscal(
+        string descripcion, string? cuit, string? documento, string? domicilio, string? condIva, string? letraCondIva)
+    {
+        var responsabilidad = ResponsabilidadFiscal(condIva, letraCondIva);
+        if (responsabilidad == ResponsabilidadIvaFiscal.ConsumidorFinal)
+            return new ClienteFiscal("CONSUMIDOR FINAL", null, TipoDocumentoFiscal.Ninguno, responsabilidad, null);
+
+        return new ClienteFiscal(descripcion, cuit ?? documento,
+            string.IsNullOrWhiteSpace(cuit) ? TipoDocumentoFiscal.Dni : TipoDocumentoFiscal.Cuit,
+            responsabilidad, domicilio);
     }
 
     private static string? Preferir(string? preferido, string? alternativo) =>
@@ -848,14 +931,25 @@ public class FacturacionService : IFacturacionService
                 .FirstOrDefaultAsync(ct)
             : null;
 
-        var pagos = await _db.MovimientosCaja.AsNoTracking()
+        // Se proyecta a un tipo anónimo (sin armar la referencia todavía): la referencia de Cheque
+        // necesita el nombre del banco, que sale de un diccionario en memoria y no se puede traducir
+        // dentro del Select de la query de EF.
+        var bancosReimpresion = await _db.Bancos.AsNoTracking().ToDictionaryAsync(b => b.IdBanco, b => b.Descripcion, ct);
+        var pagosCrudos = await _db.MovimientosCaja.AsNoTracking()
             .Where(m => m.IdSucursal == idSucursal && m.IdComprobante == idComprobante && m.IdMovPagos != null)
             .Join(_db.MovimientosPagos.AsNoTracking(), m => m.IdMovPagos, p => p.IdMovPagos, (m, p) => p)
             .Join(_db.MediosPago.AsNoTracking().Include(mp => mp.TipoPago), p => p.IdMedioPago, mp => mp.IdMedioPago,
-                (p, mp) => new PagoFiscal(mp.Descripcion, p.Total, mp.TipoPago!.Fuente,
-                    p.NumeroCupon == null ? null : $"CUPON {p.NumeroCupon}" + (p.NumeroLote == null ? "" : $" LOTE {p.NumeroLote}"),
-                    Math.Max(1, p.CantidadCuotas ?? 1)))
+                (p, mp) => new
+                {
+                    mp.Descripcion, p.Total, Fuente = mp.TipoPago!.Fuente,
+                    p.NumeroCupon, p.NumeroLote, p.CantidadCuotas, p.IdBanco, p.NumeroCheque
+                })
             .ToListAsync(ct);
+        var pagos = pagosCrudos.Select(p => new PagoFiscal(p.Descripcion, p.Total, p.Fuente,
+            p.Fuente == FuentePago.Cheque
+                ? $"CHEQUE {p.NumeroCheque} BANCO {bancosReimpresion.GetValueOrDefault(p.IdBanco ?? 0, "")}".TrimEnd()
+                : (p.NumeroCupon == null ? null : $"CUPON {p.NumeroCupon}" + (p.NumeroLote == null ? "" : $" LOTE {p.NumeroLote}")),
+            Math.Max(1, p.CantidadCuotas ?? 1))).ToList();
 
         // Las percepciones ya persistidas se vuelven a mandar como tributos. La base imponible no
         // se persiste (solo el importe ya calculado), así que se reconstruye por diferencia contra
@@ -876,12 +970,9 @@ public class FacturacionService : IFacturacionService
         var cf = new ComprobanteFiscal(sucursal.IdEmpresa, puntoVenta?.NumeroPuntoVenta ?? 0,
             tipo.Descripcion, cab.Letra ?? "", numeroSolo, datosCliente?.Cuit, cab.Neto, cab.Iva, cab.Total, cab.Fecha,
             idSucursal, idCaja,
-            datosCliente is null ? null : new ClienteFiscal(
-                datosCliente.Descripcion,
-                datosCliente.Cuit ?? datosCliente.Documento,
-                string.IsNullOrWhiteSpace(datosCliente.Cuit) ? TipoDocumentoFiscal.Dni : TipoDocumentoFiscal.Cuit,
-                ResponsabilidadFiscal(datosCliente.CondIva, datosCliente.LetraCondIva),
-                datosCliente.Domicilio),
+            datosCliente is null ? null : ConstruirClienteFiscal(datosCliente.Descripcion,
+                datosCliente.Cuit, datosCliente.Documento, datosCliente.Domicilio,
+                datosCliente.CondIva, datosCliente.LetraCondIva),
             items, pagos, tributosReimpresion);
 
         ResultadoImpresion r;

@@ -8,6 +8,11 @@ export interface PagoInput {
   numeroLote?: string | null;
   /** Plan de cuotas elegido junto con el medio (solo Tarjeta; opcional). */
   idPlan?: number | null;
+  /** Obligatorios cuando el medio es de tipo Cheque: banco emisor y número (hasta 8 caracteres). */
+  idBanco?: number | null;
+  numeroCheque?: string | null;
+  /** Libre, solo Cheque — no se exige. */
+  observacionesCheque?: string | null;
 }
 
 export interface PagoResultado {
@@ -19,6 +24,8 @@ export interface EmitirComprobanteResponse {
   cae?: string | null; caeVencimiento?: string | null; esCaea: boolean; estado: string;
   neto: number; iva: number; total: number; pagos: PagoResultado[]; impreso: boolean; errorImpresion?: string | null;
   percepcionIva21: number; percepcionIva105: number; percepcionIibb: number;
+  /** Alícuota (%) con la que se calculó percepcionIibb (0 si no corresponde). */
+  alicuotaIibb: number;
   /** Sobrante devuelto en efectivo (0 si no hubo). Ya quedó registrado aparte como salida de caja. */
   vuelto: number;
 }
@@ -54,6 +61,8 @@ export interface ComprobanteImpresion {
   ivaDiscriminado: IvaDiscriminado[]; pagos: PagoComprobante[];
   cae?: string | null; caeVencimiento?: string | null; esCaea: boolean; estado: string;
   percepcionIva21: number; percepcionIva105: number; percepcionIibb: number;
+  /** Alícuota (%) con la que se calculó percepcionIibb (0 si no corresponde). */
+  alicuotaIibb: number;
 }
 
 export const facturacion = {

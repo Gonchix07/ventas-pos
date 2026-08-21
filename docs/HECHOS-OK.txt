@@ -1,10 +1,10 @@
-
 **********************************	
 OK	- Aplicados
-----------------------------------	
+**********************************	
 
 Ticket Factura
 	Formato
+	Reimpresion de comprobantes
 	
 Articulos
 	Encadenar Sector / Familia	
@@ -41,6 +41,7 @@ Caja
 	Retiro de dinero
 	Ingreso de dinero como saldo inicial
 	Imprimir planilla de cierre de caja con el detalle
+	Cheques	
 	
 Padrones
 	Importar desde archivo de ARBA/ARCA	
@@ -90,3 +91,20 @@ Tesoreria 2
 	- Click en apertura de entrega de valores (poder incorporar movimientos de correccion + o -) en un pop up con edicion
 	- Click en cada valor por medio de pago, en un pop up apertura de detalle de comprobantes (ver las ventas hechas en ese lote, cabeceras de facturas)
 	- Otro modulo, apertura de detalle de cupones emitidos filtrados por fecha y cajero (posibilidad de correccion, de datos como nro de lote, tarjeta, plan y nro de cupon)
+	
+Impuestos	
+	
+Precio lista final (impuestos incluidos) (PF)	$ 1.000.000
+Impustos internos o Exento (II)					$ 10.000
+
+NETO = (PF - II ) / 1.21						$ 818.181
+
+IVA = 	(PF - II ) - NETO						$ 171.819 
+
+IIBB = (NETO + II) * (PorcentajePadronCliente)	$ 33.127 (4%) 
+	Condicion: Si IIBB es mayor a MinimoPercepcionIIBB se agrega
+
+PercepcionIVA21 = NETO * 3 / 100				$ 24.545 (3%)								
+	Condicion: Si PercepcionIVA21 es mayor a MinimoPercepcionIVA21 se agrega
+	
+A PAGAR por Cliente								$ 1.057.672

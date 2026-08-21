@@ -30,7 +30,14 @@ const porcentaje = (alicuota: number) =>
  * propio controlador aparte; esta vista es una copia/resumen para pantalla y reimpresión de respaldo
  * desde el navegador.
  */
-export function ComprobanteImpresionView({ c, onCerrar }: { c: Comprobante; onCerrar?: () => void }) {
+export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolver }: {
+  c: Comprobante; onCerrar?: () => void;
+  /** true cuando esto se reimprime tiempo después de la emisión original (ej. desde el módulo de
+      Reimpresión), no en el momento mismo del cobro. Cambia el rótulo "ORIGINAL" a "COPIA" — un
+      comprobante fiscal reimpreso no puede volver a decir "ORIGINAL". */
+  esReimpresion?: boolean;
+  textoVolver?: string;
+}) {
   const esA = c.letra?.toUpperCase() === "A";
   const esPresupuesto = c.letra?.toUpperCase() === "X";
   const { emisor, cliente } = c;
@@ -40,8 +47,11 @@ export function ComprobanteImpresionView({ c, onCerrar }: { c: Comprobante; onCe
       <div className={`cbte${esPresupuesto ? " cbte--presupuesto" : ""}`}>
         <div className="cbte__tipo">
           {esPresupuesto && <div className="cbte__x-grande">X</div>}
-          <h2>{esPresupuesto ? "PRESUPUESTO" : `FACTURA ${c.letra}`}</h2>
-          <small>{esPresupuesto ? "Documento sin valor fiscal" : `ORIGINAL${c.codigoArca ? ` Cod.: ${c.codigoArca}` : ""}`}</small>
+          <h2>{esPresupuesto ? "PRESUPUESTO" : c.tipoComprobante.toUpperCase()}</h2>
+          <small>
+            {esPresupuesto ? "Documento sin valor fiscal"
+              : `${esReimpresion ? "COPIA" : "ORIGINAL"}${c.codigoArca ? ` Cod.: ${c.codigoArca}` : ""}`}
+          </small>
         </div>
 
         {!esPresupuesto && (
@@ -148,7 +158,7 @@ export function ComprobanteImpresionView({ c, onCerrar }: { c: Comprobante; onCe
             <div><span>Percepción IVA 10,5%</span><span>${money(c.percepcionIva105)}</span></div>
           )}
           {c.percepcionIibb > 0 && (
-            <div><span>Percepción IIBB</span><span>${money(c.percepcionIibb)}</span></div>
+            <div><span>Percepción IIBB ({c.alicuotaIibb.toFixed(2)}%)</span><span>${money(c.percepcionIibb)}</span></div>
           )}
           <div className="total"><span>Total</span><span>${money(c.total)}</span></div>
         </div>
@@ -176,7 +186,7 @@ export function ComprobanteImpresionView({ c, onCerrar }: { c: Comprobante; onCe
 
       <div className="cbte__acciones cbte-no-print">
         <button className="primary" onClick={() => window.print()}>Imprimir</button>
-        {onCerrar && <button onClick={onCerrar}>Nueva venta</button>}
+        {onCerrar && <button onClick={onCerrar}>{textoVolver ?? "Nueva venta"}</button>}
       </div>
     </>
   );

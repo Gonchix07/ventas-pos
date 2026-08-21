@@ -63,6 +63,7 @@ public static class HasarMapeo
         FuentePago.BilleteraVirtual => "TransferenciaNoBancaria",
         FuentePago.Transferencia => "TransferenciaBancaria",
         FuentePago.CuentaCorriente => "CuentaCorriente",
+        FuentePago.Cheque => "Cheque",
         _ => "OtrosMediosPago"
     };
 

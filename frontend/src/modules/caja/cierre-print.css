@@ -93,8 +93,18 @@
 }
 
 @media print {
-  @page rendicion-caja { size: A4; margin: 12mm; }
-  .rendicion { page: rendicion-caja; width: auto; border: none; box-shadow: none; margin: 0; padding: 0; }
+  /* margin: 0 en @page (no 12mm): con position:absolute;left:0;top:0 más abajo (necesario para el
+     truco de "ocultar todo lo demás"), el margen de @page queda IGNORADO por el navegador — el
+     contenido se pega al borde físico del papel en vez de respetar el margen. El inset visual tiene
+     que salir del padding PROPIO del elemento (10mm 12mm, ya definido arriba, por eso acá no se
+     pisa a 0) — mismo patrón que ya usa comprobante-print.css con sus tickets. */
+  @page rendicion-caja { size: A4; margin: 0; }
+  /* width: 210mm (el ancho real de la hoja) en vez de "auto": con @page a margen 0 y position:
+     absolute más abajo, el elemento arranca en la esquina física del papel — necesita su ancho
+     completo explícito para que el padding de arriba (12mm a cada lado) reparta bien el margen
+     visual en las dos puntas, no solo a la izquierda. box-sizing:border-box para que ese padding
+     no sume por afuera de los 210mm y desborde el ancho de la hoja. */
+  .rendicion { page: rendicion-caja; width: 210mm; box-sizing: border-box; border: none; box-shadow: none; margin: 0; }
   .cbte-no-print { display: none !important; }
   body * { visibility: hidden; }
   .rendicion, .rendicion * { visibility: visible; }

@@ -30,25 +30,30 @@ public static class DbSeeder
                 new Modulo { Descripcion = "Facturacion" },
                 new Modulo { Descripcion = "Tesoreria" },
                 new Modulo { Descripcion = "Etiquetas" },
-                new Modulo { Descripcion = "Administracion" });
+                new Modulo { Descripcion = "Administracion" },
+                new Modulo { Descripcion = "Reimpresion" },
+                new Modulo { Descripcion = "Ventas" });
             await db.SaveChangesAsync(ct);
         }
 
         if (!await db.Permisos.AnyAsync(ct))
         {
             // Administrador: todos los módulos con edición.
-            for (int m = 1; m <= 5; m++)
+            for (int m = 1; m <= 7; m++)
                 db.Permisos.Add(new Permiso { IdRol = 1, IdModulo = m, PuedeVer = true, PuedeEditar = true, EsEspecial = true });
             // Cajero: Caja + Facturación + Etiquetas (necesita reimprimir/reetiquetar en el mostrador).
             db.Permisos.Add(new Permiso { IdRol = 2, IdModulo = 1, PuedeVer = true, PuedeEditar = true });
             db.Permisos.Add(new Permiso { IdRol = 2, IdModulo = 2, PuedeVer = true, PuedeEditar = true });
             db.Permisos.Add(new Permiso { IdRol = 2, IdModulo = 4, PuedeVer = true, PuedeEditar = true });
-            // Supervisor: Caja + Facturación con permisos especiales.
+            // Supervisor: Caja + Facturación con permisos especiales + Etiquetas + Reimpresión de comprobantes.
             db.Permisos.Add(new Permiso { IdRol = 3, IdModulo = 1, PuedeVer = true, PuedeEditar = true, EsEspecial = true });
             db.Permisos.Add(new Permiso { IdRol = 3, IdModulo = 2, PuedeVer = true, PuedeEditar = true, EsEspecial = true });
-            // Tesorero: Tesorería + Etiquetas.
+            db.Permisos.Add(new Permiso { IdRol = 3, IdModulo = 4, PuedeVer = true, PuedeEditar = true });
+            db.Permisos.Add(new Permiso { IdRol = 3, IdModulo = 6, PuedeVer = true, PuedeEditar = true, EsEspecial = true });
+            // Tesorero: Tesorería + Etiquetas + Reimpresión de comprobantes.
             db.Permisos.Add(new Permiso { IdRol = 4, IdModulo = 3, PuedeVer = true, PuedeEditar = true, EsEspecial = true });
             db.Permisos.Add(new Permiso { IdRol = 4, IdModulo = 4, PuedeVer = true, PuedeEditar = true });
+            db.Permisos.Add(new Permiso { IdRol = 4, IdModulo = 6, PuedeVer = true, PuedeEditar = true, EsEspecial = true });
             // Repositor: Etiquetas.
             db.Permisos.Add(new Permiso { IdRol = 5, IdModulo = 4, PuedeVer = true, PuedeEditar = true });
             await db.SaveChangesAsync(ct);
@@ -63,6 +68,55 @@ public static class DbSeeder
             !await db.Permisos.AnyAsync(p => p.IdRol == rolCajero.IdRol && p.IdModulo == moduloEtiquetas.IdModulo, ct))
         {
             db.Permisos.Add(new Permiso { IdRol = rolCajero.IdRol, IdModulo = moduloEtiquetas.IdModulo, PuedeVer = true, PuedeEditar = true });
+            await db.SaveChangesAsync(ct);
+        }
+
+        // Supervisor también puede imprimir etiquetas: alta pedida después del seed inicial, mismo
+        // criterio de backfill por Descripcion que el bloque de Cajero de arriba.
+        var rolSupervisor = await db.Roles.FirstOrDefaultAsync(r => r.Descripcion == "Supervisor", ct);
+        if (rolSupervisor is not null && moduloEtiquetas is not null &&
+            !await db.Permisos.AnyAsync(p => p.IdRol == rolSupervisor.IdRol && p.IdModulo == moduloEtiquetas.IdModulo, ct))
+        {
+            db.Permisos.Add(new Permiso { IdRol = rolSupervisor.IdRol, IdModulo = moduloEtiquetas.IdModulo, PuedeVer = true, PuedeEditar = true });
+            await db.SaveChangesAsync(ct);
+        }
+
+        // Módulo "Reimpresión de comprobantes", agregado después del seed inicial: mismo criterio de
+        // backfill por Descripcion que el bloque de arriba (en instalaciones ya en uso la tabla
+        // Modulos/Permisos nunca está vacía). Si el módulo no existe todavía se lo crea acá mismo.
+        var moduloReimpresion = await db.Modulos.FirstOrDefaultAsync(m => m.Descripcion == "Reimpresion", ct);
+        if (moduloReimpresion is null)
+        {
+            moduloReimpresion = new Modulo { Descripcion = "Reimpresion" };
+            db.Modulos.Add(moduloReimpresion);
+            await db.SaveChangesAsync(ct);
+        }
+        foreach (var descripcionRol in new[] { "Administrador", "Supervisor", "Tesorero" })
+        {
+            var rol = await db.Roles.FirstOrDefaultAsync(r => r.Descripcion == descripcionRol, ct);
+            if (rol is null) continue;
+            if (!await db.Permisos.AnyAsync(p => p.IdRol == rol.IdRol && p.IdModulo == moduloReimpresion.IdModulo, ct))
+                db.Permisos.Add(new Permiso { IdRol = rol.IdRol, IdModulo = moduloReimpresion.IdModulo,
+                    PuedeVer = true, PuedeEditar = true, EsEspecial = true });
+        }
+        await db.SaveChangesAsync(ct);
+
+        // Módulo "Ventas": antes era una pantalla más dentro de Administración (/admin/ventas),
+        // pasa a ser su propio módulo del menú principal — mismo acceso que tenía (solo
+        // Administrador), solo cambia dónde vive en el menú, no quién puede verlo.
+        var moduloVentas = await db.Modulos.FirstOrDefaultAsync(m => m.Descripcion == "Ventas", ct);
+        if (moduloVentas is null)
+        {
+            moduloVentas = new Modulo { Descripcion = "Ventas" };
+            db.Modulos.Add(moduloVentas);
+            await db.SaveChangesAsync(ct);
+        }
+        var rolAdministrador = await db.Roles.FirstOrDefaultAsync(r => r.Descripcion == "Administrador", ct);
+        if (rolAdministrador is not null &&
+            !await db.Permisos.AnyAsync(p => p.IdRol == rolAdministrador.IdRol && p.IdModulo == moduloVentas.IdModulo, ct))
+        {
+            db.Permisos.Add(new Permiso { IdRol = rolAdministrador.IdRol, IdModulo = moduloVentas.IdModulo,
+                PuedeVer = true, PuedeEditar = true, EsEspecial = true });
             await db.SaveChangesAsync(ct);
         }
 
@@ -182,7 +236,10 @@ public static class DbSeeder
             // Cuenta corriente no pasa por ningún canal de cobro: la resuelve el control de crédito
             // interno (ver FacturacionService.AprobarCuentaCorrienteAsync).
             var cuentaCorriente = new TipoPago { Descripcion = "Cuenta corriente", Fuente = FuentePago.CuentaCorriente, Canal = CanalCobro.Manual };
-            db.TiposPago.AddRange(efectivo, transferencia, billetera, tarjetas, cuentaCorriente);
+            // Cheque: igual que Transferencia/Cuenta corriente, no pasa por ningún proveedor
+            // externo — lo cobra manualmente el cajero.
+            var cheque = new TipoPago { Descripcion = "Cheque", Fuente = FuentePago.Cheque, Canal = CanalCobro.Manual };
+            db.TiposPago.AddRange(efectivo, transferencia, billetera, tarjetas, cuentaCorriente, cheque);
             await db.SaveChangesAsync(ct);
 
             // Un medio inicial por tipo, para poder cobrar desde el arranque. El resto se dan de
@@ -190,7 +247,28 @@ public static class DbSeeder
             db.MediosPago.AddRange(
                 new MedioPago { Descripcion = "Efectivo", IdTipoPago = efectivo.IdTipoPago, Activo = true },
                 new MedioPago { Descripcion = "Transferencia bancaria", IdTipoPago = transferencia.IdTipoPago, Activo = true },
-                new MedioPago { Descripcion = "Cuenta corriente", IdTipoPago = cuentaCorriente.IdTipoPago, Activo = true });
+                new MedioPago { Descripcion = "Cuenta corriente", IdTipoPago = cuentaCorriente.IdTipoPago, Activo = true },
+                new MedioPago { Descripcion = "Cheque", IdTipoPago = cheque.IdTipoPago, Activo = true });
+            await db.SaveChangesAsync(ct);
+        }
+
+        if (!await db.Bancos.AnyAsync(ct))
+        {
+            // Set inicial de bancos habituales en Argentina, para no arrancar con el combo vacío en
+            // el cobro con Cheque. El ABM (LookupPage "bancos") permite agregar/editar el resto.
+            db.Bancos.AddRange(
+                new Banco { Descripcion = "Banco de la Nación Argentina" },
+                new Banco { Descripcion = "Banco de la Provincia de Buenos Aires" },
+                new Banco { Descripcion = "Banco Galicia" },
+                new Banco { Descripcion = "Banco Santander" },
+                new Banco { Descripcion = "BBVA Argentina" },
+                new Banco { Descripcion = "Banco Macro" },
+                new Banco { Descripcion = "Banco Credicoop" },
+                new Banco { Descripcion = "Banco Supervielle" },
+                new Banco { Descripcion = "Banco Ciudad" },
+                new Banco { Descripcion = "ICBC Argentina" },
+                new Banco { Descripcion = "HSBC Argentina" },
+                new Banco { Descripcion = "Banco Patagonia" });
             await db.SaveChangesAsync(ct);
         }
 

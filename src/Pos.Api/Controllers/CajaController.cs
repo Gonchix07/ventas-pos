@@ -54,6 +54,11 @@ public class CajaController : ControllerBase
     public async Task<IActionResult> OfertasMedioPagoVigentes([FromQuery] int idSucursal, CancellationToken ct) =>
         Ok(ApiResult<IReadOnlyList<OfertaMedioPagoVigenteDto>>.Success(await _service.GetOfertasMedioPagoVigentesAsync(idSucursal, ct)));
 
+    /// <summary>Bancos para el combo de banco emisor al cobrar con Cheque.</summary>
+    [HttpGet("bancos")]
+    public async Task<IActionResult> Bancos(CancellationToken ct) =>
+        Ok(ApiResult<IReadOnlyList<BancoResumen>>.Success(await _service.GetBancosAsync(ct)));
+
     [HttpGet("clientes/buscar")]
     public async Task<IActionResult> BuscarCliente([FromQuery] int idSucursal, [FromQuery] string q, CancellationToken ct) =>
         Ok(ApiResult<IReadOnlyList<ClienteResumen>>.Success(await _service.BuscarClienteAsync(idSucursal, q ?? "", ct)));

@@ -29,19 +29,36 @@ public class PricingService : IPricingService
         {
             var cv = await _db.Convenios.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.IdSucursal == req.IdSucursal && x.IdCliente == idc, ct);
-            if (cv is not null)
+
+            // Lista propia del cliente: la del Convenio si tiene una asignada; si no, la de su tipo
+            // de tarjeta activa — mismo resguardo que ya usa la pantalla de búsqueda de cliente en
+            // CajaService.BuscarClienteAsync (ver comentario ahí) para decidir qué lista MOSTRARLE.
+            // Sin este resguardo ACÁ, un cliente que está en una lista solo por el tipo de tarjeta
+            // (sin Convenio propio) nunca cobraba el precio de esa lista: caía en el ranking
+            // genérico de todas las listas de la sucursal, que puede ganarle otra lista Base — el
+            // cajero veía "AZUL" en pantalla pero la venta se cobraba de otra lista.
+            var idListaPropia = cv?.IdListaPrecio;
+            if (idListaPropia is null)
             {
-                decimal? precioLista = null;
-                int? idListaConvenio = null;
-                if (cv.IdListaPrecio is int idl)
-                {
-                    precioLista = await _db.Precios.AsNoTracking()
-                        .Where(p => p.IdListaPrecio == idl && p.IdPresentacion == req.IdPresentacion)
-                        .Select(p => (decimal?)p.PrecioFinal).FirstOrDefaultAsync(ct);
-                    if (precioLista is not null) idListaConvenio = idl;
-                }
-                convenio = new ConvenioInfo(cv.Descuento, precioLista, idListaConvenio);
+                idListaPropia = await (
+                    from t in _db.TarjetasClientes.AsNoTracking().Where(t => t.IdCliente == idc && t.Activa)
+                    join tt in _db.TiposTarjeta.AsNoTracking() on t.IdTipoTarjeta equals tt.IdTipoTarjeta
+                    where tt.IdListaPrecio != null
+                    select tt.IdListaPrecio
+                ).FirstOrDefaultAsync(ct);
             }
+
+            decimal? precioLista = null;
+            if (idListaPropia is int idl)
+            {
+                precioLista = await _db.Precios.AsNoTracking()
+                    .Where(p => p.IdListaPrecio == idl && p.IdPresentacion == req.IdPresentacion)
+                    .Select(p => (decimal?)p.PrecioFinal).FirstOrDefaultAsync(ct);
+                if (precioLista is null) idListaPropia = null; // sin precio ahí: no es el origen real
+            }
+
+            if (cv is not null || precioLista is not null)
+                convenio = new ConvenioInfo(cv?.Descuento ?? 0m, precioLista, idListaPropia);
         }
 
         var r = CalculadoraPrecios.Resolver(candidatos, fecha, convenio);

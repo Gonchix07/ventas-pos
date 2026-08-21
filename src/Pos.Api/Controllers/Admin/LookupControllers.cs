@@ -56,3 +56,11 @@ public class MotivosCierreController : LookupController<MotivoCierre>
 {
     public MotivosCierreController(ICrudService<MotivoCierre> crud) : base(crud) { }
 }
+
+// Bancos: banco emisor de un pago con Cheque (ver MovimientoPago.IdBanco). El ABM vive acá
+// (Administrador); la caja lo consulta de solo lectura por CierresController/CajaController.
+[Route("api/v1/admin/bancos")]
+public class BancosController : LookupController<Banco>
+{
+    public BancosController(ICrudService<Banco> crud) : base(crud) { }
+}

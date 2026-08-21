@@ -160,6 +160,7 @@ export function TesoreriaPage() {
           <button onClick={() => navigate("/tesoreria/cupones")}>Cupones de tarjeta</button>
           <span className="muted">{usuario} · {rol}</span>
           <span className="mono ip-badge">IP {ip ?? "—"}</span>
+          <button onClick={() => navigate("/")}>Módulos</button>
           <button onClick={logout}>Salir</button>
         </div>
       </div>

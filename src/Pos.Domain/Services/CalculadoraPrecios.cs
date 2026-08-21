@@ -9,8 +9,13 @@ public record CandidatoPrecio(
     TipoListaPrecio Tipo, int Prioridad, DateTime? Desde, DateTime? Hasta,
     decimal PrecioFinal, decimal ImpuestoInterno, int IdListaPrecio = 0);
 
-/// <summary>Datos del convenio del cliente (opcional).</summary>
-/// <param name="IdListaPrecio">Lista propia del convenio, si tiene y si hay precio para el artículo.</param>
+/// <summary>
+/// Precio/descuento propio del cliente (opcional). A pesar del nombre, <see cref="PrecioListaConvenio"/>
+/// puede venir de la lista de un Convenio explícito O de la lista de su tipo de tarjeta (resguardo
+/// cuando no tiene Convenio propio — ver PricingService.ResolverPrecioAsync); <see cref="DescuentoPorc"/>
+/// solo existe si hay un Convenio real (0 si el origen fue solo la tarjeta).
+/// </summary>
+/// <param name="IdListaPrecio">Lista de origen del precio propio, si se encontró precio ahí para el artículo.</param>
 public record ConvenioInfo(decimal DescuentoPorc, decimal? PrecioListaConvenio, int? IdListaPrecio = null);
 
 /// <param name="IdListaPrecio">Lista de la que sale el precio a cobrar.</param>

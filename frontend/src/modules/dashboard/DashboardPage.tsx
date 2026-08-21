@@ -6,6 +6,8 @@ const MODULOS = [
   { key: "Tesoreria", desc: "Cierres, validaciones y dashboard", to: "/tesoreria" },
   { key: "Etiquetas", desc: "Impresión de etiquetas de precios", to: "/etiquetas" },
   { key: "Administracion", desc: "ABM de datos maestros y configuración", to: "/admin" },
+  { key: "Reimpresion", desc: "Buscar y reimprimir facturas o notas de crédito ya emitidas", to: "/reimpresion" },
+  { key: "Ventas", desc: "Dashboard de estadísticas de ventas", to: "/ventas" },
 ];
 
 export function DashboardPage() {

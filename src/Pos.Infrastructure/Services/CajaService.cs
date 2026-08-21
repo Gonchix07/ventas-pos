@@ -245,6 +245,11 @@ public class CajaService : ICajaService
             .Select(p => new PlanCuotaResumen(p.IdPlan, p.Denominacion, p.CantidadCuotas))
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<BancoResumen>> GetBancosAsync(CancellationToken ct = default) =>
+        await _db.Bancos.AsNoTracking().OrderBy(b => b.Descripcion)
+            .Select(b => new BancoResumen(b.IdBanco, b.Descripcion))
+            .ToListAsync(ct);
+
     public async Task<IReadOnlyList<OfertaMedioPagoVigenteDto>> GetOfertasMedioPagoVigentesAsync(int idSucursal, CancellationToken ct = default)
     {
         var hoy = DateTime.UtcNow.Date;
@@ -776,6 +781,6 @@ public class CajaService : ICajaService
         return new OperacionDto(op.IdSucursal, op.IdOperacion, op.IdCliente, clienteDesc,
             op.Estado.ToString(), lineas, lineas.Sum(l => l.Bruto), op.DescuentoTotal, op.Total,
             percepciones.PercepcionIva21, percepciones.PercepcionIva105, percepciones.PercepcionIibb,
-            op.Total + percepciones.Total);
+            op.Total + percepciones.Total, percepciones.AlicuotaIibb);
     }
 }

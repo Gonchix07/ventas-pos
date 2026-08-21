@@ -18,6 +18,17 @@ public class Linea : AuditableEntity, IEntidadLookup
     [NotMapped] public int Id => IdLinea;
 }
 
+/// <summary>
+/// Banco emisor de un cheque (ver <see cref="MovimientoPago.IdBanco"/>). Lookup simple, igual patrón
+/// que <see cref="Sector"/>/<see cref="Linea"/> — se administra desde el ABM genérico de tablas.
+/// </summary>
+public class Banco : AuditableEntity, IEntidadLookup
+{
+    public int IdBanco { get; set; }
+    public string Descripcion { get; set; } = "";
+    [NotMapped] public int Id => IdBanco;
+}
+
 public class Familia : AuditableEntity, IEntidadLookup
 {
     public int IdFamilia { get; set; }

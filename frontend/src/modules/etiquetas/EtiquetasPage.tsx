@@ -1,21 +1,16 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/auth/auth";
 import {
-  etiquetas, type ArticuloParaEtiqueta, type Clasificaciones,
-  type Etiqueta, type LookupSimple,
+  etiquetas, type ArticuloParaEtiqueta, type Clasificaciones, type LookupSimple,
 } from "../../shared/api/etiquetas";
-import "./etiquetas-print.css";
+import { abrirPestañaParaPdf, generarYAbrirPdf, type FormatoEtiqueta } from "./EtiquetaPdf";
 
-type Formato = "Fleje" | "A4" | "A5";
-
-const PAGE_SIZE: Record<Formato, string> = {
-  Fleje: "90mm 40mm",
-  A4: "A4",
-  A5: "A5",
-};
+type Formato = FormatoEtiqueta;
 
 export function EtiquetasPage() {
   const { usuario, rol, logout, ip } = useAuth();
+  const navigate = useNavigate();
   const [sucursales, setSucursales] = useState<LookupSimple[]>([]);
   const [idSucursal, setIdSucursal] = useState<number>(0);
   const [clasif, setClasif] = useState<Clasificaciones | null>(null);
@@ -27,7 +22,6 @@ export function EtiquetasPage() {
   const [resultados, setResultados] = useState<ArticuloParaEtiqueta[]>([]);
   const [lista, setLista] = useState<ArticuloParaEtiqueta[]>([]);
   const [formato, setFormato] = useState<Formato>("Fleje");
-  const [generadas, setGeneradas] = useState<Etiqueta[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
@@ -70,89 +64,30 @@ export function EtiquetasPage() {
 
   const quitar = (idPresentacion: number) => setLista((l) => l.filter((x) => x.idPresentacion !== idPresentacion));
 
+  // Genera el PDF real (fleje 90x40mm o A4/A5) y lo abre en una pestaña nueva para imprimir desde
+  // el visor de PDF del navegador — ver EtiquetaPdf.tsx. Ya no hay una "vista de impresión" propia
+  // en HTML: ese mecanismo (@page + window.print()) salía en blanco en algunas instalaciones de
+  // Chrome (bug de capas compuestas al combinar CSS transform con paginación de impresión).
   const generar = async () => {
     if (!idSucursal || lista.length === 0) return;
     setError(null);
     setCargando(true);
+    // Se abre ANTES de pedirle los datos al backend (que es async): si se abre después de un
+    // await, el navegador ya no lo asocia al click y lo bloquea como popup.
+    const ventana = abrirPestañaParaPdf();
     try {
       const r = await etiquetas.generar(idSucursal, lista.map((x) => x.idPresentacion));
-      setGeneradas(r);
-    } catch (e) { setError(e instanceof Error ? e.message : "Error al generar las etiquetas"); }
-    finally { setCargando(false); }
+      if (r.length === 0) {
+        setError("Ningún artículo tiene precio vigente en esta sucursal.");
+        ventana?.close();
+        return;
+      }
+      await generarYAbrirPdf(formato, r, ventana);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al generar las etiquetas");
+      ventana?.close();
+    } finally { setCargando(false); }
   };
-
-  const fmt = (n: number) => n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  if (generadas) {
-    return (
-      <div className="page-shell">
-        <style>{`@page { size: ${PAGE_SIZE[formato]}; margin: 0; }`}</style>
-        <div className="page-head et-no-print">
-          <h1>Vista de impresión — {formato}</h1>
-          <div className="row-actions">
-            <button className="primary" onClick={() => window.print()}>Imprimir</button>
-            <button onClick={() => setGeneradas(null)}>Volver</button>
-          </div>
-        </div>
-        {generadas.length === 0 && <p className="muted et-no-print">Ningún artículo tiene precio vigente en esta sucursal.</p>}
-
-        {formato === "Fleje" && generadas.map((e) => (
-          <div key={e.idPresentacion} className="et-sheet et-fleje">
-            <div className="et-fleje__titulo">{e.descripcion}</div>
-            <div className="et-fleje__codigos">
-              <span>Cod. {e.codigoInterno}</span>
-              <span>Cod.Bar {e.codigoBarra}</span>
-            </div>
-            <div className="et-fleje__precios">
-              {(e.preciosTarjeta.length > 0
-                ? e.preciosTarjeta.map((t) => ({ nombre: `Tarj. ${t.nombreTarjeta}`, precio: t.precio, pxu: t.precioPorUnidadMedida, si: t.precioSinImpuestos }))
-                : [{ nombre: e.aclaracionPrecio ?? "", precio: e.precioBase, pxu: e.precioBasePorUnidadMedida, si: e.precioBaseSinImpuestos }]
-              ).map((row, i) => (
-                <div key={i} className="et-fleje__fila">
-                  <span className="et-fleje__tarjeta">{row.nombre} <span className="et-fleje__precio">$ {fmt(row.precio)}</span></span>
-                  <span className="et-fleje__detalle">
-                    {row.pxu != null && <>Precio por {e.unidadMedidaTexto} ${fmt(row.pxu)}<br /></>}
-                    Sin imp. nac.: ${fmt(row.si)}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="et-fleje__footer">
-              Compra minima: {e.compraMinima} Unidad(es) - Precio unitario final con IVA
-            </div>
-          </div>
-        ))}
-
-        {(formato === "A4" || formato === "A5") && generadas.map((e) => (
-          <div key={e.idPresentacion} className={`et-sheet et-hoja ${formato.toLowerCase()}`}>
-            <div className="et-hoja__titulo">{e.descripcion}</div>
-
-            {(e.preciosTarjeta.length > 0
-              ? e.preciosTarjeta.map((t) => ({ nombre: t.nombreTarjeta, precio: t.precio, pxu: t.precioPorUnidadMedida, si: t.precioSinImpuestos }))
-              : [{ nombre: e.aclaracionPrecio ?? "", precio: e.precioBase, pxu: e.precioBasePorUnidadMedida, si: e.precioBaseSinImpuestos }]
-            ).map((row, i) => (
-              <div key={i} className="et-hoja__bloque">
-                {row.nombre && <div className="et-hoja__nombre-tarjeta">{row.nombre}</div>}
-                <div className="et-hoja__precio">$ {fmt(row.precio)}</div>
-                <div className="et-hoja__detalle">
-                  {row.pxu != null && <div>Precio por {e.unidadMedidaTexto} $ {fmt(row.pxu)}</div>}
-                  <div>Precio sin impuestos nacionales: $ {fmt(row.si)}</div>
-                </div>
-              </div>
-            ))}
-
-            <div className="et-hoja__pie-precio">
-              Compra mínima: {e.compraMinima} Unidad(es)<br />Precio final, IVA incluido
-            </div>
-            <div className="et-hoja__footer">
-              <span>Cod. {e.codigoInterno}</span>
-              <span>Cod. Barras: {e.codigoBarra}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
 
   return (
     <div className="page-shell">
@@ -161,6 +96,7 @@ export function EtiquetasPage() {
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <span className="muted">{usuario} · {rol}</span>
           <span className="mono ip-badge">IP {ip ?? "—"}</span>
+          <button onClick={() => navigate("/")}>Módulos</button>
           <button onClick={logout}>Salir</button>
         </div>
       </div>
@@ -223,7 +159,7 @@ export function EtiquetasPage() {
             </select>
           </label>
           <button className="primary" disabled={lista.length === 0 || cargando} onClick={generar}>
-            {cargando ? "Generando…" : "Generar etiquetas"}
+            {cargando ? "Generando PDF…" : "Generar PDF"}
           </button>
         </div>
       </div>

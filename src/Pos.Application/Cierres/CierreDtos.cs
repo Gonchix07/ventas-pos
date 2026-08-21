@@ -53,7 +53,11 @@ public record ArqueoXResponse(int IdSucursal, int IdLote, int IdCaja, string Des
     // Fondo con el que arrancó el turno (ver IngresoDto) — null si se abrió sin fondo. Se agrega acá
     // (no solo en el reporte impreso) para que la rendición del cajero lo pueda mostrar como
     // "saldo inicial" junto con el resto de los movimientos del lote.
-    IngresoDto? IngresoInicial);
+    IngresoDto? IngresoInicial,
+    // Efectivo acumulado en el lote (dentro de Acumulados/TotalGeneral, no aparte) y el tope
+    // configurado (Configuracion.LimiteEfectivoCaja) — para que la pantalla de caja avise al
+    // cajero que conviene hacer un retiro. LimiteEfectivoCaja = 0 significa "sin límite cargado".
+    decimal EfectivoAcumulado = 0, decimal LimiteEfectivoCaja = 0);
 
 public record DeclaracionPagoInput(int IdMedioPago, decimal MontoDeclarado);
 
@@ -76,7 +80,10 @@ public record MotivoDto(int Id, string Descripcion);
 /// Cierre Z real (reporte del controlador Hasar), que es una operación de máquina aparte.</summary>
 public interface ICierreCajaService
 {
-    Task<ArqueoXResponse> ArqueoXAsync(int idSucursal, int idCaja, CancellationToken ct = default);
+    /// <param name="imprimir">Si además de calcular los acumulados hay que imprimir el reporte X en
+    /// el controlador fiscal. En false cuando el arqueo se pide solo para armar una pantalla (ej. el
+    /// preview de "Cerrar turno"), que no necesita disparar una impresión física.</param>
+    Task<ArqueoXResponse> ArqueoXAsync(int idSucursal, int idCaja, bool imprimir = true, CancellationToken ct = default);
     Task<CerrarTurnoResponse> CerrarTurnoAsync(int idSucursal, int idCaja, CerrarTurnoRequest req, CancellationToken ct = default);
     Task<IReadOnlyList<MotivoDto>> GetMotivosDiferenciaAsync(CancellationToken ct = default);
 }

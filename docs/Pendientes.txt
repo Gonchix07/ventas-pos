@@ -25,8 +25,7 @@ Integracion ERP Nuevo >  Ventas POS
 	- Cta Cte
 	- Precios
 
-Caja
-	Cheques	
-	
 LIMITANTE SIN CORREGIR: 
 	Las PCs internas de Caja deben estar en la misma subred que el servidor para identificarse (Ej: 192.168.4/24)
+	La impresion directa a comandera esta limitada a usar el modo Kiosko del navegador, el problema es que manda todo a imprimir a la predeterminada (Comandera), incluyendo reportes de cierre (A4)
+	El cierre Z debe loguearse un supervisor an cada Caja (se puede implementar un masivo, revisar)

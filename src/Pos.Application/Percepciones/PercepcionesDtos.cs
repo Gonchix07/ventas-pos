@@ -4,16 +4,25 @@ namespace Pos.Application.Percepciones;
 public record LineaParaPercepcion(int IdPresentacion, decimal Cantidad, decimal Precio, decimal Descuento, int? IdListaPrecio);
 
 /// <summary>
-/// Resultado del cálculo de percepciones de una operación. <paramref name="AlicuotaEfectivaPorLinea"/>
-/// viene en el MISMO ORDEN que la lista de líneas pasada a <see cref="IPercepcionesCalculoService.CalcularAsync"/>
-/// (no por diccionario, para no depender de que IdPresentacion sea único dentro del carrito) — ya
-/// con el ajuste "impuesto interno → Exento" aplicado, así que quien facture no tiene que resolver
-/// la alícuota del artículo dos veces.
+/// Resultado del cálculo de percepciones de una operación. <paramref name="AlicuotaPorLinea"/>,
+/// <paramref name="NetoPorLinea"/> y <paramref name="IvaPorLinea"/> vienen en el MISMO ORDEN que la
+/// lista de líneas pasada a <see cref="IPercepcionesCalculoService.CalcularAsync"/> (no por
+/// diccionario, para no depender de que IdPresentacion sea único dentro del carrito) — ya con el
+/// Impuesto Interno restado de la base antes de discriminar IVA (ver PercepcionesCalculoService),
+/// así que quien facture no tiene que repetir esa cuenta ni puede desincronizarse de las bases que
+/// se usaron para las percepciones.
+/// <paramref name="BaseImponibleIibb"/> es Neto + Impuesto Interno de toda la operación (la base que
+/// pide IIBB), no solo el Neto. <paramref name="AlicuotaIibb"/> es la alícuota (%) con la que se
+/// calculó <paramref name="PercepcionIibb"/> — la del padrón, o la alícuota general por defecto si
+/// el cliente tenía CUIT pero no estaba en el padrón; 0 si no hay CUIT (no corresponde percepción).
 /// </summary>
 public record PercepcionesResultado(
     decimal PercepcionIva21, decimal PercepcionIva105, decimal PercepcionIibb, decimal Total,
-    IReadOnlyList<decimal> AlicuotaEfectivaPorLinea,
-    decimal BaseImponibleIva21 = 0, decimal BaseImponibleIva105 = 0, decimal BaseImponibleIibb = 0);
+    IReadOnlyList<decimal> AlicuotaPorLinea,
+    IReadOnlyList<decimal> NetoPorLinea,
+    IReadOnlyList<decimal> IvaPorLinea,
+    decimal BaseImponibleIva21 = 0, decimal BaseImponibleIva105 = 0, decimal BaseImponibleIibb = 0,
+    decimal AlicuotaIibb = 0);
 
 /// <summary>
 /// Calcula, en el momento del carrito o de facturar, las percepciones de IVA (según neto gravado al

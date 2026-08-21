@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../shared/auth/auth";
 import {
-  caja, type ArqueoX, type ArticuloEncontrado, type CierreTurnoResultado, type CierreZFiscalResultado,
+  caja, type ArqueoX, type ArticuloEncontrado, type BancoResumen, type CierreTurnoResultado, type CierreZFiscalResultado,
   type ClienteResumen, type DeclaracionPago, type CajaDisponible, type Lote, type MedioPagoResumen, type Motivo,
   type Operacion, type OperacionLinea, type OperacionPendiente, type OfertaMedioPagoVigente,
   type PlanCuotaResumen, type TurnoAbierto,
@@ -18,7 +18,7 @@ import { ReporteCierreTurno } from "./ReporteCierreTurno";
 import { VoucherComprobantePago, type ItemVoucherPago } from "./VoucherComprobantePago";
 import { useLectorCodigo } from "../../shared/ui/useLectorCodigo";
 import { useSupervisorGate } from "../../shared/ui/SupervisorGate";
-import { MonedaInput } from "../../shared/ui/moneda";
+import { MonedaInput, formatearMoneda } from "../../shared/ui/moneda";
 
 // Hora en 24 h: es-AR resuelve a 12 h en Chrome ("01:15 p. m."), que en una caja se lee mal.
 // El valor llega en UTC (con "Z"), así que el navegador ya lo pasa a la hora local del puesto.
@@ -55,11 +55,16 @@ interface PagoForm {
   numeroLote: string;
   /** Plan de cuotas elegido junto con el medio (solo Tarjeta); null = sin elegir ninguno. */
   idPlan: number | null;
+  // Solo se completan si el medio es de tipo Cheque (banco y número obligatorios, observaciones libre).
+  idBanco: number | null;
+  numeroCheque: string;
+  observacionesCheque: string;
 }
 
 /** Ver enum FuentePago en el backend. */
 const FUENTE_TARJETA = 2;
 const FUENTE_EFECTIVO = 1;
+const FUENTE_CHEQUE = 6;
 
 // Mismo cálculo que OfertaMedioPagoReglas en el backend (Pos.Domain.Services): esto es solo para
 // mostrarle al cajero en vivo cuánto se le informa al cliente que abona — el monto real que se
@@ -150,6 +155,9 @@ export function CajaPage() {
   // Planes de cuotas por medio, cargados on-demand la primera vez que se elige ese medio en un
   // pago (la mayoría de los medios no son Tarjeta y nunca los necesita).
   const [planesPorMedio, setPlanesPorMedio] = useState<Record<number, PlanCuotaResumen[]>>({});
+  // Bancos para el combo del pago con Cheque — no depende del cliente ni del medio, se carga una
+  // sola vez al entrar (igual criterio que ofertasMedioPago).
+  const [bancos, setBancos] = useState<BancoResumen[]>([]);
   const [emitiendo, setEmitiendo] = useState(false);
   const [volviendo, setVolviendo] = useState(false);
   const [comprobante, setComprobante] = useState<EmitirComprobanteResponse | null>(null);
@@ -182,6 +190,21 @@ export function CajaPage() {
   const [arqueoActivo, setArqueoActivo] = useState(false);
   const [arqueo, setArqueo] = useState<ArqueoX | null>(null);
 
+  // ---- Aviso de límite de efectivo en caja (Configuracion.LimiteEfectivoCaja): se refresca solo,
+  // en silencio (sin bloquear pantalla ni imprimir nada), al abrir la caja y después de cada venta,
+  // para sugerirle al cajero que haga un retiro sin que tenga que entrar a Arqueo X a mirarlo. */
+  const [avisoEfectivo, setAvisoEfectivo] = useState<{ efectivo: number; limite: number } | null>(null);
+  const revisarLimiteEfectivo = async () => {
+    try {
+      const x = await caja.arqueoX(idSucursal, idCaja, false);
+      setAvisoEfectivo(x.limiteEfectivoCaja > 0 && x.efectivoAcumulado > x.limiteEfectivoCaja
+        ? { efectivo: x.efectivoAcumulado, limite: x.limiteEfectivoCaja } : null);
+    } catch {
+      // Silencioso: sin lote abierto todavía, o cualquier otro motivo — no es un error para el
+      // cajero, es solo un aviso opcional que no pudo calcularse esta vez.
+    }
+  };
+
   // ---- Cierre de turno (negocio, sobre el lote — separado del Cierre Z fiscal, ver más abajo) ----
   const [cierreActivo, setCierreActivo] = useState(false);
   const [declaraciones, setDeclaraciones] = useState<Record<number, number | null>>({});
@@ -200,6 +223,7 @@ export function CajaPage() {
     void cargarLote();
     void cargarMediosPago();
     caja.ofertasMedioPagoVigentes(idSucursal).then(setOfertasMedioPago).catch(() => {});
+    caja.bancos().then(setBancos).catch(() => {});
     caja.descripcion(idSucursal, idCaja).then(setDescripcionCaja).catch(() => {});
     caja.misTurnos(idSucursal).then(setTurnos).catch(() => {});
     caja.cajas(idSucursal).then(setCajas).catch(() => {});
@@ -211,7 +235,9 @@ export function CajaPage() {
   const cargarLote = async (cajaObjetivo = idCaja) => {
     setLoadingLote(true);
     try {
-      setLote(await caja.loteActual(idSucursal, cajaObjetivo));
+      const l = await caja.loteActual(idSucursal, cajaObjetivo);
+      setLote(l);
+      void revisarLimiteEfectivo();
     } catch {
       setLote(null);
     } finally {
@@ -528,13 +554,17 @@ export function CajaPage() {
   // (no se le sugiere ni el total ni el faltante) — así puede cargar de verdad la plata que tiene
   // en la mano, aunque sea más que lo que corresponde (vuelto, ver calcularVuelto más abajo).
   const nuevoPago = (): PagoForm =>
-    ({ idMedioPago: medioPorDefecto(), monto: null, numeroCupon: "", numeroLote: "", idPlan: null });
+    ({ idMedioPago: medioPorDefecto(), monto: null, numeroCupon: "", numeroLote: "", idPlan: null,
+      idBanco: null, numeroCheque: "", observacionesCheque: "" });
 
   const esTarjeta = (idMedioPago: number) =>
     mediosPago.find((m) => m.idMedioPago === idMedioPago)?.fuente === FUENTE_TARJETA;
 
   const esEfectivo = (idMedioPago: number) =>
     mediosPago.find((m) => m.idMedioPago === idMedioPago)?.fuente === FUENTE_EFECTIVO;
+
+  const esCheque = (idMedioPago: number) =>
+    mediosPago.find((m) => m.idMedioPago === idMedioPago)?.fuente === FUENTE_CHEQUE;
 
   // Se piden una sola vez por medio y quedan en caché: la mayoría de los medios no son Tarjeta y
   // nunca los necesitan, así que no tiene sentido traer los planes de todos de entrada.
@@ -563,7 +593,8 @@ export function CajaPage() {
     if (activo) {
       const efectivo = mediosPago.find((m) => m.fuente === FUENTE_EFECTIVO);
       setPagos(efectivo
-        ? [{ idMedioPago: efectivo.idMedioPago, monto: null, numeroCupon: "", numeroLote: "", idPlan: null }]
+        ? [{ idMedioPago: efectivo.idMedioPago, monto: null, numeroCupon: "", numeroLote: "", idPlan: null,
+            idBanco: null, numeroCheque: "", observacionesCheque: "" }]
         : []);
     } else {
       setPagos(mediosPago.length ? [nuevoPago()] : []);
@@ -623,6 +654,10 @@ export function CajaPage() {
           numeroCupon: esTarjeta(p.idMedioPago) ? p.numeroCupon.trim() || null : null,
           numeroLote: esTarjeta(p.idMedioPago) ? p.numeroLote.trim() || null : null,
           idPlan: esTarjeta(p.idMedioPago) ? p.idPlan : null,
+          // Banco, número y observaciones solo viajan si el medio es Cheque; en el resto el backend los ignora.
+          idBanco: esCheque(p.idMedioPago) ? p.idBanco : null,
+          numeroCheque: esCheque(p.idMedioPago) ? p.numeroCheque.trim() || null : null,
+          observacionesCheque: esCheque(p.idMedioPago) ? p.observacionesCheque.trim() || null : null,
         }))
         .filter((p) => p.monto > 0);
       // La letra (A, B o X) la resuelve el servidor. En Presupuesto, modo=0: sin CAE, sin
@@ -650,6 +685,9 @@ export function CajaPage() {
       if (itemsVoucher.length > 0) {
         setVoucherPago({ fecha: new Date(), numeroComprobante: resp.numeroCompleto, items: itemsVoucher });
       }
+      // Recién cobrado puede haber cruzado el límite de efectivo en caja — se revisa en silencio
+      // después de cada venta, no solo al abrir la caja.
+      void revisarLimiteEfectivo();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al emitir el comprobante");
     } finally {
@@ -679,7 +717,10 @@ export function CajaPage() {
     setError(null);
     setBloqueando("Preparando cierre de turno…");
     try {
-      const [x, m] = await Promise.all([caja.arqueoX(idSucursal, idCaja), caja.motivosDiferencia()]);
+      // imprimir=false: es solo el preview para armar esta pantalla, no corresponde imprimir un
+      // reporte X en el controlador fiscal — la rendición del cajero se imprime al confirmar el
+      // cierre (ver ReporteCierreTurno), un X del controlador ahí es un papel de más.
+      const [x, m] = await Promise.all([caja.arqueoX(idSucursal, idCaja, false), caja.motivosDiferencia()]);
       setArqueo(x);
       setMotivos(m);
       const init: Record<number, number | null> = {};
@@ -848,7 +889,7 @@ export function CajaPage() {
       <div className="caja-shell">
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
-          <div className="lote-badge">Lote #{arqueo.idLote} · Caja {arqueo.descripcionCaja}</div>
+          <div className="lote-badge">Lote #{arqueo.idLote} · {arqueo.descripcionCaja}</div>
           <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-body">
@@ -860,8 +901,8 @@ export function CajaPage() {
               {arqueo.acumulados.map((a) => (
                 <tr key={a.idMedioPago}>
                   <td>{a.descripcion}</td>
-                  <td className="mono">${a.total.toFixed(2)}</td>
-                  <td className="mono">${a.redondeo.toFixed(2)}</td>
+                  <td className="mono">{formatearMoneda(a.total)}</td>
+                  <td className="mono">{formatearMoneda(a.redondeo)}</td>
                 </tr>
               ))}
               {arqueo.acumulados.length === 0 && <tr><td colSpan={3} className="muted">Sin movimientos todavía.</td></tr>}
@@ -880,7 +921,7 @@ export function CajaPage() {
                       <td className="mono">{a.numeroCompleto} {a.letra}</td>
                       <td className="mono">{a.comprobanteOrigen ?? "—"}</td>
                       <td>{a.motivo ?? "—"}</td>
-                      <td className="mono">−${a.total.toFixed(2)}</td>
+                      <td className="mono">−{formatearMoneda(a.total)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -899,7 +940,7 @@ export function CajaPage() {
                       <td className="mono">{formatearHora(r.fecha)}</td>
                       <td>{r.concepto ?? "—"}</td>
                       <td>{r.usuario ?? "—"}</td>
-                      <td className="mono">−${r.monto.toFixed(2)}</td>
+                      <td className="mono">−{formatearMoneda(r.monto)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -918,7 +959,7 @@ export function CajaPage() {
                       <td className="mono">{formatearHora(v.fecha)}</td>
                       <td>{v.concepto ?? "—"}</td>
                       <td>{v.usuario ?? "—"}</td>
-                      <td className="mono">−${v.monto.toFixed(2)}</td>
+                      <td className="mono">−{formatearMoneda(v.monto)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -927,16 +968,24 @@ export function CajaPage() {
           )}
           <div className="caja-totales">
             {arqueo.anulaciones.length > 0 && (
-              <div className="total"><span>Total anulaciones</span><b>−${arqueo.totalAnulaciones.toFixed(2)}</b></div>
+              <div className="total"><span>Total anulaciones</span><b>−{formatearMoneda(arqueo.totalAnulaciones)}</b></div>
             )}
             {arqueo.retiros.length > 0 && (
-              <div className="total"><span>Total retiros</span><b>−${arqueo.totalRetiros.toFixed(2)}</b></div>
+              <div className="total"><span>Total retiros</span><b>−{formatearMoneda(arqueo.totalRetiros)}</b></div>
             )}
             {arqueo.vueltos.length > 0 && (
-              <div className="total"><span>Total vueltos</span><b>−${arqueo.totalVueltos.toFixed(2)}</b></div>
+              <div className="total"><span>Total vueltos</span><b>−{formatearMoneda(arqueo.totalVueltos)}</b></div>
             )}
-            <div className="total"><span>Total general</span><b>${arqueo.totalGeneral.toFixed(2)}</b></div>
+            <div className="total"><span>Total general</span><b>{formatearMoneda(arqueo.totalGeneral)}</b></div>
           </div>
+          {arqueo.limiteEfectivoCaja > 0 && arqueo.efectivoAcumulado > arqueo.limiteEfectivoCaja && (
+            <div className="note note-aviso-limite" style={{ marginTop: 16 }}>
+              <div className="note-aviso-limite__fila">
+                <img src="/icons/aviso-limite.png" alt="" className="note-aviso-limite__icono" />
+                <p>Limite de efectivo superado, realizar un RETIRO</p>
+              </div>
+            </div>
+          )}
           <div className="row-actions" style={{ marginTop: 16 }}>
             <button className="primary" onClick={() => setArqueoActivo(false)}>Volver</button>
           </div>
@@ -950,7 +999,7 @@ export function CajaPage() {
       <div className="caja-shell">
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
-          <div className="lote-badge">Lote #{lote.idLote} · Caja {lote.descripcionCaja}</div>
+          <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
           <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-body">
@@ -976,7 +1025,7 @@ export function CajaPage() {
                   {arqueo?.acumulados.map((a) => (
                     <tr key={a.idMedioPago}>
                       <td>{a.descripcion}</td>
-                      <td className="mono">${a.total.toFixed(2)}</td>
+                      <td className="mono">{formatearMoneda(a.total)}</td>
                       <td>
                         <MonedaInput value={declaraciones[a.idMedioPago] ?? null}
                           onChange={(v) => setDeclaraciones((d) => ({ ...d, [a.idMedioPago]: v }))} style={{ width: 140 }} />
@@ -1047,20 +1096,20 @@ export function CajaPage() {
               </p>
             )}
             <div className="ticket-totales">
-              <div><span>Neto</span><b>${comprobante.neto.toFixed(2)}</b></div>
-              <div><span>IVA</span><b>${comprobante.iva.toFixed(2)}</b></div>
+              <div><span>Neto</span><b>{formatearMoneda(comprobante.neto)}</b></div>
+              <div><span>IVA</span><b>{formatearMoneda(comprobante.iva)}</b></div>
               {comprobante.percepcionIva21 > 0 && (
-                <div><span>Percepción IVA 21%</span><b>${comprobante.percepcionIva21.toFixed(2)}</b></div>
+                <div><span>Percepción IVA 21%</span><b>{formatearMoneda(comprobante.percepcionIva21)}</b></div>
               )}
               {comprobante.percepcionIva105 > 0 && (
-                <div><span>Percepción IVA 10,5%</span><b>${comprobante.percepcionIva105.toFixed(2)}</b></div>
+                <div><span>Percepción IVA 10,5%</span><b>{formatearMoneda(comprobante.percepcionIva105)}</b></div>
               )}
               {comprobante.percepcionIibb > 0 && (
-                <div><span>Percepción IIBB</span><b>${comprobante.percepcionIibb.toFixed(2)}</b></div>
+                <div><span>Percepción IIBB ({comprobante.alicuotaIibb.toFixed(2)}%)</span><b>{formatearMoneda(comprobante.percepcionIibb)}</b></div>
               )}
-              <div className="total"><span>Total</span><b>${comprobante.total.toFixed(2)}</b></div>
+              <div className="total"><span>Total</span><b>{formatearMoneda(comprobante.total)}</b></div>
             </div>
-            {comprobante.vuelto > 0 && <p className="vuelto">Vuelto: ${comprobante.vuelto.toFixed(2)}</p>}
+            {comprobante.vuelto > 0 && <p className="vuelto">Vuelto: {formatearMoneda(comprobante.vuelto)}</p>}
             <p className={comprobante.impreso ? "muted" : "error"}>
               {comprobante.impreso ? "✓ Impreso" : `Sin imprimir: ${comprobante.errorImpresion ?? "error"}`}
             </p>
@@ -1077,7 +1126,7 @@ export function CajaPage() {
       <div className="caja-shell">
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
-          <div className="lote-badge">Lote #{lote.idLote} · Caja {lote.descripcionCaja}</div>
+          <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
           <div className="user-box">
             <span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={logout}>Salir</button>
           </div>
@@ -1101,7 +1150,7 @@ export function CajaPage() {
                   <td className="mono">#{p.idOperacion}</td>
                   <td className="mono">{formatearHora(p.fechaUtc)}</td>
                   <td className="mono">{p.cantidadLineas}</td>
-                  <td className="mono">${p.total.toFixed(2)}</td>
+                  <td className="mono">{formatearMoneda(p.total)}</td>
                   <td>
                     {p.estado === "Finalizada"
                       ? <span className="badge on">Lista para cobrar</span>
@@ -1130,7 +1179,7 @@ export function CajaPage() {
       <div className="caja-shell">
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
-          <div className="lote-badge">Lote #{lote.idLote} · Caja {lote.descripcionCaja}</div>
+          <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
           <div className="user-box">
             <button className="danger-solid" onClick={() => setNotaCreditoAbierta(true)}>Notas de Crédito</button>
           <button onClick={() => setRetiroAbierto(true)}>Retiro de efectivo</button>
@@ -1236,6 +1285,10 @@ export function CajaPage() {
     // PLAN_REQUERIDO); se avisa antes de intentar emitir para no gastar el intento.
     const faltaCuponOLote = pagos.some((p) =>
       esTarjeta(p.idMedioPago) && (!p.numeroCupon.trim() || !p.numeroLote.trim() || !p.idPlan));
+    // El backend rechaza un cheque sin banco/número (BANCO_REQUERIDO / NUMERO_CHEQUE_REQUERIDO);
+    // mismo criterio que faltaCuponOLote, se avisa antes de intentar emitir.
+    const faltaDatosCheque = pagos.some((p) =>
+      esCheque(p.idMedioPago) && (!p.idBanco || !p.numeroCheque.trim()));
     // Descuento por medio de pago y vuelto: mismo algoritmo que el backend (FacturacionService) —
     // se calcula sobre lo que cada pago realmente CUBRE de la venta (tope al saldo que todavía
     // falta cubrir), no sobre el monto entregado: si en Efectivo se entrega de más para llevarse
@@ -1257,15 +1310,15 @@ export function CajaPage() {
       <div className="caja-shell">
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
-          <div className="lote-badge">Lote #{lote.idLote} · Caja {lote.descripcionCaja}</div>
+          <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
           <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-body">
           <h1>Cobro</h1>
           <p className="muted">
-            Operación #{operacion.idOperacion} · Total a cobrar: <b>${totalEsperado.toFixed(2)}</b>
+            Operación #{operacion.idOperacion} · Total a cobrar: <b>{formatearMoneda(totalEsperado)}</b>
             {(operacion.percepcionIva21 > 0 || operacion.percepcionIva105 > 0 || operacion.percepcionIibb > 0) && !modoPresupuesto && (
-              <> (incluye ${(operacion.percepcionIva21 + operacion.percepcionIva105 + operacion.percepcionIibb).toFixed(2)} de percepciones)</>
+              <> (incluye {formatearMoneda(operacion.percepcionIva21 + operacion.percepcionIva105 + operacion.percepcionIibb)} de percepciones)</>
             )}
             {modoPresupuesto ? (
               <>
@@ -1346,6 +1399,27 @@ export function CajaPage() {
                     </label>
                   </>
                 )}
+                {/* Banco, número de cheque y observaciones: solo para Cheque. Análogo a cupón/lote
+                    de Tarjeta, pero identifican el cheque físico para presentarlo en Tesorería/banco
+                    en vez de un cupón de posnet. Observaciones queda libre, no se exige. */}
+                {!modoPresupuesto && esCheque(p.idMedioPago) && (
+                  <>
+                    <label className="campo-medio">Banco
+                      <select value={p.idBanco ?? 0} onChange={(e) => setPago(i, { idBanco: Number(e.target.value) || null })}>
+                        <option value={0}>(elegir)</option>
+                        {bancos.map((b) => <option key={b.idBanco} value={b.idBanco}>{b.descripcion}</option>)}
+                      </select>
+                    </label>
+                    <label className="campo-cupon">Nº de cheque
+                      <input value={p.numeroCheque} maxLength={8}
+                        onChange={(e) => setPago(i, { numeroCheque: e.target.value })} />
+                    </label>
+                    <label className="campo-cupon">Observaciones
+                      <input value={p.observacionesCheque}
+                        onChange={(e) => setPago(i, { observacionesCheque: e.target.value })} />
+                    </label>
+                  </>
+                )}
                 {/* Presupuesto: un único pago fijo en Efectivo, sin combinar medios — no hay
                     "Quitar" ni "+ Otro medio de pago". */}
                 {!modoPresupuesto && pagos.length > 1 && <button className="danger" onClick={() => quitarPago(i)}>Quitar</button>}
@@ -1360,8 +1434,8 @@ export function CajaPage() {
                   sin sentido; el backend tampoco lo calcula hasta que CubreElTotal da true. */}
               {descuentoMp > 0 && diferencia <= 0.005 && (
                 <p className="muted" style={{ marginTop: -4 }}>
-                  Con descuento por medio de pago ({oferta!.porcentaje}%, tope ${oferta!.topeMaximo.toFixed(2)}):
-                  se le cobran <b>${(cubierto - descuentoMp).toFixed(2)}</b> (ahorra ${descuentoMp.toFixed(2)}).
+                  Con descuento por medio de pago ({oferta!.porcentaje}%, tope {formatearMoneda(oferta!.topeMaximo)}):
+                  se le cobran <b>{formatearMoneda(cubierto - descuentoMp)}</b> (ahorra {formatearMoneda(descuentoMp)}).
                 </p>
               )}
               </div>
@@ -1373,26 +1447,29 @@ export function CajaPage() {
               </div>
             )}
             {diferencia > 0.005 ? (
-              <p className="error">Falta cubrir ${diferencia.toFixed(2)}</p>
+              <p className="error">Falta cubrir {formatearMoneda(diferencia)}</p>
             ) : noEfectivoSuperaElTotal ? (
               <p className="error">
                 Lo cargado en medios distintos de Efectivo supera lo que corresponde: el vuelto solo se puede dar en efectivo.
               </p>
             ) : vuelto > 0.005 ? (
-              <p className="vuelto">Vuelto: ${vuelto.toFixed(2)}</p>
+              <p className="vuelto">Vuelto: {formatearMoneda(vuelto)}</p>
             ) : (
               <p className="muted">Los pagos cubren el total.</p>
             )}
             {descuentoMpTotal > 0 && diferencia <= 0.005 && (
               <p className="muted">
-                Descuento por medio de pago: −${descuentoMpTotal.toFixed(2)}. Total a cobrar: <b>${(totalEsperado - descuentoMpTotal).toFixed(2)}</b>
+                Descuento por medio de pago: −{formatearMoneda(descuentoMpTotal)}. Total a cobrar: <b>{formatearMoneda(totalEsperado - descuentoMpTotal)}</b>
               </p>
             )}
             {faltaCuponOLote && (
               <p className="error">Los pagos con tarjeta necesitan el número de cupón, el de lote y un plan de cuotas.</p>
             )}
+            {faltaDatosCheque && (
+              <p className="error">Los pagos con cheque necesitan el banco emisor y el número de cheque.</p>
+            )}
             <div className="row-actions">
-              <button className="primary" disabled={!cubreElTotal || emitiendo || faltaCuponOLote}
+              <button className="primary" disabled={!cubreElTotal || emitiendo || faltaCuponOLote || faltaDatosCheque}
                 onClick={confirmarCobro}>
                 {emitiendo ? "Emitiendo…" : modoPresupuesto ? "Confirmar presupuesto" : "Confirmar cobro y facturar"}
               </button>
@@ -1410,7 +1487,7 @@ export function CajaPage() {
     <div className="caja-shell">
       <header className="caja-header">
         <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
-        <div className="lote-badge">Lote #{lote.idLote} · Caja {lote.descripcionCaja}</div>
+        <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
         <div className="user-box">
           <button className="danger-solid" onClick={() => setNotaCreditoAbierta(true)}>Notas de Crédito</button>
           <button className="warning-solid" onClick={anularOperacion}>Anular Operación</button>
@@ -1423,6 +1500,11 @@ export function CajaPage() {
       {notaCreditoAbierta && (
         <NotaCreditoModal idSucursal={idSucursal} idCaja={lote.idCaja}
           onCerrar={() => setNotaCreditoAbierta(false)} />
+      )}
+      {retiroAbierto && (
+        <RetiroEfectivoModal idSucursal={idSucursal} idCaja={lote.idCaja}
+          usuario={usuario} descripcionCaja={lote.descripcionCaja}
+          onCerrar={() => { setRetiroAbierto(false); void revisarLimiteEfectivo(); }} />
       )}
       {bloqueando && <PantallaBloqueada mensaje={bloqueando} />}
 
@@ -1475,30 +1557,41 @@ export function CajaPage() {
         </div>
         {cola.length > 0 && <p className="muted">En cola: {cola.length}</p>}
         {colaError && (
-          <div className="note">
-            <span className="mono">⚠</span>
-            <p><b>Artículo no encontrado:</b> «{colaError.codigo}» — {colaError.mensaje}. La cola está detenida hasta resolver.</p>
-            <button className="danger" onClick={descartarError}>Descartar y continuar</button>
+          <div className="note note-aviso-limite">
+            <div className="note-aviso-limite__fila">
+              <img src="/icons/aviso-limite.png" alt="" className="note-aviso-limite__icono" />
+              <p>ARTICULO NO ENCONTRADO - REVISAR ANTES DE CONTINUAR</p>
+              <button className="danger" onClick={descartarError}>Descartar y continuar</button>
+            </div>
           </div>
         )}
         {error && <p className="error">{error}</p>}
+        {avisoEfectivo && (
+          <div className="note note-aviso-limite">
+            <div className="note-aviso-limite__fila">
+              <img src="/icons/aviso-limite.png" alt="" className="note-aviso-limite__icono" />
+              <p>Limite de efectivo superado, realizar un RETIRO</p>
+              <button className="primary" onClick={() => setRetiroAbierto(true)}>Hacer retiro</button>
+            </div>
+          </div>
+        )}
 
         {/* Totales y Cobrar quedan pegados arriba, entre el escaneo y la lista: con muchos artículos
             el cajero sigue viendo el total y el botón sin tener que bajar hasta el final. */}
         {operacion && operacion.lineas.length > 0 && (
           <div className="caja-totales caja-totales-fija">
-            <div><span>Bruto</span><b>${operacion.bruto.toFixed(2)}</b></div>
-            <div><span>Descuento</span><b>-${operacion.descuento.toFixed(2)}</b></div>
+            <div><span>Bruto</span><b>{formatearMoneda(operacion.bruto)}</b></div>
+            <div><span>Descuento</span><b>-{formatearMoneda(operacion.descuento)}</b></div>
             {operacion.percepcionIva21 > 0 && (
-              <div><span>Percepción IVA 21%</span><b>${operacion.percepcionIva21.toFixed(2)}</b></div>
+              <div><span>Percepción IVA 21%</span><b>{formatearMoneda(operacion.percepcionIva21)}</b></div>
             )}
             {operacion.percepcionIva105 > 0 && (
-              <div><span>Percepción IVA 10,5%</span><b>${operacion.percepcionIva105.toFixed(2)}</b></div>
+              <div><span>Percepción IVA 10,5%</span><b>{formatearMoneda(operacion.percepcionIva105)}</b></div>
             )}
             {operacion.percepcionIibb > 0 && (
-              <div><span>Percepción IIBB</span><b>${operacion.percepcionIibb.toFixed(2)}</b></div>
+              <div><span>Percepción IIBB ({operacion.alicuotaIibb.toFixed(2)}%)</span><b>{formatearMoneda(operacion.percepcionIibb)}</b></div>
             )}
-            <div className="total"><span>Total</span><b>${operacion.totalACobrar.toFixed(2)}</b></div>
+            <div className="total"><span>Total</span><b>{formatearMoneda(operacion.totalACobrar)}</b></div>
             <button className="primary" onClick={irACobrar}>Cobrar</button>
           </div>
         )}
@@ -1526,10 +1619,10 @@ export function CajaPage() {
                 {/* Precio de folder: es un precio de promoción, no el habitual del artículo. */}
                 <td className={l.esPrecioFolder ? "mono precio-folder" : "mono"}
                   title={l.listaPrecio ? `Lista ${l.listaPrecio}` : undefined}>
-                  ${l.precioUnit.toFixed(2)}
+                  {formatearMoneda(l.precioUnit)}
                 </td>
-                <td className="mono">${l.descuento.toFixed(2)}</td>
-                <td className="mono">${l.neto.toFixed(2)}</td>
+                <td className="mono">{formatearMoneda(l.descuento)}</td>
+                <td className="mono">{formatearMoneda(l.neto)}</td>
                 <td>{l.ofertasAplicadas.join(", ")}</td>
                 <td><button className="danger" onClick={() => anularLinea(l.idDetalle)}>Anular</button></td>
               </tr>
@@ -1569,7 +1662,7 @@ export function CajaPage() {
                         <td>{a.descripcion}</td>
                         <td>{a.descripcionTicket || `x${a.unidadXBulto}`}</td>
                         <td className="mono">
-                          ${(a.tieneConvenio ? a.precioConvenio : a.precioVigente).toFixed(2)}
+                          {formatearMoneda(a.tieneConvenio ? a.precioConvenio : a.precioVigente)}
                         </td>
                         <td className="row-actions">
                           <button className="primary" disabled={agregandoPres === a.idPresentacion}

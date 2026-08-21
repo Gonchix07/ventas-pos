@@ -33,7 +33,7 @@ public class CierreCajaService : ICierreCajaService
         _ejecutor = ejecutor;
     }
 
-    public async Task<ArqueoXResponse> ArqueoXAsync(int idSucursal, int idCaja, CancellationToken ct = default)
+    public async Task<ArqueoXResponse> ArqueoXAsync(int idSucursal, int idCaja, bool imprimir = true, CancellationToken ct = default)
     {
         // paraApertura: false — el arqueo exige un lote propio en esa caja (que puede ser el turno
         // retomado desde otra PC, ver CajaAccesoHelper).
@@ -48,18 +48,42 @@ public class CierreCajaService : ICierreCajaService
         var vueltos = await _ejecutor.VueltosAsync(idSucursal, lote.IdLote, ct);
         var ingresoInicial = await _ejecutor.IngresoInicialAsync(idSucursal, lote.IdLote, ct);
         // Best-effort: el arqueo X es una vista, no persiste nada — un fallo/timeout de la
-        // impresora fiscal no debe impedir mostrar los acumulados.
-        var impresion = await ImprimirBestEffortAsync(
-            ct2 => _impresora.ArqueoXAsync(idSucursal, idCaja, ct2), ct);
+        // impresora fiscal no debe impedir mostrar los acumulados. Si imprimir=false (ej. el
+        // preview que arma la pantalla de "Cerrar turno") no se dispara la impresión física: ese
+        // flujo ya emite su propia rendición al confirmar, un reporte X del controlador ahí es un
+        // papel de más que nadie pide.
+        var impresion = imprimir
+            ? await ImprimirBestEffortAsync(ct2 => _impresora.ArqueoXAsync(idSucursal, idCaja, ct2), ct)
+            : new ResultadoImpresion(false, null, null);
 
         var descripcionCaja = await _db.Cajas.AsNoTracking()
             .Where(c => c.IdSucursal == idSucursal && c.IdCaja == idCaja)
             .Select(c => c.Descripcion).FirstOrDefaultAsync(ct) ?? "";
 
+        // Para avisarle al cajero que conviene hacer un retiro: cuánto Efectivo hay acumulado
+        // (ya está adentro de acumulados/TotalGeneral, esto es solo para identificarlo aparte) vs.
+        // el tope configurado. LimiteEfectivoCaja=0 (sin cargar) significa "sin límite".
+        var idsMediosEfectivo = await _db.MediosPago.AsNoTracking().Include(m => m.TipoPago)
+            .Where(m => m.TipoPago!.Fuente == FuentePago.Efectivo)
+            .Select(m => m.IdMedioPago).ToListAsync(ct);
+        var efectivoAcumulado = acumulados.Where(a => idsMediosEfectivo.Contains(a.IdMedioPago)).Sum(a => a.Total);
+        var limiteEfectivoCaja = await ObtenerConfigDecimalAsync("LimiteEfectivoCaja", 0m, ct);
+
         return new ArqueoXResponse(idSucursal, lote.IdLote, idCaja, descripcionCaja, lote.FechaApertura,
             acumulados, acumulados.Sum(a => a.Total), impresion.Ok ? impresion.Referencia : null,
             anulaciones, anulaciones.Sum(a => a.Total), retiros, retiros.Sum(r => r.Monto),
-            vueltos, vueltos.Sum(v => v.Monto), ingresoInicial);
+            vueltos, vueltos.Sum(v => v.Monto), ingresoInicial, efectivoAcumulado, limiteEfectivoCaja);
+    }
+
+    /// <summary>Lee un valor numérico de la tabla Configuracion (clave/valor); si no está cargada o
+    /// no es un número válido, devuelve <paramref name="porDefecto"/> en vez de fallar.</summary>
+    private async Task<decimal> ObtenerConfigDecimalAsync(string clave, decimal porDefecto, CancellationToken ct)
+    {
+        var valor = await _db.Configuraciones.AsNoTracking()
+            .Where(c => c.Clave == clave).Select(c => c.Valor).FirstOrDefaultAsync(ct);
+        return valor is not null
+            && decimal.TryParse(valor, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var n)
+            ? n : porDefecto;
     }
 
     // Cierre del TURNO del cajero: rendición de lo vendido/cobrado en su lote, irreversible en el

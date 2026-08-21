@@ -24,6 +24,7 @@ public class PagoAdminService : IPagoAdminService
         FuentePago.BilleteraVirtual => "Billetera virtual",
         FuentePago.Transferencia => "Transferencia",
         FuentePago.CuentaCorriente => "Cuenta corriente",
+        FuentePago.Cheque => "Cheque",
         _ => f.ToString()
     };
 

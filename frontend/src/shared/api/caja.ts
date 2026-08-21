@@ -15,6 +15,8 @@ export interface MedioPagoResumen {
 }
 /** Plan de cuotas de un medio Tarjeta, para elegir junto con el medio al cobrar. */
 export interface PlanCuotaResumen { idPlan: number; denominacion: string; cantidadCuotas: number; }
+/** Banco emisor, para el combo del pago con Cheque. */
+export interface BancoResumen { idBanco: number; descripcion: string; }
 /** Oferta por medio de pago vigente. idPlanCuota null = aplica en cualquier cantidad de cuotas. */
 export interface OfertaMedioPagoVigente { idMedioPago: number; idPlanCuota?: number | null; porcentaje: number; topeMaximo: number; }
 
@@ -55,6 +57,9 @@ export interface Operacion {
   percepcionIva105: number;
   /** Percepción de Ingresos Brutos según el padrón del cliente (0 si no corresponde). */
   percepcionIibb: number;
+  /** Alícuota (%) con la que se calculó percepcionIibb — la del padrón, o la general por defecto
+      si el cliente tiene CUIT pero no está en el padrón (0 si no corresponde). */
+  alicuotaIibb: number;
   /** neto + las 3 percepciones — el monto real a cobrar. */
   totalACobrar: number;
 }
@@ -107,6 +112,10 @@ export interface ArqueoX {
   retiros: Retiro[]; totalRetiros: number;
   vueltos: Vuelto[]; totalVueltos: number;
   ingresoInicial?: IngresoInicial | null;
+  /** Efectivo acumulado en el lote (ya está adentro de acumulados/totalGeneral) y el tope
+      configurado (Configuracion.LimiteEfectivoCaja) — 0 significa "sin límite cargado". */
+  efectivoAcumulado: number;
+  limiteEfectivoCaja: number;
 }
 export interface DeclaracionPago { idMedioPago: number; montoDeclarado: number; }
 export interface CierreTurnoDetalle {
@@ -159,8 +168,12 @@ export const caja = {
   /** Para calcular en vivo, mientras se arma el cobro, cuánto se le informa al cliente que abona por medio. */
   ofertasMedioPagoVigentes: (idSucursal: number) =>
     unwrap<OfertaMedioPagoVigente[]>(api.get(`/caja/ofertas-medio-pago`, { params: { idSucursal } })),
-  arqueoX: (idSucursal: number, idCaja: number) =>
-    unwrap<ArqueoX>(api.get(`/caja/arqueo-x`, { params: { idSucursal, idCaja } })),
+  bancos: () => unwrap<BancoResumen[]>(api.get(`/caja/bancos`)),
+  // imprimir=false: solo trae los acumulados (ej. el preview de "Cerrar turno"), sin disparar la
+  // impresión del reporte X en el controlador fiscal. El botón "Arqueo X" no manda el parámetro
+  // (default true en el backend): ahí sí corresponde imprimir.
+  arqueoX: (idSucursal: number, idCaja: number, imprimir?: boolean) =>
+    unwrap<ArqueoX>(api.get(`/caja/arqueo-x`, { params: { idSucursal, idCaja, imprimir } })),
   cerrarTurno: (idSucursal: number, idCaja: number, declaraciones: DeclaracionPago[], idMotivoDiferencia: number | null, observacionesCajero: string | null) =>
     unwrap<CierreTurnoResultado>(api.post(`/caja/cerrar-turno`, { declaraciones, idMotivoDiferencia, observacionesCajero }, { params: { idSucursal, idCaja } })),
   // codigoSupervisor: null si quien ejecuta ya es Supervisor/Administrador — ver SupervisorGate.tsx.
