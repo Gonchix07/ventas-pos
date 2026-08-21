@@ -11,24 +11,33 @@ public record ComprobanteAnulableDto(
     DateTime Fecha, int? IdCliente, string? ClienteDescripcion,
     decimal Total, decimal YaAcreditado, decimal SaldoAnulable, bool Anulable);
 
-/// <summary>Línea de la factura original, con el dato de si ya fue acreditada.</summary>
+/// <summary>
+/// Línea de la factura original, con cuánto de esa línea ya se acreditó en notas de crédito
+/// previas. <paramref name="CantidadDisponible"/> es lo que todavía se puede anular (la cantidad
+/// completa la primera vez, el resto si ya hubo una anulación parcial); <paramref name="YaAnulada"/>
+/// queda en true solo cuando no queda nada disponible.
+/// </summary>
 public record LineaAnulableDto(
     long IdDetalleComprobante, int IdPresentacion, string DescripcionTicket,
     decimal Cantidad, decimal PrecioUnit, decimal Descuento, decimal AlicuotaIva,
-    decimal Importe, bool YaAnulada);
+    decimal Importe, decimal CantidadYaAnulada, decimal CantidadDisponible, bool YaAnulada);
 
 public record ComprobanteAnulableDetalleDto(
     ComprobanteAnulableDto Comprobante, List<LineaAnulableDto> Lineas);
 
+/// <summary>Una línea elegida en la anulación "Por artículos", con la cantidad puntual a acreditar
+/// (de 1 hasta <see cref="LineaAnulableDto.CantidadDisponible"/> de esa línea).</summary>
+public record LineaSeleccionNc(long IdDetalle, decimal Cantidad);
+
 /// <summary>
 /// <para><c>Tipo</c>: Total (todo lo que quede con saldo), PorArticulos (las líneas de
-/// <c>IdsDetalle</c>, siempre completas) o PorMonto (<c>Monto</c>, prorrateado entre las
-/// alícuotas de la factura).</para>
+/// <c>Lineas</c>, cada una por la cantidad indicada — puede ser parcial) o PorMonto (<c>Monto</c>,
+/// prorrateado entre las alícuotas de la factura).</para>
 /// <para>La devolución se hace siempre en efectivo por ahora, así que no viaja medio de pago.</para>
 /// </summary>
 public record EmitirNotaCreditoRequest(
     int IdSucursal, int IdComprobanteOrigen, int IdCaja,
-    TipoAnulacion Tipo, List<long>? IdsDetalle, decimal? Monto, string? Motivo,
+    TipoAnulacion Tipo, List<LineaSeleccionNc>? Lineas, decimal? Monto, string? Motivo,
     // Null si quien emite ya es Supervisor/Administrador (ver ISupervisorAuthService).
     string? CodigoSupervisor = null);
 

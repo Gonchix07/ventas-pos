@@ -27,9 +27,11 @@ public class EtiquetaService : IEtiquetaService
         query = query.Trim();
         if (query.Length == 0) return Array.Empty<ArticuloParaEtiquetaDto>();
 
+        // Solo presentaciones individuales (UnidadXBulto = 1, no bultos/cajas): la etiqueta de
+        // góndola es para la unidad suelta, no para el bulto — pedido explícito del usuario.
         var porBarra = await (
             from b in _db.Barras.AsNoTracking().Where(x => x.CodigoBarra == query)
-            join pr in _db.Presentaciones.AsNoTracking() on b.IdPresentacion equals pr.IdPresentacion
+            join pr in _db.Presentaciones.AsNoTracking().Where(p => p.UnidadXBulto == 1m) on b.IdPresentacion equals pr.IdPresentacion
             join a in _db.Articulos.AsNoTracking().Where(x => x.Activo) on pr.IdArticulo equals a.IdArticulo
             select new ArticuloParaEtiquetaDto(a.IdArticulo, pr.IdPresentacion, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket)
         ).ToListAsync(ct);
@@ -37,7 +39,7 @@ public class EtiquetaService : IEtiquetaService
 
         return await (
             from a in _db.Articulos.AsNoTracking().Where(x => x.Activo && (x.CodigoInterno.Contains(query) || x.Descripcion.Contains(query)))
-            join pr in _db.Presentaciones.AsNoTracking() on a.IdArticulo equals pr.IdArticulo
+            join pr in _db.Presentaciones.AsNoTracking().Where(p => p.UnidadXBulto == 1m) on a.IdArticulo equals pr.IdArticulo
             orderby a.Descripcion
             select new ArticuloParaEtiquetaDto(a.IdArticulo, pr.IdPresentacion, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket)
         ).Take(30).ToListAsync(ct);

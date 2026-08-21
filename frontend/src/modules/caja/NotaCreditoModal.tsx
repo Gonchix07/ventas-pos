@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   notasCredito, TipoAnulacion,
-  type ComprobanteAnulable, type ComprobanteAnulableDetalle, type NotaCreditoResultado,
+  type ComprobanteAnulable, type ComprobanteAnulableDetalle, type LineaAnulable, type NotaCreditoResultado,
 } from "../../shared/api/notasCredito";
 import { formatearMoneda, MonedaInput } from "../../shared/ui/moneda";
 import { useSupervisorGate } from "../../shared/ui/SupervisorGate";
@@ -16,15 +16,16 @@ interface Props {
  * Emisión de notas de crédito desde la caja: se busca la factura, se elige qué anular (todo,
  * artículos sueltos o un importe por diferencia de precio) y se devuelve el importe en efectivo.
  *
- * La anulación por artículos es siempre de la línea completa — para devolver parte de una línea
- * se usa la opción por monto.
+ * La anulación por artículos permite elegir la cantidad de cada línea (de 1 hasta la cantidad
+ * todavía disponible de esa línea) — no obliga a devolverla completa.
  */
 export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
   const [texto, setTexto] = useState("");
   const [resultados, setResultados] = useState<ComprobanteAnulable[] | null>(null);
   const [detalle, setDetalle] = useState<ComprobanteAnulableDetalle | null>(null);
   const [tipo, setTipo] = useState<TipoAnulacion>(TipoAnulacion.Total);
-  const [seleccion, setSeleccion] = useState<Set<number>>(new Set());
+  // idDetalleComprobante → cantidad a anular de esa línea (solo mientras tipo === PorArticulos).
+  const [seleccion, setSeleccion] = useState<Map<number, number>>(new Map());
   const [monto, setMonto] = useState<number | null>(null);
   const [motivo, setMotivo] = useState("");
   const [emitida, setEmitida] = useState<NotaCreditoResultado | null>(null);
@@ -49,7 +50,7 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
       const d = await notasCredito.obtener(idSucursal, c.idComprobante);
       setDetalle(d);
       setTipo(TipoAnulacion.Total);
-      setSeleccion(new Set());
+      setSeleccion(new Map());
       setMonto(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo abrir el comprobante.");
@@ -58,21 +59,41 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
     }
   };
 
-  const alternarLinea = (id: number) => {
-    const s = new Set(seleccion);
-    if (s.has(id)) s.delete(id); else s.add(id);
+  // Tilda/destilda una línea. Al tildarla arranca completa (lo disponible de esa línea) — el
+  // campo de cantidad queda habilitado por si se quiere anular menos.
+  const alternarLinea = (l: LineaAnulable) => {
+    const s = new Map(seleccion);
+    if (s.has(l.idDetalleComprobante)) s.delete(l.idDetalleComprobante);
+    else s.set(l.idDetalleComprobante, l.cantidadDisponible);
     setSeleccion(s);
   };
+
+  // Cambia la cantidad a anular de una línea ya tildada, siempre entre 1 y lo disponible.
+  const cambiarCantidad = (l: LineaAnulable, valor: number) => {
+    if (!seleccion.has(l.idDetalleComprobante)) return;
+    const cantidad = Math.min(Math.max(1, Math.trunc(valor) || 1), l.cantidadDisponible);
+    const s = new Map(seleccion);
+    s.set(l.idDetalleComprobante, cantidad);
+    setSeleccion(s);
+  };
+
+  // Importe proporcional a una cantidad parcial de la línea — el backend recalcula lo mismo al
+  // emitir; esto es solo para la vista previa de "A acreditar".
+  const importeParcial = (l: LineaAnulable, cantidad: number) =>
+    l.cantidad === 0 ? 0 : (l.importe * cantidad) / l.cantidad;
 
   // Lo que se va a acreditar según la opción elegida, para mostrarlo antes de confirmar.
   const totalAAnular = (() => {
     if (!detalle) return 0;
     if (tipo === TipoAnulacion.Total) {
-      return detalle.lineas.filter((l) => !l.yaAnulada).reduce((a, l) => a + l.importe, 0);
+      return detalle.lineas.filter((l) => l.cantidadDisponible > 0)
+        .reduce((a, l) => a + importeParcial(l, l.cantidadDisponible), 0);
     }
     if (tipo === TipoAnulacion.PorArticulos) {
-      return detalle.lineas.filter((l) => seleccion.has(l.idDetalleComprobante))
-        .reduce((a, l) => a + l.importe, 0);
+      return detalle.lineas.reduce((a, l) => {
+        const cantidad = seleccion.get(l.idDetalleComprobante);
+        return cantidad ? a + importeParcial(l, cantidad) : a;
+      }, 0);
     }
     return monto ?? 0;
   })();
@@ -91,7 +112,9 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
         idComprobanteOrigen: detalle.comprobante.idComprobante,
         idCaja,
         tipo,
-        idsDetalle: tipo === TipoAnulacion.PorArticulos ? [...seleccion] : null,
+        lineas: tipo === TipoAnulacion.PorArticulos
+          ? [...seleccion].map(([idDetalle, cantidad]) => ({ idDetalle, cantidad }))
+          : null,
         monto: tipo === TipoAnulacion.PorMonto ? monto : null,
         motivo: motivo.trim() || null,
         codigoSupervisor,
@@ -187,26 +210,48 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
             <thead>
               <tr>
                 {tipo === TipoAnulacion.PorArticulos && <th style={{ width: 36 }} />}
-                <th>Artículo</th><th>Cant.</th><th>P. unit.</th><th>Importe</th><th>Estado</th>
+                <th>Artículo</th><th>Cant.</th>
+                {tipo === TipoAnulacion.PorArticulos && <th style={{ width: 90 }}>Cant. a anular</th>}
+                <th>P. unit.</th><th>Importe</th><th>Estado</th>
               </tr>
             </thead>
             <tbody>
-              {detalle.lineas.map((l) => (
-                <tr key={l.idDetalleComprobante} className={l.yaAnulada ? "muted" : undefined}>
-                  {tipo === TipoAnulacion.PorArticulos && (
-                    <td>
-                      <input type="checkbox" disabled={l.yaAnulada}
-                        checked={seleccion.has(l.idDetalleComprobante)}
-                        onChange={() => alternarLinea(l.idDetalleComprobante)} />
+              {detalle.lineas.map((l) => {
+                const cantidadSeleccionada = seleccion.get(l.idDetalleComprobante);
+                return (
+                  <tr key={l.idDetalleComprobante} className={l.yaAnulada ? "muted" : undefined}>
+                    {tipo === TipoAnulacion.PorArticulos && (
+                      <td>
+                        <input type="checkbox" disabled={l.yaAnulada}
+                          checked={cantidadSeleccionada !== undefined}
+                          onChange={() => alternarLinea(l)} />
+                      </td>
+                    )}
+                    <td>{l.descripcionTicket}</td>
+                    <td className="mono">{l.cantidad}</td>
+                    {tipo === TipoAnulacion.PorArticulos && (
+                      <td>
+                        <input type="number" className="mono nc-cantidad-input" min={1}
+                          max={l.cantidadDisponible} step={1}
+                          disabled={cantidadSeleccionada === undefined}
+                          value={cantidadSeleccionada ?? ""}
+                          onChange={(e) => cambiarCantidad(l, Number(e.target.value))} />
+                      </td>
+                    )}
+                    <td className="mono">{formatearMoneda(l.precioUnit)}</td>
+                    <td className="mono">
+                      {formatearMoneda(cantidadSeleccionada ? importeParcial(l, cantidadSeleccionada) : l.importe)}
                     </td>
-                  )}
-                  <td>{l.descripcionTicket}</td>
-                  <td className="mono">{l.cantidad}</td>
-                  <td className="mono">{formatearMoneda(l.precioUnit)}</td>
-                  <td className="mono">{formatearMoneda(l.importe)}</td>
-                  <td>{l.yaAnulada ? "Ya anulada" : "—"}</td>
-                </tr>
-              ))}
+                    <td>
+                      {l.yaAnulada
+                        ? "Ya anulada"
+                        : l.cantidadYaAnulada > 0
+                          ? `Anulada ${l.cantidadYaAnulada} de ${l.cantidad}`
+                          : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -296,7 +341,7 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
 function Overlay({ children, onCerrar }: { children: React.ReactNode; onCerrar: () => void }) {
   return (
     <div className="modal-fondo" onClick={onCerrar}>
-      <div className="modal-caja" onClick={(e) => e.stopPropagation()}>{children}</div>
+      <div className="modal-caja nc-modal" onClick={(e) => e.stopPropagation()}>{children}</div>
     </div>
   );
 }

@@ -102,4 +102,43 @@ public class NotaCreditoReglasTests
         // Y dos puntos de venta distintos no comparten serie de NC.
         Assert.NotEqual(NumeradorIds.NotaCredito(2), NumeradorIds.NotaCredito(3));
     }
+
+    [Fact]
+    public void CantidadAcreditable_rechaza_cero_y_negativos()
+    {
+        Assert.False(NotaCreditoReglas.CantidadAcreditable(0m, 10m));
+        Assert.False(NotaCreditoReglas.CantidadAcreditable(-1m, 10m));
+    }
+
+    [Fact]
+    public void CantidadAcreditable_rechaza_lo_que_excede_lo_disponible()
+    {
+        Assert.False(NotaCreditoReglas.CantidadAcreditable(11m, 10m));
+        Assert.True(NotaCreditoReglas.CantidadAcreditable(10m, 10m));
+    }
+
+    [Fact]
+    public void CantidadAcreditable_acepta_una_cantidad_parcial()
+    {
+        Assert.True(NotaCreditoReglas.CantidadAcreditable(1m, 10m));
+    }
+
+    [Fact]
+    public void ImporteProporcional_de_la_cantidad_completa_da_el_importe_original()
+    {
+        Assert.Equal(9300000m, NotaCreditoReglas.ImporteProporcional(9300000m, 10m, 10m));
+    }
+
+    [Fact]
+    public void ImporteProporcional_reparte_segun_la_cantidad_pedida()
+    {
+        // 10 unidades a $930.000 el importe total ($9.300.000): anular solo 3 → $2.790.000.
+        Assert.Equal(2790000m, NotaCreditoReglas.ImporteProporcional(9300000m, 10m, 3m));
+    }
+
+    [Fact]
+    public void ImporteProporcional_con_cantidad_original_cero_no_divide_por_cero()
+    {
+        Assert.Equal(0m, NotaCreditoReglas.ImporteProporcional(0m, 0m, 1m));
+    }
 }

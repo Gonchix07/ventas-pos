@@ -32,6 +32,12 @@ export interface LineaAnulable {
   descuento: number;
   alicuotaIva: number;
   importe: number;
+  /** Cuánto de esta línea ya se acreditó en notas de crédito anteriores. */
+  cantidadYaAnulada: number;
+  /** Lo que todavía se puede anular de esta línea (cantidad completa la primera vez, el resto si
+   *  ya hubo una anulación parcial). Es el tope del campo "cantidad a anular". */
+  cantidadDisponible: number;
+  /** true solo cuando no queda nada disponible (cantidadDisponible <= 0). */
   yaAnulada: boolean;
 }
 
@@ -65,12 +71,19 @@ export interface NotaCreditoResultado {
   reversionCompleta: boolean;
 }
 
+/** Una línea elegida en "Por artículos", con la cantidad puntual a acreditar (de 1 hasta
+ *  LineaAnulable.cantidadDisponible de esa línea). */
+export interface LineaSeleccionNc {
+  idDetalle: number;
+  cantidad: number;
+}
+
 export interface EmitirNotaCreditoRequest {
   idSucursal: number;
   idComprobanteOrigen: number;
   idCaja: number;
   tipo: TipoAnulacion;
-  idsDetalle?: number[] | null;
+  lineas?: LineaSeleccionNc[] | null;
   monto?: number | null;
   motivo?: string | null;
   // Null si quien emite ya es Supervisor/Administrador — ver shared/ui/SupervisorGate.tsx.

@@ -153,16 +153,23 @@ export function TesoreriaPage() {
   };
 
   return (
-    <div className="page-shell">
-      <div className="page-head">
-        <h1>Tesorería</h1>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <button onClick={() => navigate("/tesoreria/cupones")}>Cupones de tarjeta</button>
-          <span className="muted">{usuario} · {rol}</span>
+    <>
+      <header className="app-header">
+        <div className="brand">
+          <span className="brand-mark">POS</span>
+          <span className="brand-sub">Tesorería</span>
+        </div>
+        <div className="user-box">
+          <span>{usuario} · <strong>{rol}</strong></span>
           <span className="mono ip-badge">IP {ip ?? "—"}</span>
           <button onClick={() => navigate("/")}>Módulos</button>
           <button onClick={logout}>Salir</button>
         </div>
+      </header>
+      <div className="page-shell">
+      <div className="page-head">
+        <h1>Tesorería</h1>
+        <button onClick={() => navigate("/tesoreria/cupones")}>Cupones de tarjeta</button>
       </div>
 
       <div className="filter-bar">
@@ -436,6 +443,7 @@ export function TesoreriaPage() {
           idMedioPago={comprobantes.idMedioPago} medioDescripcion={comprobantes.medioDescripcion}
           onCerrar={() => setComprobantes(null)} />
       )}
-    </div>
+      </div>
+    </>
   );
 }

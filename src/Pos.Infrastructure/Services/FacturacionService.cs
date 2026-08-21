@@ -241,6 +241,16 @@ public class FacturacionService : IFacturacionService
             detallesCalculados.Add((det, info.DescripcionTicket, alicuotaEfectiva, importe, neto, iva));
         }
 
+        // El Impuesto Interno se restó de la base de cada línea antes de discriminar IVA (ver
+        // PercepcionesCalculoService), así que Neto+Iva por línea queda short exactamente en ese
+        // monto respecto del Importe realmente cobrado (precio final, que ya lo incluye). Sin
+        // sumarlo de vuelta acá, el Total del comprobante queda por debajo de la suma de sus
+        // propias líneas — bug real: una Nota de Crédito sobre artículos con Impuesto Interno
+        // (bebidas alcohólicas, etc.) mostraba "supera el saldo anulable" al seleccionar TODAS las
+        // líneas de la factura, porque el saldo (basado en este Total) era menor que la suma de
+        // los Importe de esas mismas líneas.
+        var impuestoInternoTotal = percepcionResultado.ImpuestoInternoPorLinea?.Sum() ?? 0m;
+
         // Ítems reales tal como van a la impresora fiscal (antes de agregarle la línea sintética
         // "Descuento x MP" más abajo — ver por qué esa línea NUNCA se manda a la fiscal, en el
         // comentario de RepartirDescuentoMp).
@@ -434,7 +444,7 @@ public class FacturacionService : IFacturacionService
                 // usaba). Se sobreescribe más abajo con el número real que devuelve la impresora.
                 comprobanteFiscal = new ComprobanteFiscal(sucursal.IdEmpresa, puntoVenta.NumeroPuntoVenta,
                     tipoComprobante.Descripcion, letra, 0, clienteCuit, totalNeto, totalIva,
-                    totalNeto + totalIva + percepcionResultado.Total, DateTime.UtcNow,
+                    totalNeto + totalIva + impuestoInternoTotal + percepcionResultado.Total, DateTime.UtcNow,
                     req.IdSucursal, operacion.IdCaja,
                     datosCliente is null ? null : ConstruirClienteFiscal(datosCliente.Descripcion,
                         datosCliente.Cuit, datosCliente.Documento, datosCliente.Domicilio,
@@ -492,7 +502,7 @@ public class FacturacionService : IFacturacionService
                 PercepcionIibb = percepcionResultado.PercepcionIibb,
                 AlicuotaIibb = percepcionResultado.AlicuotaIibb,
                 Percepciones = percepcionResultado.Total,
-                Total = totalNeto + totalIva + percepcionResultado.Total, Cae = null, CaeVencimiento = null, EsCaea = false,
+                Total = totalNeto + totalIva + impuestoInternoTotal + percepcionResultado.Total, Cae = null, CaeVencimiento = null, EsCaea = false,
                 // Presupuesto: siempre Persistido (no hay impresora fiscal que lo pase a Impreso).
                 // Fiscal/Electrónica: si llegamos hasta acá ya se imprimió con éxito (si hubiera
                 // fallado, se arrojó FISCAL_INDISPONIBLE más arriba y nunca se persiste nada).

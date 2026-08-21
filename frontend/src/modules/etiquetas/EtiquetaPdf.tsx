@@ -28,6 +28,9 @@ const fmt = (n: number) => n.toLocaleString("es-AR", { minimumFractionDigits: 2,
 // Fleje: la etiqueta es fija (90x40mm) — un precio de 7+ dígitos con centavos no entra en el ancho
 // disponible. Se prefiere truncar los centavos antes que desbordar el diseño.
 const fmtFleje = (n: number) => (n >= 1_000_000 ? Math.round(n).toLocaleString("es-AR") : fmt(n));
+// A4/A5: mismo criterio, pero recién por encima de $9.999.999 (letra mucho más grande, hay más
+// margen antes de que los centavos empiecen a molestar) — pedido explícito del usuario.
+const fmtHoja = (n: number) => (n > 9_999_999 ? Math.round(n).toLocaleString("es-AR") : fmt(n));
 
 /** Una fila de precio (por tarjeta, o el precio base si el artículo no tiene precios por tarjeta). */
 function filasDe(e: Etiqueta, prefijoTarjeta: string) {
@@ -99,17 +102,29 @@ function FlejeDocument({ items }: { items: Etiqueta[] }) {
 
 // ---------- A4 / A5 (una etiqueta grande por hoja) ----------
 
+// Tamaño del número de precio: si hay un solo precio queda grande; si hay dos (AZUL/ROJA), el de
+// AZUL va arriba y todavía más grande que el de ROJA — pedido explícito del usuario para que la
+// tarjeta "principal" se distinga a simple vista en la góndola.
+const PRECIO_UNICO = 60;
+const PRECIO_AZUL = 66;
+const PRECIO_OTRA = 50;
+
+const esAzul = (nombre: string) => nombre.toUpperCase().includes("AZUL");
+
 const hs = StyleSheet.create({
   page: { fontFamily: "Plus Jakarta Sans", color: "#16211f" },
+  // Márgenes superior/inferior al doble de los originales (14mm → 28mm) — pedido explícito.
   container: {
-    flexDirection: "column", justifyContent: "space-between", height: "100%",
-    paddingVertical: mm(14), paddingHorizontal: mm(12),
+    flexDirection: "column", height: "100%",
+    paddingVertical: mm(28), paddingHorizontal: mm(12),
   },
-  arriba: { flexDirection: "column" },
-  titulo: { fontWeight: 800, fontSize: 26, textAlign: "center", marginBottom: mm(8) },
+  titulo: { fontWeight: 800, fontSize: 26, textAlign: "center" },
+  // El bloque de precios ocupa todo el espacio entre el título y el pie, y se centra ahí adentro
+  // (tanto si hay un precio único como si hay AZUL + ROJA) — pedido explícito.
+  preciosArea: { flex: 1, flexDirection: "column", justifyContent: "center", alignItems: "center" },
   bloque: { marginBottom: mm(6), alignItems: "center" },
   nombreTarjeta: { fontWeight: 800, fontSize: 15, marginBottom: mm(2) },
-  precio: { fontWeight: 800, fontSize: 44, marginBottom: mm(2) },
+  precio: { fontWeight: 800, marginBottom: mm(2) },
   detalle: { fontSize: 10.5, color: "#333333", textAlign: "center" },
   piePrecio: { fontSize: 10.5, textAlign: "center" },
   footer: { flexDirection: "row", justifyContent: "center", gap: mm(12), fontSize: 10.5, marginTop: mm(6) },
@@ -119,34 +134,45 @@ function HojaDocument({ items, formato }: { items: Etiqueta[]; formato: "A4" | "
   const size = formato === "A4" ? { width: mm(210), height: mm(297) } : { width: mm(148), height: mm(210) };
   return (
     <Document>
-      {items.map((e) => (
-        <Page key={e.idPresentacion} size={size} style={hs.page}>
-          <View style={hs.container}>
-            <View style={hs.arriba}>
+      {items.map((e) => {
+        const filas = filasDe(e, "");
+        // AZUL siempre primero (arriba) cuando conviven las dos tarjetas — el resto mantiene el
+        // orden en que vino de la API.
+        const ordenadas = filas.length > 1
+          ? [...filas].sort((a, b) => Number(esAzul(b.nombre)) - Number(esAzul(a.nombre)))
+          : filas;
+        return (
+          <Page key={e.idPresentacion} size={size} style={hs.page}>
+            <View style={hs.container}>
               <Text style={hs.titulo}>{e.descripcion.toUpperCase()}</Text>
-              {filasDe(e, "").map((row, i) => (
-                <View key={i} style={hs.bloque}>
-                  {row.nombre && <Text style={hs.nombreTarjeta}>{row.nombre.toUpperCase()}</Text>}
-                  <Text style={hs.precio}>$ {fmt(row.precio)}</Text>
-                  {row.pxu != null && (
-                    <Text style={hs.detalle}>Precio por {e.unidadMedidaTexto} $ {fmt(row.pxu)}</Text>
-                  )}
-                  <Text style={hs.detalle}>Precio sin impuestos nacionales: $ {fmt(row.si)}</Text>
+              <View style={hs.preciosArea}>
+                {ordenadas.map((row, i) => {
+                  const fontSize = filas.length > 1 ? (esAzul(row.nombre) ? PRECIO_AZUL : PRECIO_OTRA) : PRECIO_UNICO;
+                  return (
+                    <View key={i} style={hs.bloque}>
+                      {row.nombre && <Text style={hs.nombreTarjeta}>{row.nombre.toUpperCase()}</Text>}
+                      <Text style={[hs.precio, { fontSize }]}>$ {fmtHoja(row.precio)}</Text>
+                      {row.pxu != null && (
+                        <Text style={hs.detalle}>Precio por {e.unidadMedidaTexto} $ {fmt(row.pxu)}</Text>
+                      )}
+                      <Text style={hs.detalle}>Precio sin impuestos nacionales: $ {fmt(row.si)}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+              <View>
+                <Text style={hs.piePrecio}>
+                  Compra mínima: {e.compraMinima} Unidad(es){"\n"}Precio final, IVA incluido
+                </Text>
+                <View style={hs.footer}>
+                  <Text>Cod. {e.codigoInterno}</Text>
+                  <Text>Cod. Barras: {e.codigoBarra}</Text>
                 </View>
-              ))}
-            </View>
-            <View>
-              <Text style={hs.piePrecio}>
-                Compra mínima: {e.compraMinima} Unidad(es){"\n"}Precio final, IVA incluido
-              </Text>
-              <View style={hs.footer}>
-                <Text>Cod. {e.codigoInterno}</Text>
-                <Text>Cod. Barras: {e.codigoBarra}</Text>
               </View>
             </View>
-          </View>
-        </Page>
-      ))}
+          </Page>
+        );
+      })}
     </Document>
   );
 }

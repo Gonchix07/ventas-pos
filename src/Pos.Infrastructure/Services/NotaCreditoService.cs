@@ -101,7 +101,7 @@ public class NotaCreditoService : INotaCreditoService
             .OrderBy(d => d.IdDetalleComprobante)
             .ToListAsync(ct);
 
-        var anuladas = await LineasYaAnuladasAsync(idSucursal, idComprobante, ct);
+        var anuladas = await CantidadAnuladaPorLineaAsync(idSucursal, idComprobante, ct);
         var ya = (await AcreditadoPorComprobanteAsync(idSucursal, new[] { idComprobante }, ct))
             .GetValueOrDefault(idComprobante, 0m);
         var saldo = NotaCreditoReglas.SaldoAnulable(cab.Total, ya);
@@ -113,9 +113,14 @@ public class NotaCreditoService : INotaCreditoService
                 cab.Fecha, cab.IdCliente,
                 cab.IdCliente is int id ? clientes.GetValueOrDefault(id) : null,
                 cab.Total, ya, saldo, saldo > 0),
-            lineas.Select(d => new LineaAnulableDto(d.IdDetalleComprobante, d.IdPresentacion,
-                d.DescripcionTicket, d.Cantidad, d.PrecioUnit, d.Descuento, d.AlicuotaIva,
-                d.Importe, anuladas.Contains(d.IdDetalleComprobante))).ToList());
+            lineas.Select(d =>
+            {
+                var cantidadYaAnulada = anuladas.GetValueOrDefault(d.IdDetalleComprobante);
+                var disponible = d.Cantidad - cantidadYaAnulada;
+                return new LineaAnulableDto(d.IdDetalleComprobante, d.IdPresentacion,
+                    d.DescripcionTicket, d.Cantidad, d.PrecioUnit, d.Descuento, d.AlicuotaIva,
+                    d.Importe, cantidadYaAnulada, disponible, disponible <= 0m);
+            }).ToList());
     }
 
     // ---------- Emisión ----------
@@ -150,7 +155,7 @@ public class NotaCreditoService : INotaCreditoService
         var detallesOrigen = await _db.DetallesComprobantes.AsNoTracking()
             .Where(d => d.IdSucursal == req.IdSucursal && d.IdComprobante == req.IdComprobanteOrigen)
             .OrderBy(d => d.IdDetalleComprobante).ToListAsync(ct);
-        var anuladas = await LineasYaAnuladasAsync(req.IdSucursal, req.IdComprobanteOrigen, ct);
+        var anuladas = await CantidadAnuladaPorLineaAsync(req.IdSucursal, req.IdComprobanteOrigen, ct);
 
         // Líneas de la NC a construir: (descripción, cantidad, precio unitario, alícuota, importe,
         // presentación, línea de origen).
@@ -449,31 +454,49 @@ public class NotaCreditoService : INotaCreditoService
         decimal Alicuota, decimal Importe, int IdPresentacion, long? IdDetalleOrigen);
 
     private static List<LineaNc> ArmarLineas(EmitirNotaCreditoRequest req,
-        List<DetalleComprobante> detallesOrigen, HashSet<long> anuladas, decimal saldo)
+        List<DetalleComprobante> detallesOrigen, Dictionary<long, decimal> cantidadAnuladaPorLinea, decimal saldo)
     {
         switch (req.Tipo)
         {
             case TipoAnulacion.Total:
-                return detallesOrigen.Where(d => !anuladas.Contains(d.IdDetalleComprobante))
-                    .Select(DesdeDetalle).ToList();
+                // Todo lo que todavía quede disponible de cada línea — si una línea ya se acreditó
+                // parcialmente en una NC anterior, la anulación total se lleva solo el resto.
+                return detallesOrigen
+                    .Select(d => (Detalle: d, Disponible: Disponible(d, cantidadAnuladaPorLinea)))
+                    .Where(x => x.Disponible > 0m)
+                    .Select(x => DesdeDetalleParcial(x.Detalle, x.Disponible))
+                    .ToList();
 
             case TipoAnulacion.PorArticulos:
             {
-                var ids = (req.IdsDetalle ?? new List<long>()).ToHashSet();
-                if (ids.Count == 0)
+                var seleccion = req.Lineas ?? new List<LineaSeleccionNc>();
+                if (seleccion.Count == 0)
                     throw new DomainException("SIN_ARTICULOS", "Seleccioná al menos un artículo para anular.");
 
-                var elegidas = detallesOrigen.Where(d => ids.Contains(d.IdDetalleComprobante)).ToList();
-                if (elegidas.Count != ids.Count)
-                    throw new DomainException("ARTICULO_INEXISTENTE",
-                        "Alguno de los artículos seleccionados no pertenece a ese comprobante.");
+                var idsPedidos = seleccion.Select(s => s.IdDetalle).ToList();
+                if (idsPedidos.Distinct().Count() != idsPedidos.Count)
+                    throw new DomainException("ARTICULO_DUPLICADO",
+                        "Un mismo artículo no puede seleccionarse dos veces en la misma nota de crédito.");
 
-                var yaAnulada = elegidas.FirstOrDefault(d => anuladas.Contains(d.IdDetalleComprobante));
-                if (yaAnulada is not null)
-                    throw new DomainException("ARTICULO_YA_ANULADO",
-                        $"El artículo \"{yaAnulada.DescripcionTicket}\" ya fue anulado en una nota de crédito anterior.");
+                var porId = detallesOrigen.ToDictionary(d => d.IdDetalleComprobante);
+                var resultado = new List<LineaNc>();
+                foreach (var s in seleccion)
+                {
+                    if (!porId.TryGetValue(s.IdDetalle, out var d))
+                        throw new DomainException("ARTICULO_INEXISTENTE",
+                            "Alguno de los artículos seleccionados no pertenece a ese comprobante.");
 
-                return elegidas.Select(DesdeDetalle).ToList();
+                    var disponible = Disponible(d, cantidadAnuladaPorLinea);
+                    if (disponible <= 0m)
+                        throw new DomainException("ARTICULO_YA_ANULADO",
+                            $"El artículo \"{d.DescripcionTicket}\" ya fue anulado en su totalidad en una nota de crédito anterior.");
+                    if (!NotaCreditoReglas.CantidadAcreditable(s.Cantidad, disponible))
+                        throw new DomainException("CANTIDAD_INVALIDA",
+                            $"La cantidad a anular de \"{d.DescripcionTicket}\" debe ser mayor a 0 y no puede superar {disponible} (lo disponible de esa línea).");
+
+                    resultado.Add(DesdeDetalleParcial(d, s.Cantidad));
+                }
+                return resultado;
             }
 
             case TipoAnulacion.PorMonto:
@@ -499,8 +522,15 @@ public class NotaCreditoService : INotaCreditoService
         }
     }
 
-    private static LineaNc DesdeDetalle(DetalleComprobante d) =>
-        new(d.DescripcionTicket, d.Cantidad, d.PrecioUnit, d.AlicuotaIva, d.Importe,
+    private static decimal Disponible(DetalleComprobante d, Dictionary<long, decimal> cantidadAnuladaPorLinea) =>
+        d.Cantidad - cantidadAnuladaPorLinea.GetValueOrDefault(d.IdDetalleComprobante);
+
+    /// <summary>Línea de NC por una cantidad parcial (o completa, si <paramref name="cantidad"/> es
+    /// toda la de la línea original) — el importe y el precio unitario se prorratean, nunca se
+    /// devuelven cantidades por encima de lo disponible (eso ya lo valida el caller).</summary>
+    private static LineaNc DesdeDetalleParcial(DetalleComprobante d, decimal cantidad) =>
+        new(d.DescripcionTicket, cantidad, d.PrecioUnit, d.AlicuotaIva,
+            NotaCreditoReglas.ImporteProporcional(d.Importe, d.Cantidad, cantidad),
             d.IdPresentacion, d.IdDetalleComprobante);
 
     // ---------- Reversión completa (todos los medios originales, cupones incluidos) ----------
@@ -565,17 +595,20 @@ public class NotaCreditoService : INotaCreditoService
             .ToDictionaryAsync(x => x.Id, x => x.Total, ct);
     }
 
-    /// <summary>Líneas de la factura que ya fueron acreditadas por artículo.</summary>
-    private async Task<HashSet<long>> LineasYaAnuladasAsync(int idSucursal, int idComprobante, CancellationToken ct)
+    /// <summary>Cuánta cantidad de cada línea de la factura ya se acreditó en notas de crédito
+    /// previas (por artículo), sumando todas las NC que la referencian — permite anulaciones
+    /// parciales sucesivas sobre la misma línea hasta agotar su cantidad original.</summary>
+    private async Task<Dictionary<long, decimal>> CantidadAnuladaPorLineaAsync(int idSucursal, int idComprobante, CancellationToken ct)
     {
-        var ids = await (
+        return await (
             from d in _db.DetallesComprobantes.AsNoTracking()
             join c in _db.CabecerasComprobantes.AsNoTracking()
                 on new { d.IdSucursal, d.IdComprobante } equals new { c.IdSucursal, c.IdComprobante }
             where c.IdSucursal == idSucursal && c.IdComprobanteOrigen == idComprobante
                   && d.IdDetalleOrigen != null
-            select d.IdDetalleOrigen!.Value).ToListAsync(ct);
-        return ids.ToHashSet();
+            group d by d.IdDetalleOrigen!.Value into g
+            select new { Id = g.Key, Cantidad = g.Sum(x => x.Cantidad) }
+        ).ToDictionaryAsync(x => x.Id, x => x.Cantidad, ct);
     }
 
     private async Task<Dictionary<int, string>> DescripcionesClientesAsync(IEnumerable<int?> ids, CancellationToken ct)

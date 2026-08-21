@@ -77,6 +77,23 @@ public static class NotaCreditoReglas
         lineas.Where(l => !l.YaAnulada).ToList();
 
     /// <summary>
+    /// Una cantidad a anular es válida si es positiva y no supera lo que todavía queda disponible
+    /// de esa línea (la línea completa la primera vez, o el resto si ya se acreditó una parte en
+    /// una NC anterior).
+    /// </summary>
+    public static bool CantidadAcreditable(decimal cantidadPedida, decimal cantidadDisponible) =>
+        cantidadPedida > 0m && cantidadPedida <= cantidadDisponible;
+
+    /// <summary>
+    /// Importe que corresponde a una cantidad parcial de una línea, en la misma proporción que el
+    /// importe total de la línea (precio unitario × cantidad − descuento, ya prorrateado si hubo
+    /// descuento). Si <paramref name="cantidad"/> es la cantidad original completa, el resultado es
+    /// el importe original sin cambios (salvo el redondeo).
+    /// </summary>
+    public static decimal ImporteProporcional(decimal importe, decimal cantidad, decimal cantidadPedida) =>
+        cantidad == 0m ? 0m : Redondear(importe * cantidadPedida / cantidad);
+
+    /// <summary>
     /// Reparte un importe suelto entre las alícuotas de IVA presentes en el comprobante original,
     /// en la misma proporción en que aparecen ahí.
     ///

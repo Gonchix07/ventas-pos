@@ -90,92 +90,108 @@ export function EtiquetasPage() {
   };
 
   return (
-    <div className="page-shell">
-      <div className="page-head">
-        <h1>Etiquetas</h1>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <span className="muted">{usuario} · {rol}</span>
+    <>
+      <header className="app-header">
+        <div className="brand">
+          <span className="brand-mark">POS</span>
+          <span className="brand-sub">Etiquetas</span>
+        </div>
+        <div className="user-box">
+          <span>{usuario} · <strong>{rol}</strong></span>
           <span className="mono ip-badge">IP {ip ?? "—"}</span>
           <button onClick={() => navigate("/")}>Módulos</button>
           <button onClick={logout}>Salir</button>
         </div>
-      </div>
-      {error && <p className="error">{error}</p>}
+      </header>
+      <div className="page-shell">
+        <h1>Etiquetas</h1>
+        {error && <p className="error">{error}</p>}
 
-      <div className="card form">
-        <h3>Buscar o escanear</h3>
-        <div className="toolbar">
-          <input placeholder="Código, código de barra o descripción" value={q}
-            onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscar()} style={{ flex: 1 }} />
-          <button className="primary" onClick={buscar}>Buscar</button>
-        </div>
-        {resultados.length > 0 && (
-          <div className="art-results">
-            {resultados.map((a) => (
-              <button key={a.idPresentacion} onClick={() => agregar(a)}>
-                <span className="mono">{a.codigoInterno}</span> · {a.descripcion}
-              </button>
-            ))}
+        <div className="two-col">
+        <div className="card form">
+          <h3>Buscar o escanear</h3>
+          <div className="toolbar">
+            <input placeholder="Código, código de barra o descripción" value={q}
+              onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscar()} style={{ flex: 1 }} />
+            <button className="primary" onClick={buscar}>Buscar</button>
           </div>
-        )}
+          <table className="grid">
+            <thead><tr><th>Código</th><th>Artículo</th><th></th></tr></thead>
+            <tbody>
+              {resultados.map((a) => (
+                <tr key={a.idPresentacion}>
+                  <td className="mono">{a.codigoInterno}</td>
+                  <td>{a.descripcion}</td>
+                  <td><button onClick={() => agregar(a)}>+ Agregar</button></td>
+                </tr>
+              ))}
+              {resultados.length === 0 && (
+                <tr><td colSpan={3} className="muted">Buscá un artículo por código, código de barra o descripción.</td></tr>
+              )}
+            </tbody>
+          </table>
 
-        <h3 style={{ marginTop: 16 }}>O seleccionar por clasificación completa</h3>
-        <div className="form-grid">
-          <label>Sector
-            <select value={idSector} onChange={(e) => setIdSector(Number(e.target.value))}>
-              <option value={0}>(todos)</option>
-              {clasif?.sectores.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
-            </select>
-          </label>
-          <label>Línea
-            <select value={idLinea} onChange={(e) => setIdLinea(Number(e.target.value))}>
-              <option value={0}>(todas)</option>
-              {clasif?.lineas.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
-            </select>
-          </label>
-          <label>Familia
-            <select value={idFamilia} onChange={(e) => setIdFamilia(Number(e.target.value))}>
-              <option value={0}>(todas)</option>
-              {familiasDelSector.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
-            </select>
-          </label>
-          <button onClick={agregarTodosPorClasificacion}>+ Agregar todos los que coincidan</button>
+          <h3 style={{ marginTop: 16 }}>O seleccionar por clasificación completa</h3>
+          <div className="form-grid">
+            <label>Línea
+              <select value={idLinea} onChange={(e) => setIdLinea(Number(e.target.value))}>
+                <option value={0}>(todas)</option>
+                {clasif?.lineas.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
+              </select>
+            </label>
+            <label>Sector
+              <select value={idSector} onChange={(e) => setIdSector(Number(e.target.value))}>
+                <option value={0}>(todos)</option>
+                {clasif?.sectores.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
+              </select>
+            </label>
+            <label>Familia
+              <select value={idFamilia} onChange={(e) => setIdFamilia(Number(e.target.value))}>
+                <option value={0}>(todas)</option>
+                {familiasDelSector.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
+              </select>
+            </label>
+            <button className="success-solid" onClick={agregarTodosPorClasificacion}>+ Agregar todos los que coincidan</button>
+          </div>
+        </div>
+
+        <div>
+          <div className="page-head">
+            <h3>Lista armada ({lista.length})</h3>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <label className="inline-label">Sucursal
+                <select value={idSucursal} onChange={(e) => setIdSucursal(Number(e.target.value))}>
+                  {sucursales.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
+                </select>
+              </label>
+              <label className="inline-label">Formato
+                <select value={formato} onChange={(e) => setFormato(e.target.value as Formato)}>
+                  <option value="Fleje">Fleje</option>
+                  <option value="A4">A4</option>
+                  <option value="A5">A5</option>
+                </select>
+              </label>
+              <button className="primary" disabled={lista.length === 0 || cargando} onClick={generar}>
+                {cargando ? "Generando PDF…" : "Generar PDF"}
+              </button>
+            </div>
+          </div>
+          <table className="grid">
+            <thead><tr><th>Código</th><th>Artículo</th><th></th></tr></thead>
+            <tbody>
+              {lista.map((a) => (
+                <tr key={a.idPresentacion}>
+                  <td className="mono">{a.codigoInterno}</td>
+                  <td>{a.descripcion}</td>
+                  <td><button className="danger" onClick={() => quitar(a.idPresentacion)}>Quitar</button></td>
+                </tr>
+              ))}
+              {lista.length === 0 && <tr><td colSpan={3} className="muted">Sin artículos en la lista.</td></tr>}
+            </tbody>
+          </table>
+        </div>
         </div>
       </div>
-
-      <div className="page-head">
-        <h3>Lista armada ({lista.length})</h3>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <label className="inline-label">Sucursal
-            <select value={idSucursal} onChange={(e) => setIdSucursal(Number(e.target.value))}>
-              {sucursales.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
-            </select>
-          </label>
-          <label className="inline-label">Formato
-            <select value={formato} onChange={(e) => setFormato(e.target.value as Formato)}>
-              <option value="Fleje">Fleje</option>
-              <option value="A4">A4</option>
-              <option value="A5">A5</option>
-            </select>
-          </label>
-          <button className="primary" disabled={lista.length === 0 || cargando} onClick={generar}>
-            {cargando ? "Generando PDF…" : "Generar PDF"}
-          </button>
-        </div>
-      </div>
-      <table className="grid">
-        <thead><tr><th>Código</th><th>Artículo</th><th></th></tr></thead>
-        <tbody>
-          {lista.map((a) => (
-            <tr key={a.idPresentacion}>
-              <td className="mono">{a.codigoInterno}</td>
-              <td>{a.descripcion}</td>
-              <td><button className="danger" onClick={() => quitar(a.idPresentacion)}>Quitar</button></td>
-            </tr>
-          ))}
-          {lista.length === 0 && <tr><td colSpan={3} className="muted">Sin artículos en la lista.</td></tr>}
-        </tbody>
-      </table>
-    </div>
+    </>
   );
 }
