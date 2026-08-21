@@ -45,6 +45,7 @@ public class PercepcionesCalculoService : IPercepcionesCalculoService
         var alicuotasPorLinea = new List<decimal>(lineas.Count);
         var netoPorLinea = new List<decimal>(lineas.Count);
         var ivaPorLinea = new List<decimal>(lineas.Count);
+        var impuestoInternoPorLinea = new List<decimal>(lineas.Count);
         decimal netoAl21 = 0m, netoAl105 = 0m, netoTotal = 0m, impuestoInternoTotal = 0m;
         foreach (var l in lineas)
         {
@@ -54,6 +55,7 @@ public class PercepcionesCalculoService : IPercepcionesCalculoService
                 : 0m;
             var iiLinea = iiUnitario * l.Cantidad;
             alicuotasPorLinea.Add(alicuota);
+            impuestoInternoPorLinea.Add(iiLinea);
 
             var importe = l.Precio * l.Cantidad - l.Descuento;
             var (neto, iva) = DesglioIva.Calcular(importe - iiLinea, alicuota);
@@ -124,6 +126,6 @@ public class PercepcionesCalculoService : IPercepcionesCalculoService
 
         return new PercepcionesResultado(percepcionIva21, percepcionIva105, percepcionIibb,
             percepcionIva21 + percepcionIva105 + percepcionIibb, alicuotasPorLinea, netoPorLinea, ivaPorLinea,
-            netoAl21, netoAl105, baseIibb, alicuotaIibbAplicada);
+            netoAl21, netoAl105, baseIibb, alicuotaIibbAplicada, impuestoInternoPorLinea);
     }
 }

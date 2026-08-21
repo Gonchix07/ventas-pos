@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pos.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using Pos.Infrastructure.Persistence;
 namespace Pos.Infrastructure.Migrations
 {
     [DbContext(typeof(PosDbContext))]
-    partial class PosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260821151848_AgregarIdOfertaPrincipalADetalleOperacion")]
+    partial class AgregarIdOfertaPrincipalADetalleOperacion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1630,9 +1633,6 @@ namespace Pos.Infrastructure.Migrations
 
                     b.Property<int?>("ClusterIdCluster")
                         .HasColumnType("int");
-
-                    b.Property<string>("CodigoTarjetaInterfase")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");

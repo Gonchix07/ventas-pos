@@ -87,6 +87,10 @@ function ConexionExternaSection() {
   const [datos, setDatos] = useState<ConexionExternaMySql | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+  const [probando, setProbando] = useState(false);
+  // null = todavía no se probó en esta sesión de edición; se limpia al tocar cualquier campo, para
+  // no dejar mostrado el resultado de una prueba con datos que ya cambiaron.
+  const [resultadoPrueba, setResultadoPrueba] = useState<{ ok: boolean; error?: string | null } | null>(null);
 
   const [host, setHost] = useState("");
   const [puerto, setPuerto] = useState(3306);
@@ -107,12 +111,30 @@ function ConexionExternaSection() {
   useEffect(() => { void cargar(); }, []);
 
   const guardar = async () => {
-    setError(null); setOk(false);
+    setError(null); setOk(false); setResultadoPrueba(null);
     try {
       await conexionExterna.update({ host: host.trim(), puerto, baseDatos: baseDatos.trim(), usuario: usuario.trim(), password: password || null, habilitada });
       await cargar();
       setOk(true);
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+  };
+
+  // Prueba una conexión REAL (TCP + login) con los datos tal como están en el formulario ahora
+  // mismo — no hace falta guardar primero. Si la contraseña quedó vacía (no se retipeó), el
+  // backend usa la ya guardada, mismo criterio que "Guardar".
+  const probar = async () => {
+    setError(null); setOk(false); setResultadoPrueba(null); setProbando(true);
+    try {
+      const r = await conexionExterna.probar({
+        host: host.trim(), puerto, baseDatos: baseDatos.trim(), usuario: usuario.trim(),
+        password: password || null, habilitada,
+      });
+      setResultadoPrueba(r);
+    } catch (e) {
+      setResultadoPrueba({ ok: false, error: e instanceof Error ? e.message : "Error" });
+    } finally {
+      setProbando(false);
+    }
   };
 
   return (
@@ -146,7 +168,16 @@ function ConexionExternaSection() {
         <button className="primary" disabled={!host.trim() || !baseDatos.trim() || !usuario.trim()} onClick={() => void guardar()}>
           Guardar
         </button>
+        <button className="success-solid" disabled={probando || !host.trim() || !baseDatos.trim() || !usuario.trim()}
+          onClick={() => void probar()}>
+          {probando ? "Probando…" : "Probar conexión"}
+        </button>
       </div>
+      {resultadoPrueba && (
+        resultadoPrueba.ok
+          ? <p className="muted">✔ Conexión exitosa.</p>
+          : <p className="error">✘ No se pudo conectar: {resultadoPrueba.error}</p>
+      )}
     </div>
   );
 }

@@ -108,3 +108,17 @@ PercepcionIVA21 = NETO * 3 / 100				$ 24.545 (3%)
 	Condicion: Si PercepcionIVA21 es mayor a MinimoPercepcionIVA21 se agrega
 	
 A PAGAR por Cliente								$ 1.057.672
+
+
+Importacion a FOX 
+	- Escritura en MySQL
+	- TEST: 192.168.4.4/Interfase
+	- Base de datos Interfase (IGUAL A NOUS)
+		- cja_movi			OK
+		- cupones			OK
+		- movstock			OK
+		- comision			OK
+		- ivavtas			OK
+		- ctacte			OK
+		- newcheques ?
+		- tmp_cja			OK

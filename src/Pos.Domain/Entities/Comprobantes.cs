@@ -116,7 +116,7 @@ public class DetalleOperacion : AuditableEntity
     public decimal Cantidad { get; set; }
     public decimal Precio { get; set; }
     public decimal Descuento { get; set; }
-    /// <summary>Trazabilidad: ofertas aplicadas a la línea (JSON).</summary>
+    /// <summary>Trazabilidad: ofertas aplicadas a la línea (JSON, array de descripciones).</summary>
     public string? OfertasAplicadas { get; set; }
     /// <summary>
     /// Lista de la que salió el precio cobrado (la del convenio si tiene lista propia, si no la que
@@ -124,6 +124,11 @@ public class DetalleOperacion : AuditableEntity
     /// caja distinga en pantalla los precios de folder/promoción. Null en líneas anteriores al campo.
     /// </summary>
     public int? IdListaPrecio { get; set; }
+    /// <summary>IdOferta de la primera/principal oferta aplicada a la línea (null si no tiene
+    /// ninguna) — separado de <see cref="OfertasAplicadas"/> porque ese campo solo guarda
+    /// descripciones (EstadisticasService lo deserializa como texto) y agregarle el id ahí rompería
+    /// esa lectura. Se usa para la interfase contable (movstock.codconv).</summary>
+    public int? IdOfertaPrincipal { get; set; }
 }
 
 /// <summary>Numeradores por punto de venta. Consumo serializado (bloqueo pesimista).</summary>

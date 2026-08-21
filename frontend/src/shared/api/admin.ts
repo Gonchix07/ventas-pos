@@ -236,10 +236,13 @@ export interface MedioPago {
   /** Si está seteado, el medio solo se ofrece a los clientes de ese cluster. Null = todos. */
   idCluster?: number | null;
   clusterDescripcion?: string | null;
+  /** Código de tarjeta del sistema contable externo (interfase MySQL, cupones.tarjeta) — solo
+   *  tiene sentido para medios de Tarjeta. Null si no está cargado. */
+  codigoTarjetaInterfase?: string | null;
 }
 export interface MedioPagoInput {
   descripcion: string; idTipoPago: number; esPredeterminado: boolean; activo: boolean;
-  imprimeComprobante: boolean; idCluster: number | null;
+  imprimeComprobante: boolean; idCluster: number | null; codigoTarjetaInterfase?: string | null;
 }
 
 /** Plan de cuotas de un medio Tarjeta (ej. "3 cuotas sin interés"). Se elige junto con el medio al cobrar. */
@@ -364,10 +367,15 @@ export interface ConexionExternaMySqlInput {
   host: string; puerto: number; baseDatos: string; usuario: string;
   password?: string | null; habilitada: boolean;
 }
+/** error viene tal cual lo devuelve el driver de MySQL (host/usuario/clave incorrectos, etc.) —
+ *  nunca se expone la contraseña. */
+export interface ProbarConexionResultado { ok: boolean; error?: string | null; }
 
 export const conexionExterna = {
   get: () => unwrap<ConexionExternaMySql>(api.get(`/admin/conexion-externa`)),
   update: (i: ConexionExternaMySqlInput) => unwrap<boolean>(api.put(`/admin/conexion-externa`, i)),
+  probar: (i: ConexionExternaMySqlInput) =>
+    unwrap<ProbarConexionResultado>(api.post(`/admin/conexion-externa/probar`, i)),
 };
 
 // ---- Estructura de caja (por sucursal) ----

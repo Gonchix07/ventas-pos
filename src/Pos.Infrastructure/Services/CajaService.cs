@@ -574,6 +574,7 @@ public class CajaService : ICajaService
         {
             vivas[i].Descuento = resultado.Lineas[i].Descuento;
             vivas[i].OfertasAplicadas = JsonSerializer.Serialize(resultado.Lineas[i].Ofertas.Select(o => o.Descripcion));
+            vivas[i].IdOfertaPrincipal = resultado.Lineas[i].Ofertas.FirstOrDefault()?.IdOferta;
         }
 
         op.Total = resultado.TotalNeto;
@@ -630,6 +631,7 @@ public class CajaService : ICajaService
             {
                 vivas[i].Descuento = resultado.Lineas[i].Descuento;
                 vivas[i].OfertasAplicadas = JsonSerializer.Serialize(resultado.Lineas[i].Ofertas.Select(o => o.Descripcion));
+                vivas[i].IdOfertaPrincipal = resultado.Lineas[i].Ofertas.FirstOrDefault()?.IdOferta;
             }
             op.Total = resultado.TotalNeto;
             op.DescuentoTotal = resultado.TotalDescuento;
@@ -677,6 +679,7 @@ public class CajaService : ICajaService
         {
             vivas[i].Descuento = resultado.Lineas[i].Descuento;
             vivas[i].OfertasAplicadas = JsonSerializer.Serialize(resultado.Lineas[i].Ofertas.Select(o => o.Descripcion));
+            vivas[i].IdOfertaPrincipal = resultado.Lineas[i].Ofertas.FirstOrDefault()?.IdOferta;
         }
         op.Total = resultado.TotalNeto;
         op.DescuentoTotal = resultado.TotalDescuento;

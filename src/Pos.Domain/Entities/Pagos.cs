@@ -47,6 +47,11 @@ public class MedioPago : AuditableEntity
     /// adelante.
     /// </summary>
     public bool ImprimeComprobante { get; set; } = true;
+    /// <summary>Código de tarjeta del sistema contable externo (interfase MySQL, tabla
+    /// <c>cupones.tarjeta</c> — ver InterfaseContableService), char(5) en origen. Solo tiene sentido
+    /// para medios de Tarjeta; queda null para el resto (Efectivo, Transferencia, etc.) y para
+    /// tarjetas que todavía no se cargaron en la pantalla "Condiva"/tarjetas del sistema viejo.</summary>
+    public string? CodigoTarjetaInterfase { get; set; }
     public ICollection<PlanCuota> Planes { get; set; } = new List<PlanCuota>();
 }
 

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Pos.Application.Abstractions;
 using Pos.Application.Abstractions.Fiscal;
+using Pos.Application.Abstractions.Interfase;
 using Pos.Application.Common;
 using Pos.Application.Facturacion;
 using Pos.Domain.Entities;
@@ -29,12 +30,13 @@ public class NotaCreditoService : INotaCreditoService
     private readonly IFiscalPrinter _impresora;
     private readonly ICurrentUser _currentUser;
     private readonly ISupervisorAuthService _supervisorAuth;
+    private readonly IInterfaseContableService _interfase;
 
     public NotaCreditoService(PosDbContext db, IFiscalService fiscal, IFiscalPrinter impresora,
-        ICurrentUser currentUser, ISupervisorAuthService supervisorAuth)
+        ICurrentUser currentUser, ISupervisorAuthService supervisorAuth, IInterfaseContableService interfase)
     {
         _db = db; _fiscal = fiscal; _impresora = impresora; _currentUser = currentUser;
-        _supervisorAuth = supervisorAuth;
+        _supervisorAuth = supervisorAuth; _interfase = interfase;
     }
 
     // ---------- Búsqueda ----------
@@ -177,11 +179,12 @@ public class NotaCreditoService : INotaCreditoService
             ?? throw new DomainException("MEDIO_EFECTIVO_INEXISTENTE",
                 "No hay un medio de pago en efectivo configurado para devolver el importe.");
 
-        decimal totalNeto = 0, totalIva = 0;
+        decimal totalNeto = 0, totalIva = 0, netoExento = 0;
         foreach (var l in lineasNc)
         {
             var (neto, iva) = DesglioIva.Calcular(l.Importe, l.Alicuota);
             totalNeto += neto; totalIva += iva;
+            if (l.Alicuota == 0m) netoExento += neto;
         }
 
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
@@ -287,8 +290,10 @@ public class NotaCreditoService : INotaCreditoService
                 });
             }
 
-            // Si la factura se había cargado a cuenta corriente, la NC la descarga (Haber).
-            if (origen.IdCliente is int idCliente && await TieneAsientoCuentaCorrienteAsync(req.IdSucursal, req.IdComprobanteOrigen, ct))
+            // Si la factura se había cargado a cuenta corriente, la NC la descarga (Haber). Se
+            // guarda el resultado (no solo el if) porque también lo necesita movstock.modofact.
+            var esNcDeCuentaCorriente = await TieneAsientoCuentaCorrienteAsync(req.IdSucursal, req.IdComprobanteOrigen, ct);
+            if (origen.IdCliente is int idCliente && esNcDeCuentaCorriente)
             {
                 _db.CuentasCorrientes.Add(new CuentaCorriente
                 {
@@ -311,6 +316,85 @@ public class NotaCreditoService : INotaCreditoService
 
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
+
+            // Interfase contable (best-effort, ver IInterfaseContableService): la NC no calcula
+            // percepciones de IVA/IIBB (Percepciones=0 siempre acá arriba), así que iva_adic/
+            // baseimp/impperc/porciibb1 van en 0 — a diferencia de la Factura, no es que falten,
+            // es que no corresponden.
+            var datosClienteNc = await DatosInterfaseClienteAsync(origen.IdCliente, ct);
+            var codigoEmpresaNc = await _db.Sucursales.AsNoTracking()
+                .Where(s => s.IdSucursal == req.IdSucursal)
+                .Select(s => s.Empresa!.CodigoInterno).FirstOrDefaultAsync(ct) ?? "";
+            await _interfase.RegistrarVentaAsync(new IvaVtaInterfase(
+                Fecha: cabecera.Fecha,
+                Cliente: Truncar(datosClienteNc?.CodigoInt, 5),
+                Nombre: Truncar(datosClienteNc?.Descripcion, 30),
+                CondIva: InterfaseContableReglas.CondIva(datosClienteNc?.IdCondIva),
+                Cuit: Truncar(datosClienteNc?.Cuit, 13),
+                Tipo: InterfaseContableReglas.TipoComprobante(tipoNc.Signo, letra),
+                Prenum: InterfaseContableReglas.Prenum(puntoVenta.NumeroPuntoVenta),
+                Numero: InterfaseContableReglas.Numero(numero),
+                Neto: totalNeto, Iva: totalIva, IvaAdic: 0m, Exento: netoExento, Periva: 0m, Final: totalNc,
+                BaseImp: 0m, ImpPerc: 0m, PorcIibb1: 0m,
+                Prov: InterfaseContableReglas.ProvFijo, Empresa: codigoEmpresaNc,
+                IdVentaSalon: idComprobante), ct);
+
+            // movstock: una fila por línea de la NC. impint y codconv van en 0/NULL — la NC no
+            // rastrea impuesto interno por línea ni "oferta aplicada" (eso es un concepto de la
+            // venta original, no de su reversión). reparto usa la operación de la VENTA ORIGINAL
+            // (la NC en sí no tiene una operación propia, ver IdOperacion=null más arriba) —
+            // confirmado con el usuario (2026-08-21): la NC referencia la misma operación que la
+            // factura que acredita.
+            var idsPresNc = lineasNc.Select(l => l.IdPresentacion).Distinct().ToList();
+            var codigosArticuloNc = await (
+                from pr in _db.Presentaciones.AsNoTracking().Where(p => idsPresNc.Contains(p.IdPresentacion))
+                join a in _db.Articulos.AsNoTracking() on pr.IdArticulo equals a.IdArticulo
+                select new { pr.IdPresentacion, a.CodigoInterno }
+            ).ToDictionaryAsync(x => x.IdPresentacion, x => x.CodigoInterno, ct);
+            var modoFactNc = InterfaseContableReglas.ModoFact(esNcDeCuentaCorriente);
+            var repartoNc = InterfaseContableReglas.Reparto(origen.IdOperacion ?? idComprobante);
+            var filasMovStockNc = lineasNc.Select(l => new MovStockInterfase(
+                Fecha: cabecera.Fecha,
+                Articulo: InterfaseContableReglas.Articulo(codigosArticuloNc.GetValueOrDefault(l.IdPresentacion, "")),
+                Salida: l.Cantidad, Descto: 0m, Unitario: l.PrecioUnitario, Pesos: l.Importe,
+                DeDeposito: InterfaseContableReglas.DepositoFijo,
+                Cliente: Truncar(datosClienteNc?.CodigoInt, 5), Nombre: Truncar(datosClienteNc?.Descripcion, 30),
+                Tipo: InterfaseContableReglas.TipoComprobante(tipoNc.Signo, letra),
+                Numero: cabecera.NumeroCompleto!,
+                Vendedor: null, Lista: InterfaseContableReglas.ListaFija, ImpInt: 0m,
+                Reparto: repartoNc, ModoFact: modoFactNc, CodConv: null,
+                Prov: InterfaseContableReglas.ProvFijo, Empresa: codigoEmpresaNc,
+                IdVentaSalon: idComprobante, Iva: l.Alicuota * 100m, Periva: 0m)).ToList();
+            await _interfase.RegistrarMovStockAsync(filasMovStockNc, ct);
+
+            // ctacte: solo si esta NC descargó una cuenta corriente (misma condición que el asiento
+            // de CuentaCorriente de arriba) — confirmado con el usuario, no se manda "en 0" en el
+            // resto de las NC.
+            if (esNcDeCuentaCorriente)
+            {
+                await _interfase.RegistrarCtaCteAsync(new CtaCteInterfase(
+                    Fecha: cabecera.Fecha,
+                    Tipo: InterfaseContableReglas.TipoComprobante(tipoNc.Signo, letra),
+                    Prenum: InterfaseContableReglas.Prenum(puntoVenta.NumeroPuntoVenta),
+                    Numero: InterfaseContableReglas.Numero(numero),
+                    Debe: 0m, Haber: totalNc,
+                    Cliente: Truncar(datosClienteNc?.CodigoInt, 5),
+                    Prov: InterfaseContableReglas.ProvFijo, Empresa: codigoEmpresaNc,
+                    IdVentaSalon: idComprobante), ct);
+            }
+
+            // comision: usa Reparto de la venta original, mismo criterio que movstock arriba.
+            await _interfase.RegistrarComisionAsync(new ComisionInterfase(
+                Fecha: cabecera.Fecha,
+                Cliente: Truncar(datosClienteNc?.CodigoInt, 5),
+                Tipo: InterfaseContableReglas.TipoComprobante(tipoNc.Signo, letra),
+                Prenum: InterfaseContableReglas.Prenum(puntoVenta.NumeroPuntoVenta),
+                Numero: InterfaseContableReglas.Numero(numero),
+                Neto: totalNeto, Final: totalNc, Vendedor: null,
+                CondVta: InterfaseContableReglas.CondVta(esNcDeCuentaCorriente),
+                Reparto: repartoNc,
+                Prov: InterfaseContableReglas.ProvFijo, Empresa: codigoEmpresaNc,
+                IdVentaSalon: idComprobante, Hora: InterfaseContableReglas.Hora(cabecera.Fecha)), ct);
 
             // Impresión fiscal (best-effort, fuera de la transacción): la NC ya está registrada y
             // el efectivo ya salió de la caja; un fallo de la impresora no la invalida.
@@ -516,6 +600,22 @@ public class NotaCreditoService : INotaCreditoService
             string.IsNullOrWhiteSpace(c.Cuit) ? TipoDocumentoFiscal.Dni : TipoDocumentoFiscal.Cuit,
             ResponsabilidadFiscalDesde(c.CondIva, letra), c.Domicilio);
     }
+
+    private record DatosInterfaseCliente(string? CodigoInt, string Descripcion, int IdCondIva, string? Cuit);
+
+    /// <summary>Datos del cliente que necesita la interfase contable (ver InterfaseContableReglas) —
+    /// distinto de <see cref="ClienteFiscalAsync"/>, que arma el objeto para la impresora fiscal.</summary>
+    private async Task<DatosInterfaseCliente?> DatosInterfaseClienteAsync(int? idCliente, CancellationToken ct)
+    {
+        if (idCliente is not int id) return null;
+        return await _db.Clientes.AsNoTracking().Where(c => c.IdCliente == id)
+            .Select(c => new DatosInterfaseCliente(c.CodigoInt, c.Descripcion, c.IdCondIva, c.Cuit))
+            .FirstOrDefaultAsync(ct);
+    }
+
+    /// <summary>Corta a <paramref name="max"/> caracteres — los char(N) de la interfase contable
+    /// externa (ivavtas.nombre, etc.) no aceptan más.</summary>
+    private static string? Truncar(string? v, int max) => v is null || v.Length <= max ? v : v[..max];
 
     private static ResponsabilidadIvaFiscal ResponsabilidadFiscalDesde(string? condIva, string? letra)
     {

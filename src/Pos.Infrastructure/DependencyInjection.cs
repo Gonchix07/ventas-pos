@@ -57,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<Pos.Application.Cupones.ICuponesService, Services.CuponesService>();
         services.AddScoped<Pos.Application.Etiquetas.IEtiquetaService, Services.EtiquetaService>();
         services.AddScoped<Pos.Application.Estadisticas.IEstadisticasService, Services.EstadisticasService>();
+        services.AddScoped<Pos.Application.Abstractions.Interfase.IInterfaseContableService, Services.InterfaseContableService>();
         services.AddScoped<IUsuarioRepository, UsuarioRepository>();
         services.AddScoped<IPuestoRepository, PuestoRepository>();
         services.AddScoped<IPermisoRepository, PermisoRepository>();

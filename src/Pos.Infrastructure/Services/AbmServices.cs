@@ -3,6 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using Pos.Application.Abm;
 using Pos.Application.Common;
 using Pos.Domain.Entities;
@@ -103,13 +104,14 @@ public class PagoAdminService : IPagoAdminService
             join c in _db.Clusters.AsNoTracking() on m.IdCluster equals c.IdCluster into cj
             from c in cj.DefaultIfEmpty()
             select new { m.IdMedioPago, m.Descripcion, m.IdTipoPago, Tipo = t, m.EsPredeterminado, m.Activo,
-                m.ImprimeComprobante, m.IdCluster, ClusterDescripcion = c != null ? c.Descripcion : null }
+                m.ImprimeComprobante, m.IdCluster, ClusterDescripcion = c != null ? c.Descripcion : null,
+                m.CodigoTarjetaInterfase }
         ).ToListAsync(ct);
 
         return filas.Select(x => new MedioPagoDto(x.IdMedioPago, x.Descripcion, x.IdTipoPago,
             x.Tipo?.Descripcion, x.Tipo is null ? 0 : (int)x.Tipo.Canal,
             x.Tipo is null ? null : CanalDesc(x.Tipo.Canal), x.EsPredeterminado, x.Activo,
-            x.ImprimeComprobante, x.IdCluster, x.ClusterDescripcion)).ToList();
+            x.ImprimeComprobante, x.IdCluster, x.ClusterDescripcion, x.CodigoTarjetaInterfase)).ToList();
     }
 
     public async Task<int> CreateMedioAsync(MedioPagoInput input, CancellationToken ct = default)
@@ -126,7 +128,8 @@ public class PagoAdminService : IPagoAdminService
         {
             Descripcion = desc, IdTipoPago = input.IdTipoPago,
             EsPredeterminado = input.EsPredeterminado, Activo = input.Activo,
-            ImprimeComprobante = input.ImprimeComprobante, IdCluster = input.IdCluster
+            ImprimeComprobante = input.ImprimeComprobante, IdCluster = input.IdCluster,
+            CodigoTarjetaInterfase = LimpiarCodigoTarjeta(input.CodigoTarjetaInterfase)
         };
         _db.MediosPago.Add(m);
         if (input.EsPredeterminado) await DestildarPredeterminadosAsync(null, ct);
@@ -152,6 +155,7 @@ public class PagoAdminService : IPagoAdminService
         m.Activo = input.Activo;
         m.ImprimeComprobante = input.ImprimeComprobante;
         m.IdCluster = input.IdCluster;
+        m.CodigoTarjetaInterfase = LimpiarCodigoTarjeta(input.CodigoTarjetaInterfase);
         if (input.EsPredeterminado && !m.EsPredeterminado) await DestildarPredeterminadosAsync(id, ct);
         m.EsPredeterminado = input.EsPredeterminado;
         await _db.SaveChangesAsync(ct);
@@ -159,6 +163,15 @@ public class PagoAdminService : IPagoAdminService
         // solo en el alta.
         await AsegurarPlanPorDefectoAsync(id, ct);
         return true;
+    }
+
+    /// <summary>Recorta a los 5 caracteres de <c>cupones.tarjeta</c> en la interfase contable
+    /// externa — mismo criterio defensivo que el resto de los char(N) de esa integración.</summary>
+    private static string? LimpiarCodigoTarjeta(string? v)
+    {
+        if (string.IsNullOrWhiteSpace(v)) return null;
+        var t = v.Trim();
+        return t.Length <= 5 ? t : t[..5];
     }
 
     private async Task ValidarClusterAsync(int? idCluster, CancellationToken ct)
@@ -601,5 +614,39 @@ public class ConexionExternaAdminService : IConexionExternaAdminService
             c.PasswordProtegida = _protector.Protect(input.Password);
         c.Habilitada = input.Habilitada;
         await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<ProbarConexionResultado> ProbarConexionAsync(ConexionExternaMySqlInput input, CancellationToken ct = default)
+    {
+        // Vacío = usar la contraseña ya guardada (mismo criterio que UpdateAsync) — así se puede
+        // probar la conexión sin retipearla si no cambió.
+        string? password = input.Password;
+        if (string.IsNullOrEmpty(password))
+        {
+            var guardada = await _db.ConexionesExternasMySql.AsNoTracking().FirstOrDefaultAsync(ct);
+            if (string.IsNullOrEmpty(guardada?.PasswordProtegida))
+                return new ProbarConexionResultado(false, "No hay contraseña guardada ni se ingresó una nueva.");
+            password = _protector.Unprotect(guardada.PasswordProtegida);
+        }
+
+        var csb = new MySqlConnectionStringBuilder
+        {
+            Server = input.Host.Trim(), Port = (uint)input.Puerto, Database = input.BaseDatos.Trim(),
+            UserID = input.Usuario.Trim(), Password = password, ConnectionTimeout = 5,
+        };
+
+        try
+        {
+            await using var conn = new MySqlConnection(csb.ConnectionString);
+            await conn.OpenAsync(ct);
+            return new ProbarConexionResultado(true, null);
+        }
+        catch (Exception ex)
+        {
+            // No es un error del servidor: es el resultado esperable de "probar" con datos
+            // incorrectos. Se devuelve el mensaje del driver (ya viene en buen castellano/claro
+            // para host/usuario/clave incorrectos, base inexistente, etc.).
+            return new ProbarConexionResultado(false, ex.Message);
+        }
     }
 }

@@ -7,10 +7,10 @@ public record TipoPagoInput(string Descripcion, int Fuente, int Canal);
 
 public record MedioPagoDto(int IdMedioPago, string Descripcion, int IdTipoPago, string? TipoPagoDescripcion,
     int Canal, string? CanalDescripcion, bool EsPredeterminado, bool Activo, bool ImprimeComprobante,
-    int? IdCluster, string? ClusterDescripcion);
+    int? IdCluster, string? ClusterDescripcion, string? CodigoTarjetaInterfase);
 /// <summary>IdCluster null = el medio lo puede usar cualquier cliente.</summary>
 public record MedioPagoInput(string Descripcion, int IdTipoPago, bool EsPredeterminado, bool Activo,
-    bool ImprimeComprobante, int? IdCluster);
+    bool ImprimeComprobante, int? IdCluster, string? CodigoTarjetaInterfase = null);
 
 // Plan de cuotas de un medio de pago (solo Tarjeta — se valida en CreatePlanAsync, no hay
 // restricción de esquema porque el Fuente vive en TipoPago, no en MedioPago).
@@ -97,9 +97,17 @@ public record ConexionExternaMySqlDto(string Host, int Puerto, string BaseDatos,
     bool TieneContrasena, bool Habilitada);
 public record ConexionExternaMySqlInput(string Host, int Puerto, string BaseDatos, string Usuario,
     string? Password, bool Habilitada);
+/// <summary>Resultado de un intento real de conexión — nunca expone la contraseña, solo si
+/// funcionó o el motivo del error (tal como lo devuelve el driver de MySQL).</summary>
+public record ProbarConexionResultado(bool Ok, string? Error);
 
 public interface IConexionExternaAdminService
 {
     Task<ConexionExternaMySqlDto> GetAsync(CancellationToken ct = default);
     Task UpdateAsync(ConexionExternaMySqlInput input, CancellationToken ct = default);
+    /// <summary>Prueba una conexión real (TCP + login) con los datos del formulario — si
+    /// <paramref name="input"/>.Password viene vacío, usa la contraseña ya guardada (mismo criterio
+    /// que UpdateAsync: vacío = conservar la actual). Nunca lanza por un fallo de conexión: eso es
+    /// un resultado (Ok=false), no una excepción.</summary>
+    Task<ProbarConexionResultado> ProbarConexionAsync(ConexionExternaMySqlInput input, CancellationToken ct = default);
 }

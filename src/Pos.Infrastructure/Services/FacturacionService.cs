@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Pos.Application.Abstractions;
 using Pos.Application.Abstractions.Fiscal;
+using Pos.Application.Abstractions.Interfase;
 using Pos.Application.Abstractions.Payments;
 using Pos.Application.Common;
 using Pos.Application.Facturacion;
@@ -36,17 +37,20 @@ public class FacturacionService : IFacturacionService
     private readonly IFiscalPrinter _impresora;
     private readonly ICurrentUser _currentUser;
     private readonly IPercepcionesCalculoService _percepciones;
+    private readonly IInterfaseContableService _interfase;
 
     // Nota: ya no depende de IFiscalService (CAE/CAEA) — modelo controlador fiscal, no factura
     // electrónica; ver EmitirAsync. IFiscalService lo sigue usando FiscalHealthCheck, no se tocó.
     public FacturacionService(PosDbContext db, IPaymentProviderFactory pagos,
-        IFiscalPrinter impresora, ICurrentUser currentUser, IPercepcionesCalculoService percepciones)
+        IFiscalPrinter impresora, ICurrentUser currentUser, IPercepcionesCalculoService percepciones,
+        IInterfaseContableService interfase)
     {
         _db = db;
         _pagos = pagos;
         _impresora = impresora;
         _currentUser = currentUser;
         _percepciones = percepciones;
+        _interfase = interfase;
     }
 
     public async Task<EmitirComprobanteResponse> EmitirAsync(EmitirComprobanteRequest req, CancellationToken ct = default)
@@ -131,7 +135,7 @@ public class FacturacionService : IFacturacionService
             throw new DomainException("PUNTO_VENTA_ES_PRESUPUESTO",
                 "Ese punto de venta es de tipo Presupuesto: no puede emitir facturas fiscales/electrónicas.");
 
-        var sucursal = await _db.Sucursales.AsNoTracking()
+        var sucursal = await _db.Sucursales.AsNoTracking().Include(s => s.Empresa)
             .FirstOrDefaultAsync(s => s.IdSucursal == req.IdSucursal, ct)
             ?? throw new DomainException("SUCURSAL_INEXISTENTE", "La sucursal no existe.");
 
@@ -142,6 +146,7 @@ public class FacturacionService : IFacturacionService
             ? await _db.Clientes.AsNoTracking().Include(c => c.CondicionIva)
                 .Where(c => c.IdCliente == idc)
                 .Select(c => new { c.Cuit, c.Documento, c.Domicilio, c.Descripcion, c.PermitePresupuesto,
+                    c.CodigoInt, c.IdCondIva,
                     LetraCondIva = c.CondicionIva!.Letra, CondIva = c.CondicionIva!.Descripcion })
                 .FirstOrDefaultAsync(ct)
             : null;
@@ -206,7 +211,7 @@ public class FacturacionService : IFacturacionService
         var infoPresentaciones = await (
             from pr in _db.Presentaciones.AsNoTracking().Where(p => idsPres.Contains(p.IdPresentacion))
             join a in _db.Articulos.AsNoTracking() on pr.IdArticulo equals a.IdArticulo
-            select new { pr.IdPresentacion, DescripcionTicket = pr.DescripcionTicket ?? a.Descripcion }
+            select new { pr.IdPresentacion, DescripcionTicket = pr.DescripcionTicket ?? a.Descripcion, a.CodigoInterno }
         ).ToDictionaryAsync(x => x.IdPresentacion, ct);
 
         decimal totalNeto = 0, totalIva = 0;
@@ -270,6 +275,10 @@ public class FacturacionService : IFacturacionService
             // Medios que resultaron ser cuenta corriente — el asiento en CuentaCorriente recién se
             // puede insertar en el paso 4 (necesita IdComprobante, que todavía no existe acá).
             var pagosCuentaCorriente = new List<PagoResultadoDto>();
+            // Pagos con tarjeta, para la interfase contable (cupones) — se completan en el paso 4
+            // (necesita IdMovPagos/cuotas, que recién se resuelven ahí) y se mandan recién después
+            // del commit, junto con el resto de la interfase.
+            var filasCupon = new List<CuponInterfase>();
             // Detalle de pagos tal como debe salir impreso en el comprobante fiscal. Se arma acá
             // (no al final) porque es el único punto donde ya se resolvió el medio de pago contra
             // la BD, y la impresora exige discriminar cada medio por separado.
@@ -516,6 +525,13 @@ public class FacturacionService : IFacturacionService
                 });
             }
 
+            // Para la interfase contable (cupones): Fuente + código de tarjeta por medio, resuelto
+            // una sola vez para todos los pagos en vez de repetir la consulta pago por pago.
+            var idsMediosPagoCupon = req.Pagos.Select(p => p.IdMedioPago).Distinct().ToList();
+            var mediosPorId = await _db.MediosPago.AsNoTracking().Include(m => m.TipoPago)
+                .Where(m => idsMediosPagoCupon.Contains(m.IdMedioPago))
+                .ToDictionaryAsync(m => m.IdMedioPago, ct);
+
             foreach (var (pago, resultado) in req.Pagos.Zip(resultadosPago))
             {
                 // Se copia la cantidad de cuotas del plan AL MOMENTO del pago, no se referencia solo
@@ -539,6 +555,23 @@ public class FacturacionService : IFacturacionService
                 };
                 _db.MovimientosPagos.Add(movPago);
                 await _db.SaveChangesAsync(ct); // la DB asigna IdMovPagos; queda disponible para referenciarlo abajo
+
+                // cupones: una fila por cada pago con tarjeta (el resto de los medios no genera
+                // cupón). El código de tarjeta puede no estar cargado en el medio todavía — se manda
+                // null en ese caso, no se bloquea la venta por eso.
+                if (mediosPorId.TryGetValue(pago.IdMedioPago, out var medioPago)
+                    && medioPago.TipoPago?.Fuente == FuentePago.Tarjeta)
+                {
+                    filasCupon.Add(new CuponInterfase(
+                        Numero: Limpiar(pago.NumeroCupon), Tarjeta: medioPago.CodigoTarjetaInterfase,
+                        Plan: InterfaseContableReglas.Plan(cuotas), Importe: resultado.Monto,
+                        FechaRec: DateTime.UtcNow,
+                        CodCli: Truncar(datosCliente?.CodigoInt, 5), NomCli: Truncar(datosCliente?.Descripcion, 30),
+                        Caja: InterfaseContableReglas.CajaCodigo(operacion.IdCaja),
+                        Cajero: InterfaseContableReglas.CajeroCodigo(_currentUser.IdUsuario ?? 0),
+                        Operacion: InterfaseContableReglas.Reparto(req.IdOperacion),
+                        IdVentaSalon: idComprobante));
+                }
 
                 var idMov = (await _db.MovimientosCaja.Where(m => m.IdSucursal == req.IdSucursal)
                     .Select(m => m.IdMovCaja).MaxAsync(x => (int?)x, ct) ?? 0) + 1;
@@ -576,6 +609,108 @@ public class FacturacionService : IFacturacionService
             operacion.Estado = EstadoOperacion.Facturada;
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
+
+            // Interfase contable (best-effort, ver IInterfaseContableService): solo Facturas/NC con
+            // valor fiscal, nunca Presupuesto. Se manda DESPUÉS del commit — si esto falla, la venta
+            // ya quedó persistida e impresa igual, nunca se revierte por esto.
+            if (!esPresupuesto)
+            {
+                // Exento = neto de las líneas reales (no la sintética "Descuento x MP", que también
+                // tiene alícuota 0 pero no es una venta exenta) con alícuota 0.
+                var exento = detallesCalculados
+                    .Where(d => d.Alicuota == 0m && d.Origen.IdPresentacion != 0)
+                    .Sum(d => d.Neto);
+                // iva_adic y periva son la misma cifra (percepción IVA 21%+10,5%) en dos columnas
+                // distintas de la tabla — confirmado con el usuario.
+                var percepcionIvaTotal = percepcionResultado.PercepcionIva21 + percepcionResultado.PercepcionIva105;
+                // A propósito NO se usa ConstruirClienteFiscal acá: esa función existe para que la
+                // controladora fiscal NO identifique a un Consumidor Final (manda "CONSUMIDOR
+                // FINAL" sin documento, ver más arriba). La interfase contable es otro consumidor
+                // completamente distinto — SIEMPRE necesita código/nombre/condición IVA/CUIT del
+                // cliente real cuando hay uno seleccionado en la operación, sin importar si el
+                // ticket fiscal lo identificó o no. Confirmado con el usuario (2026-08-21).
+                await _interfase.RegistrarVentaAsync(new IvaVtaInterfase(
+                    Fecha: cabecera.Fecha,
+                    Cliente: Truncar(datosCliente?.CodigoInt, 5),
+                    Nombre: Truncar(datosCliente?.Descripcion, 30),
+                    CondIva: InterfaseContableReglas.CondIva(datosCliente?.IdCondIva),
+                    Cuit: Truncar(datosCliente?.Cuit, 13),
+                    Tipo: InterfaseContableReglas.TipoComprobante(tipoComprobante.Signo, letra),
+                    Prenum: InterfaseContableReglas.Prenum(puntoVenta.NumeroPuntoVenta),
+                    Numero: InterfaseContableReglas.Numero(numero),
+                    Neto: totalNeto, Iva: totalIva,
+                    IvaAdic: percepcionIvaTotal, Exento: exento, Periva: percepcionIvaTotal,
+                    Final: cabecera.Total,
+                    BaseImp: percepcionResultado.BaseImponibleIibb, ImpPerc: percepcionResultado.PercepcionIibb,
+                    PorcIibb1: percepcionResultado.AlicuotaIibb,
+                    Prov: InterfaseContableReglas.ProvFijo, Empresa: sucursal.Empresa?.CodigoInterno ?? "",
+                    IdVentaSalon: idComprobante), ct);
+
+                // movstock: una fila por línea real (se excluye la sintética "Descuento x MP",
+                // IdPresentacion=0 — no es un artículo vendido). modofact es el mismo para todas las
+                // líneas del comprobante: "2" si algún pago de la venta fue por cuenta corriente.
+                var codigoEmpresaMovStock = sucursal.Empresa?.CodigoInterno ?? "";
+                var modoFact = InterfaseContableReglas.ModoFact(pagosCuentaCorriente.Count > 0);
+                var filasMovStock = new List<MovStockInterfase>();
+                for (var idx = 0; idx < detallesCalculados.Count; idx++)
+                {
+                    var (origen, _, alicuota, importe, neto, iva) = detallesCalculados[idx];
+                    if (origen.IdPresentacion == 0) continue; // línea sintética de descuento por MP
+                    var codigoArticulo = infoPresentaciones.TryGetValue(origen.IdPresentacion, out var info)
+                        ? info.CodigoInterno : "";
+                    var impInt = percepcionResultado.ImpuestoInternoPorLinea?[idx] ?? 0m;
+                    filasMovStock.Add(new MovStockInterfase(
+                        Fecha: cabecera.Fecha,
+                        Articulo: InterfaseContableReglas.Articulo(codigoArticulo),
+                        Salida: origen.Cantidad, Descto: origen.Descuento,
+                        Unitario: origen.Precio, Pesos: importe,
+                        DeDeposito: InterfaseContableReglas.DepositoFijo,
+                        Cliente: Truncar(datosCliente?.CodigoInt, 5),
+                        Nombre: Truncar(datosCliente?.Descripcion, 30),
+                        Tipo: InterfaseContableReglas.TipoComprobante(tipoComprobante.Signo, letra),
+                        Numero: cabecera.NumeroCompleto!,
+                        Vendedor: null, Lista: InterfaseContableReglas.ListaFija, ImpInt: impInt,
+                        Reparto: InterfaseContableReglas.Reparto(req.IdOperacion), ModoFact: modoFact,
+                        CodConv: InterfaseContableReglas.Codconv(origen.IdOfertaPrincipal),
+                        Prov: InterfaseContableReglas.ProvFijo, Empresa: codigoEmpresaMovStock,
+                        IdVentaSalon: idComprobante, Iva: alicuota * 100m, Periva: 0m));
+                }
+                await _interfase.RegistrarMovStockAsync(filasMovStock, ct);
+
+                // ctacte: solo si algún pago de la venta fue por cuenta corriente — confirmado con
+                // el usuario, no se manda una fila "en 0" en el resto de las ventas.
+                if (pagosCuentaCorriente.Count > 0)
+                {
+                    await _interfase.RegistrarCtaCteAsync(new CtaCteInterfase(
+                        Fecha: cabecera.Fecha,
+                        Tipo: InterfaseContableReglas.TipoComprobante(tipoComprobante.Signo, letra),
+                        Prenum: InterfaseContableReglas.Prenum(puntoVenta.NumeroPuntoVenta),
+                        Numero: InterfaseContableReglas.Numero(numero),
+                        Debe: pagosCuentaCorriente.Sum(p => p.Monto), Haber: 0m,
+                        Cliente: Truncar(datosCliente?.CodigoInt, 5),
+                        Prov: InterfaseContableReglas.ProvFijo, Empresa: codigoEmpresaMovStock,
+                        IdVentaSalon: idComprobante), ct);
+                }
+
+                // comision: muy similar a ivavtas (mismo cliente/tipo/prenum/numero/prov/empresa).
+                // vendedor siempre null (sin ese concepto en pos-mayorista, ver movstock);
+                // condvta "01"/"02" con la misma condición de cuenta corriente que modofact.
+                await _interfase.RegistrarComisionAsync(new ComisionInterfase(
+                    Fecha: cabecera.Fecha,
+                    Cliente: Truncar(datosCliente?.CodigoInt, 5),
+                    Tipo: InterfaseContableReglas.TipoComprobante(tipoComprobante.Signo, letra),
+                    Prenum: InterfaseContableReglas.Prenum(puntoVenta.NumeroPuntoVenta),
+                    Numero: InterfaseContableReglas.Numero(numero),
+                    Neto: totalNeto, Final: cabecera.Total, Vendedor: null,
+                    CondVta: InterfaseContableReglas.CondVta(pagosCuentaCorriente.Count > 0),
+                    Reparto: InterfaseContableReglas.Reparto(req.IdOperacion),
+                    Prov: InterfaseContableReglas.ProvFijo, Empresa: codigoEmpresaMovStock,
+                    IdVentaSalon: idComprobante, Hora: InterfaseContableReglas.Hora(cabecera.Fecha)), ct);
+
+                // cupones: una fila por cada pago con tarjeta, recolectadas en el paso 4 (arriba).
+                foreach (var filaCupon in filasCupon)
+                    await _interfase.RegistrarCuponAsync(filaCupon, ct);
+            }
 
             return new EmitirComprobanteResponse(req.IdSucursal, idComprobante, cabecera.NumeroCompleto!,
                 letra, null, null, false, cabecera.Estado.ToString(), totalNeto, totalIva,
@@ -783,6 +918,10 @@ public class FacturacionService : IFacturacionService
     }
 
     private static string? Limpiar(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+
+    /// <summary>Corta a <paramref name="max"/> caracteres — los char(N) de la interfase contable
+    /// externa (ivavtas.nombre, etc.) no aceptan más.</summary>
+    private static string? Truncar(string? v, int max) => v is null || v.Length <= max ? v : v[..max];
 
     /// <summary>Lee un valor numérico de la tabla Configuracion (clave/valor); si no está cargada o
     /// no es un número válido, devuelve <paramref name="porDefecto"/> en vez de fallar.</summary>

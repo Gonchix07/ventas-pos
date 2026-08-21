@@ -275,6 +275,11 @@ button.danger-solid { background: var(--danger); color: #fff; border-color: var(
    en vez del rojo sólido de danger-solid. */
 button.warning-solid { background: #fdedd7; color: #9a5b13; border-color: #f4cd9a; font-weight: 600; }
 button.warning-solid:hover { background: #fbe1ba; }
+/* Verde sólido para acciones de verificación/diagnóstico (ej. "Probar conexión"): distinto del
+   petrol de .primary, que ya está reservado para la acción principal de guardar. */
+button.success-solid { background: #1e7d32; color: #fff; border-color: #1e7d32; font-weight: 600; }
+button.success-solid:hover { background: #176327; }
+button.success-solid:disabled { background: #a8c8ae; border-color: #a8c8ae; color: #fff; cursor: not-allowed; }
 
 /* Bloqueo de pantalla mientras se espera arqueo/cierre (varios requests + impresora fiscal, tarda
    unos segundos): tapa toda la vista con blur para que el cajero no piense que se colgó. */

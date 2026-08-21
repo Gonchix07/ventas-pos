@@ -78,27 +78,34 @@ export function PagosPage() {
     setMDesc(""); setMCluster(0); setMImprime(true);
   };
 
+  // Base común de todo update parcial de un medio: parte de sus valores actuales para no pisar
+  // campos que esa acción puntual no toca (ej. cambiar el cluster no debe borrar el código de
+  // tarjeta ya cargado, y viceversa — bug real: al no mandar codigoTarjetaInterfase explícito en
+  // CADA llamada, el backend lo pisaba con null porque el DTO lo trata como "no vino = null").
+  const inputDesdeMedio = (m: MedioPago) => ({
+    descripcion: m.descripcion, idTipoPago: m.idTipoPago, esPredeterminado: m.esPredeterminado,
+    activo: m.activo, imprimeComprobante: m.imprimeComprobante, idCluster: m.idCluster ?? null,
+    codigoTarjetaInterfase: m.codigoTarjetaInterfase ?? null,
+  });
+
   // El cluster limita el medio a un grupo de clientes; se cambia desde la propia fila.
   const cambiarCluster = (m: MedioPago, idCluster: number) =>
-    run(() => pagos.updateMedio(m.idMedioPago, {
-      descripcion: m.descripcion, idTipoPago: m.idTipoPago, esPredeterminado: m.esPredeterminado,
-      activo: m.activo, imprimeComprobante: m.imprimeComprobante, idCluster: idCluster || null,
-    }));
+    run(() => pagos.updateMedio(m.idMedioPago, { ...inputDesdeMedio(m), idCluster: idCluster || null }));
 
   // Todavía no se usa en Caja: se define más adelante qué hacer al cobrar con un medio marcado así.
   const cambiarImprimeComprobante = (m: MedioPago, imprimeComprobante: boolean) =>
-    run(() => pagos.updateMedio(m.idMedioPago, {
-      descripcion: m.descripcion, idTipoPago: m.idTipoPago, esPredeterminado: m.esPredeterminado,
-      activo: m.activo, imprimeComprobante, idCluster: m.idCluster ?? null,
-    }));
+    run(() => pagos.updateMedio(m.idMedioPago, { ...inputDesdeMedio(m), imprimeComprobante }));
+
+  // Código de tarjeta para la interfase contable externa (cupones.tarjeta) — solo tiene sentido
+  // para medios de Tarjeta, ver columna condicional más abajo.
+  const cambiarCodigoTarjeta = (m: MedioPago, codigoTarjetaInterfase: string) =>
+    run(() => pagos.updateMedio(m.idMedioPago,
+      { ...inputDesdeMedio(m), codigoTarjetaInterfase: codigoTarjetaInterfase.trim() || null }));
 
   const cambiarPredeterminado = (id: number) => {
     const m = medios.find((x) => x.idMedioPago === id);
     if (!m) return; // "(ninguno)" no hace nada: siempre tiene que haber uno elegible.
-    void run(() => pagos.updateMedio(m.idMedioPago, {
-      descripcion: m.descripcion, idTipoPago: m.idTipoPago, esPredeterminado: true,
-      activo: m.activo, imprimeComprobante: m.imprimeComprobante, idCluster: m.idCluster ?? null,
-    }));
+    void run(() => pagos.updateMedio(m.idMedioPago, { ...inputDesdeMedio(m), esPredeterminado: true }));
   };
 
   return (
@@ -237,7 +244,13 @@ export function PagosPage() {
                   <span className={`badge ${t.canal === 2 ? "on" : "off"}`}>{t.canalDescripcion}</span>
                 </h4>
                 <table className="grid" style={{ marginTop: 4 }}>
-                  <thead><tr><th>Medio</th><th>Habilitado para</th><th>Imprime comprobante</th><th>Estado</th><th></th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Medio</th><th>Habilitado para</th><th>Imprime comprobante</th>
+                      {t.fuente === FUENTE_TARJETA && <th>Código interfase</th>}
+                      <th>Estado</th><th></th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {suyos.map((m) => (
                       <tr key={m.idMedioPago} className={m.activo ? "" : "inactive"}>
@@ -260,6 +273,21 @@ export function PagosPage() {
                               onChange={(e) => cambiarImprimeComprobante(m, e.target.checked)} />
                           </label>
                         </td>
+                        {/* Código de tarjeta del sistema contable externo (ej. "00003" Visa
+                            Crédito) — alimenta cupones.tarjeta en la interfase MySQL. Solo se
+                            pide para medios de Tarjeta, el resto no lo necesita. */}
+                        {t.fuente === FUENTE_TARJETA && (
+                          <td>
+                            <input className="mono" style={{ width: 60 }} maxLength={5}
+                              defaultValue={m.codigoTarjetaInterfase ?? ""}
+                              placeholder="00000"
+                              onBlur={(e) => {
+                                if (e.target.value.trim() !== (m.codigoTarjetaInterfase ?? "")) {
+                                  cambiarCodigoTarjeta(m, e.target.value);
+                                }
+                              }} />
+                          </td>
+                        )}
                         <td>{m.activo
                           ? <span className="badge on">Activo</span>
                           : <span className="badge off">Inactivo</span>}</td>
@@ -268,8 +296,7 @@ export function PagosPage() {
                             <button onClick={() => setPlanesMedio(m)}>Planes</button>
                           )}
                           <button onClick={() => run(() => pagos.updateMedio(m.idMedioPago,
-                            { descripcion: m.descripcion, idTipoPago: m.idTipoPago, esPredeterminado: m.esPredeterminado,
-                              activo: !m.activo, imprimeComprobante: m.imprimeComprobante, idCluster: m.idCluster ?? null }))}>
+                            { ...inputDesdeMedio(m), activo: !m.activo }))}>
                             {m.activo ? "Desactivar" : "Activar"}
                           </button>
                           <button className="danger" onClick={() => run(() => pagos.removeMedio(m.idMedioPago))}>
@@ -279,7 +306,7 @@ export function PagosPage() {
                       </tr>
                     ))}
                     {suyos.length === 0 && (
-                      <tr><td colSpan={5} className="muted">Sin medios en este tipo.</td></tr>
+                      <tr><td colSpan={t.fuente === FUENTE_TARJETA ? 6 : 5} className="muted">Sin medios en este tipo.</td></tr>
                     )}
                   </tbody>
                 </table>

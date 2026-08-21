@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Pos.Application.Abstractions;
 using Pos.Application.Abstractions.Fiscal;
+using Pos.Application.Abstractions.Interfase;
 using Pos.Application.Cierres;
 using Pos.Application.Common;
 using Pos.Domain.Entities;
@@ -23,14 +24,16 @@ public class CierreCajaService : ICierreCajaService
     private readonly IFiscalPrinter _impresora;
     private readonly ICurrentUser _currentUser;
     private readonly CierreLoteEjecutor _ejecutor;
+    private readonly IInterfaseContableService _interfase;
 
     public CierreCajaService(PosDbContext db, IFiscalPrinter impresora, ICurrentUser currentUser,
-        CierreLoteEjecutor ejecutor)
+        CierreLoteEjecutor ejecutor, IInterfaseContableService interfase)
     {
         _db = db;
         _impresora = impresora;
         _currentUser = currentUser;
         _ejecutor = ejecutor;
+        _interfase = interfase;
     }
 
     public async Task<ArqueoXResponse> ArqueoXAsync(int idSucursal, int idCaja, bool imprimir = true, CancellationToken ct = default)
@@ -114,6 +117,32 @@ public class CierreCajaService : ICierreCajaService
         var cierre = await _ejecutor.CerrarAsync(idSucursal, lote.IdLote, detalle, acumulados,
             new CierreLoteJustificacion(req.IdMotivoDiferencia, req.ObservacionesCajero,
                 IdMotivoCierre: null, ObservacionTesoreria: null), ct);
+
+        // Interfase contable (best-effort, ver IInterfaseContableService): UNA fila por cierre de
+        // turno, con lo declarado/rendido agrupado por familia de medio — no por comprobante como
+        // el resto de las tablas. Efectivo/Tarjeta/Cheque van a su propia columna; el resto de las
+        // fuentes (billetera virtual, transferencia, cuenta corriente) cae en "otros".
+        var fuentesPorMedio = await _db.MediosPago.AsNoTracking().Include(m => m.TipoPago)
+            .ToDictionaryAsync(m => m.IdMedioPago, m => m.TipoPago!.Fuente, ct);
+        decimal SumaPorFuente(FuentePago fuente) => detalle
+            .Where(d => fuentesPorMedio.GetValueOrDefault(d.IdMedioPago) == fuente)
+            .Sum(d => d.Declarado);
+        var otros = detalle
+            .Where(d => fuentesPorMedio.TryGetValue(d.IdMedioPago, out var f)
+                && f != FuentePago.Efectivo && f != FuentePago.Tarjeta && f != FuentePago.Cheque)
+            .Sum(d => d.Declarado);
+        var codigoEmpresaCierre = await _db.Sucursales.AsNoTracking()
+            .Where(s => s.IdSucursal == idSucursal)
+            .Select(s => s.Empresa!.CodigoInterno).FirstOrDefaultAsync(ct) ?? "";
+        await _interfase.RegistrarCierreCajaAsync(new CjaMoviInterfase(
+            Fecha: cierre.FechaCierre,
+            Detalle: InterfaseContableReglas.DetalleCierre(idCaja, cierre.NumeroCierre,
+                _currentUser.IdUsuario ?? 0, _currentUser.Usuario ?? ""),
+            Efectivo: SumaPorFuente(FuentePago.Efectivo), Cheques: SumaPorFuente(FuentePago.Cheque),
+            Tarjetas: SumaPorFuente(FuentePago.Tarjeta), Otros: otros,
+            NroCaja: InterfaseContableReglas.CajaCodigo(idCaja),
+            Cajero: InterfaseContableReglas.CajeroCodigo(_currentUser.IdUsuario ?? 0),
+            Empresa: codigoEmpresaCierre, IdVentaSalon: cierre.NumeroCierre), ct);
 
         return new CerrarTurnoResponse(idSucursal, lote.IdLote, cierre.NumeroCierre, cierre.FechaCierre,
             detalle, detalle.Sum(d => d.Diferencia), anulaciones, anulaciones.Sum(a => a.Total));

@@ -22,7 +22,11 @@ public record PercepcionesResultado(
     IReadOnlyList<decimal> NetoPorLinea,
     IReadOnlyList<decimal> IvaPorLinea,
     decimal BaseImponibleIva21 = 0, decimal BaseImponibleIva105 = 0, decimal BaseImponibleIibb = 0,
-    decimal AlicuotaIibb = 0);
+    decimal AlicuotaIibb = 0,
+    /// <summary>Impuesto interno (monto fijo por unidad × cantidad) de cada línea, mismo orden que
+    /// el resto de las listas por línea. Se usa para la interfase contable (movstock.impint) — antes
+    /// solo se usaba internamente para restar de la base antes de discriminar IVA, sin exponerlo.</summary>
+    IReadOnlyList<decimal>? ImpuestoInternoPorLinea = null);
 
 /// <summary>
 /// Calcula, en el momento del carrito o de facturar, las percepciones de IVA (según neto gravado al

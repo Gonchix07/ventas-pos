@@ -24,4 +24,10 @@ public class ConexionExternaController : ControllerBase
         await _service.UpdateAsync(input, ct);
         return Ok(ApiResult<bool>.Success(true));
     }
+
+    /// <summary>Prueba real (TCP + login) contra MySQL con los datos del formulario — nunca expone
+    /// la contraseña, solo si funcionó o el motivo del error.</summary>
+    [HttpPost("probar")]
+    public async Task<IActionResult> Probar([FromBody] ConexionExternaMySqlInput input, CancellationToken ct) =>
+        Ok(ApiResult<ProbarConexionResultado>.Success(await _service.ProbarConexionAsync(input, ct)));
 }
