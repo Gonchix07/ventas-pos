@@ -55,6 +55,27 @@ public record SucursalInput(int IdEmpresa, string Descripcion,
 // metadata para mostrar el estado en el ABM. La contraseña nunca se expone de vuelta al front.
 public record CertificadoCaeDto(bool Presente, string? NombreArchivo, DateTime? Vencimiento, DateTime? SubidoUtc);
 
+/// <summary>
+/// Resultado de probar la conexión contra ARCA/AFIP con el certificado ya cargado — NO emite ni
+/// autoriza nada (ni CAE ni CAEA): solo confirma que el certificado es válido para WSAA, que el
+/// servicio WSFEv1 responde, y de paso informa el último comprobante autorizado en ese punto de
+/// venta (útil para chequear que el numerador local esté sincronizado antes de facturar de verdad).
+/// </summary>
+public record ProbarConexionAfipDto(
+    bool WsaaOk, string? WsaaError,
+    bool DummyOk, string? DummyError,
+    long? UltimoAutorizado, string? UltimoAutorizadoError,
+    string? CertificadoSubject, string? CertificadoIssuer, string? CertificadoThumbprint);
+
+/// <summary>
+/// Resultado de pedir un CAE real de prueba contra ARCA (pensado para homologación — en producción
+/// esto autoriza un comprobante de verdad, no es un simulacro). Un solo ítem al 21% por el importe
+/// total, consumidor final sin identificar — alcanza para validar que el circuito completo
+/// (WSAA + FECompUltimoAutorizado + FECAESolicitar) funciona de punta a punta.
+/// </summary>
+public record ProbarCaeDto(bool Ok, string? Error, long? Numero, string? Cae, DateTime? CaeVencimiento,
+    IReadOnlyList<string> Observaciones);
+
 public interface IEstructuraService
 {
     Task<IReadOnlyList<EmpresaDto>> GetEmpresasAsync(CancellationToken ct = default);
@@ -70,6 +91,8 @@ public interface IEstructuraService
     Task<CertificadoCaeDto> SubirCertificadoDesdeClaveYCertAsync(int idEmpresa, byte[] clavePrivadaPem, byte[] certificadoBytes,
         string? passphraseClavePrivada, CancellationToken ct = default);
     Task<bool> EliminarCertificadoAsync(int idEmpresa, CancellationToken ct = default);
+    Task<ProbarConexionAfipDto> ProbarConexionAfipAsync(int idEmpresa, int ptoVta, int cbteTipo, CancellationToken ct = default);
+    Task<ProbarCaeDto> ProbarCaeAsync(int idEmpresa, int ptoVta, int cbteTipo, decimal importeTotal, CancellationToken ct = default);
 
     Task<IReadOnlyList<SucursalDto>> GetSucursalesAsync(CancellationToken ct = default);
     Task<int> CreateSucursalAsync(SucursalInput input, CancellationToken ct = default);

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pos.Application.Abm;
 using Pos.Application.Common;
+using Pos.Application.Facturacion;
 
 namespace Pos.Api.Controllers.Admin;
 
@@ -11,7 +12,12 @@ namespace Pos.Api.Controllers.Admin;
 public class EstructuraController : ControllerBase
 {
     private readonly IEstructuraService _service;
-    public EstructuraController(IEstructuraService service) => _service = service;
+    private readonly ICaeaCargadoService _caea;
+    public EstructuraController(IEstructuraService service, ICaeaCargadoService caea)
+    {
+        _service = service;
+        _caea = caea;
+    }
 
     // ---- Empresas ----
     [HttpGet("empresas")]
@@ -81,6 +87,40 @@ public class EstructuraController : ControllerBase
         await _service.EliminarCertificadoAsync(id, ct)
             ? Ok(ApiResult<bool>.Success(true))
             : NotFound(ApiResult<bool>.Fail("NO_ENCONTRADO", "No existe la empresa."));
+
+    // Solo lectura contra ARCA (login WSAA + FEDummy + FECompUltimoAutorizado) — nunca emite ni
+    // autoriza un comprobante. cbteTipo default 6 = Factura B (lo que más se emite en este negocio).
+    [HttpGet("empresas/{id:int}/certificado/probar-conexion")]
+    public async Task<IActionResult> ProbarConexionAfip(int id, [FromQuery] int ptoVta, [FromQuery] int cbteTipo = 6, CancellationToken ct = default) =>
+        Ok(ApiResult<ProbarConexionAfipDto>.Success(await _service.ProbarConexionAfipAsync(id, ptoVta, cbteTipo, ct)));
+
+    // OJO: esto pide un CAE REAL (no es solo lectura) — en producción autoriza un comprobante de
+    // verdad. Pensado para probar el circuito completo en homologación.
+    [HttpPost("empresas/{id:int}/certificado/probar-cae")]
+    public async Task<IActionResult> ProbarCae(int id, [FromQuery] int ptoVta, [FromQuery] int cbteTipo,
+        [FromQuery] decimal importeTotal, CancellationToken ct = default) =>
+        Ok(ApiResult<ProbarCaeDto>.Success(await _service.ProbarCaeAsync(id, ptoVta, cbteTipo, importeTotal, ct)));
+
+    // ---- CAEA precargado (contingencia cuando WSFEv1/CAE no responde) ----
+    [HttpGet("empresas/{id:int}/caea")]
+    public async Task<IActionResult> GetCaea(int id, CancellationToken ct) =>
+        Ok(ApiResult<IReadOnlyList<CaeaCargadoDto>>.Success(await _caea.GetAsync(id, ct)));
+
+    [HttpPost("empresas/{id:int}/caea")]
+    public async Task<IActionResult> CreateCaea(int id, [FromBody] CaeaCargadoInput input, CancellationToken ct) =>
+        Ok(ApiResult<int>.Success(await _caea.CreateAsync(input with { IdEmpresa = id }, ct)));
+
+    [HttpPut("caea/{idCaea:int}")]
+    public async Task<IActionResult> UpdateCaea(int idCaea, [FromBody] CaeaCargadoInput input, CancellationToken ct) =>
+        await _caea.UpdateAsync(idCaea, input, ct)
+            ? Ok(ApiResult<bool>.Success(true))
+            : NotFound(ApiResult<bool>.Fail("NO_ENCONTRADO", "No existe ese CAEA cargado."));
+
+    [HttpDelete("caea/{idCaea:int}")]
+    public async Task<IActionResult> DeleteCaea(int idCaea, CancellationToken ct) =>
+        await _caea.DeleteAsync(idCaea, ct)
+            ? Ok(ApiResult<bool>.Success(true))
+            : NotFound(ApiResult<bool>.Fail("NO_ENCONTRADO", "No existe ese CAEA cargado."));
 
     // ---- Sucursales ----
     [HttpGet("sucursales")]

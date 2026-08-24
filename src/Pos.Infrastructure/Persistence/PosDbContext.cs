@@ -93,6 +93,7 @@ public class PosDbContext : DbContext
     public DbSet<PadronExcepcionPercepcionIva> PadronExcepcionPercepcionesIva => Set<PadronExcepcionPercepcionIva>();
     public DbSet<Configuracion> Configuraciones => Set<Configuracion>();
     public DbSet<ConexionExternaMySql> ConexionesExternasMySql => Set<ConexionExternaMySql>();
+    public DbSet<CaeaCargado> CaeaCargados => Set<CaeaCargado>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -167,6 +168,7 @@ public class PosDbContext : DbContext
         b.Entity<MotivoCierre>().HasKey(x => x.IdMotivoCierre);
         b.Entity<Cluster>().HasKey(x => x.IdCluster);
         b.Entity<Configuracion>().HasKey(x => x.IdConfiguracion);
+        b.Entity<CaeaCargado>().HasKey(x => x.IdCaea);
         b.Entity<ConexionExternaMySql>().HasKey(x => x.IdConexionExterna);
         b.Entity<PadronIngresosBrutos>().HasKey(x => x.Cuit);
         b.Entity<PadronExcepcionPercepcionIva>().HasKey(x => x.Cuit);
@@ -286,6 +288,9 @@ public class PosDbContext : DbContext
         b.Entity<CabeceraComprobante>().HasIndex(x => x.Cae);
         b.Entity<CuentaCorriente>().HasIndex(x => new { x.IdSucursal, x.IdCliente });
         b.Entity<Configuracion>().HasIndex(x => x.Clave).IsUnique();
+        // Un solo CAEA cargado por empresa+período+quincena — cargar el mismo dos veces sería un
+        // error de tipeo del admin, no un caso válido.
+        b.Entity<CaeaCargado>().HasIndex(x => new { x.IdEmpresa, x.Anio, x.Mes, x.Orden }).IsUnique();
         // Se consulta siempre filtrando por sucursal+medio+Activo (FacturacionService, al cobrar).
         b.Entity<OfertaMedioPago>().HasIndex(x => new { x.IdSucursal, x.IdMedioPago, x.Activo });
 

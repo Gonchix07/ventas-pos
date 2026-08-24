@@ -8,6 +8,8 @@ using Pos.Application.Abm;
 using Pos.Application.Common;
 using Pos.Domain.Entities;
 using Pos.Domain.Enums;
+using Pos.Domain.Services;
+using Pos.Infrastructure.Adapters.Afip;
 using Pos.Infrastructure.Persistence;
 using Pos.Infrastructure.Storage;
 
@@ -311,11 +313,18 @@ public class EstructuraService : IEstructuraService
     private readonly PosDbContext _db;
     private readonly StorageOptions _storage;
     private readonly IDataProtector _protector;
-    public EstructuraService(PosDbContext db, StorageOptions storage, IDataProtectionProvider dataProtection)
+    private readonly AfipWsaaClient _wsaa;
+    private readonly AfipWsfeClient _wsfe;
+    private readonly AfipCertificadoStore _certificadosAfip;
+    public EstructuraService(PosDbContext db, StorageOptions storage, IDataProtectionProvider dataProtection,
+        AfipWsaaClient wsaa, AfipWsfeClient wsfe, AfipCertificadoStore certificadosAfip)
     {
         _db = db;
         _storage = storage;
         _protector = dataProtection.CreateProtector(DataProtectionPurpose);
+        _wsaa = wsaa;
+        _wsfe = wsfe;
+        _certificadosAfip = certificadosAfip;
     }
 
     private string RutaCertificado(int idEmpresa) => Path.Combine(_storage.CertificadosPath, $"empresa-{idEmpresa}.pfx");
@@ -465,6 +474,95 @@ public class EstructuraService : IEstructuraService
         e.CertificadoSubidoUtc = null;
         await _db.SaveChangesAsync(ct);
         return true;
+    }
+
+    /// <summary>
+    /// Prueba de conexión contra ARCA/AFIP: login WSAA con el certificado ya cargado, ping WSFEv1
+    /// (FEDummy) y consulta del último comprobante autorizado en el punto de venta indicado. NADA
+    /// de esto emite ni autoriza un comprobante — son las tres llamadas "de solo lectura" del
+    /// protocolo, pensadas justo para validar la conexión antes de facturar de verdad.
+    /// </summary>
+    public async Task<ProbarConexionAfipDto> ProbarConexionAfipAsync(int idEmpresa, int ptoVta, int cbteTipo, CancellationToken ct = default)
+    {
+        bool wsaaOk = false; string? wsaaError = null;
+        AfipCredencial? cred = null; string? cuit = null;
+        try
+        {
+            cuit = await _certificadosAfip.ObtenerCuitAsync(idEmpresa, ct);
+            cred = await _wsaa.ObtenerCredencialAsync(idEmpresa, "wsfe", ct);
+            wsaaOk = true;
+        }
+        catch (Exception ex) { wsaaError = ex.Message; }
+
+        bool dummyOk = false; string? dummyError = null;
+        try { dummyOk = await _wsfe.DummyAsync(ct); }
+        catch (Exception ex) { dummyError = ex.Message; }
+
+        long? ultimo = null; string? ultimoError = null;
+        if (cred is not null && cuit is not null)
+        {
+            try { ultimo = await _wsfe.UltimoAutorizadoAsync(cred, cuit, ptoVta, cbteTipo, ct); }
+            catch (Exception ex) { ultimoError = ex.Message; }
+        }
+        else
+        {
+            ultimoError = "No se pudo consultar: falló el login WSAA.";
+        }
+
+        // Metadata del certificado (nunca la clave privada) — para diagnosticar sin adivinar
+        // cuando WSAA rechaza el login (ej. "no emitido por AC de confianza": certificado
+        // equivocado o no tramitado por el circuito de ARCA).
+        string? subject = null, issuer = null, thumbprint = null;
+        try
+        {
+            using var cert = await _certificadosAfip.ObtenerCertificadoAsync(idEmpresa, ct);
+            subject = cert.Subject; issuer = cert.Issuer; thumbprint = cert.Thumbprint;
+        }
+        catch { /* si esto falla, wsaaError ya lo explica */ }
+
+        return new ProbarConexionAfipDto(wsaaOk, wsaaError, dummyOk, dummyError, ultimo, ultimoError,
+            subject, issuer, thumbprint);
+    }
+
+    /// <summary>
+    /// Pedido de CAE REAL de prueba (pensado para homologación): un solo ítem al 21% por
+    /// <paramref name="importeTotal"/>, consumidor final sin identificar. Resuelve el próximo
+    /// número vía FECompUltimoAutorizado+1 antes de pedir el CAE, igual que hace
+    /// FacturacionService en la saga real.
+    /// </summary>
+    public async Task<ProbarCaeDto> ProbarCaeAsync(int idEmpresa, int ptoVta, int cbteTipo, decimal importeTotal, CancellationToken ct = default)
+    {
+        try
+        {
+            var cuit = await _certificadosAfip.ObtenerCuitAsync(idEmpresa, ct);
+            var cred = await _wsaa.ObtenerCredencialAsync(idEmpresa, "wsfe", ct);
+            var ultimo = await _wsfe.UltimoAutorizadoAsync(cred, cuit, ptoVta, cbteTipo, ct);
+            var numero = ultimo + 1;
+
+            var (neto, iva) = DesglioIva.Calcular(importeTotal, 0.21m);
+            var req = new AfipComprobanteReq(
+                PtoVta: ptoVta, CbteTipo: cbteTipo, Concepto: 1, DocTipo: 99, DocNro: "0",
+                CbteNro: numero, Fecha: DateTime.UtcNow, ImpTotal: importeTotal, ImpNeto: neto, ImpIva: iva,
+                ImpTotConc: 0m, ImpOpEx: 0m, ImpTrib: 0m, CondicionIvaReceptorId: 5,
+                Ivas: new[] { new AfipTramoIva(5, neto, iva) });
+
+            var resultado = await _wsfe.SolicitarCaeAsync(cred, cuit, req, ct);
+            if (!resultado.Aprobado)
+            {
+                var detalle = resultado.Observaciones.Count > 0
+                    ? string.Join(" | ", resultado.Observaciones.Select(o => $"{o.Codigo}: {o.Mensaje}"))
+                    : "ARCA rechazó el comprobante sin observaciones detalladas.";
+                return new ProbarCaeDto(false, detalle, numero, null, null,
+                    resultado.Observaciones.Select(o => $"{o.Codigo}: {o.Mensaje}").ToList());
+            }
+
+            return new ProbarCaeDto(true, null, numero, resultado.Cae, resultado.Vencimiento,
+                resultado.Observaciones.Select(o => $"{o.Codigo}: {o.Mensaje}").ToList());
+        }
+        catch (Exception ex)
+        {
+            return new ProbarCaeDto(false, ex.Message, null, null, null, Array.Empty<string>());
+        }
     }
 
     public async Task<IReadOnlyList<SucursalDto>> GetSucursalesAsync(CancellationToken ct = default)

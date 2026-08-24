@@ -338,10 +338,38 @@ export const estructura = {
     return unwrap<CertificadoCae>(api.post(`/admin/empresas/${idEmpresa}/certificado/clave-cert`, form));
   },
   removeCertificado: (idEmpresa: number) => unwrap<boolean>(api.delete(`/admin/empresas/${idEmpresa}/certificado`)),
+  // Solo lectura contra ARCA (login WSAA + FEDummy + FECompUltimoAutorizado) — nunca emite ni
+  // autoriza un comprobante real.
+  probarConexionAfip: (idEmpresa: number, ptoVta: number, cbteTipo: number) =>
+    unwrap<ProbarConexionAfip>(api.get(`/admin/empresas/${idEmpresa}/certificado/probar-conexion`, { params: { ptoVta, cbteTipo } })),
   sucursales: () => unwrap<Sucursal[]>(api.get(`/admin/sucursales`)),
   createSucursal: (i: SucursalInput) => unwrap<number>(api.post(`/admin/sucursales`, i)),
   updateSucursal: (id: number, i: SucursalInput) => unwrap<boolean>(api.put(`/admin/sucursales/${id}`, i)),
   removeSucursal: (id: number) => unwrap<boolean>(api.delete(`/admin/sucursales/${id}`)),
+};
+
+export interface ProbarConexionAfip {
+  wsaaOk: boolean; wsaaError?: string | null;
+  dummyOk: boolean; dummyError?: string | null;
+  ultimoAutorizado?: number | null; ultimoAutorizadoError?: string | null;
+  certificadoSubject?: string | null; certificadoIssuer?: string | null; certificadoThumbprint?: string | null;
+}
+
+// ---- CAEA precargado (contingencia cuando WSFEv1/CAE no responde) ----
+export interface CaeaCargado {
+  idCaea: number; idEmpresa: number; anio: number; mes: number; orden: number;
+  valor: string; vigenciaDesde: string; vigenciaHasta: string; vigenteHoy: boolean;
+}
+export interface CaeaCargadoInput {
+  idEmpresa: number; anio: number; mes: number; orden: number;
+  valor: string; vigenciaDesde: string; vigenciaHasta: string;
+}
+
+export const caea = {
+  list: (idEmpresa: number) => unwrap<CaeaCargado[]>(api.get(`/admin/empresas/${idEmpresa}/caea`)),
+  create: (idEmpresa: number, i: CaeaCargadoInput) => unwrap<number>(api.post(`/admin/empresas/${idEmpresa}/caea`, i)),
+  update: (idCaea: number, i: CaeaCargadoInput) => unwrap<boolean>(api.put(`/admin/caea/${idCaea}`, i)),
+  remove: (idCaea: number) => unwrap<boolean>(api.delete(`/admin/caea/${idCaea}`)),
 };
 
 // ---- Configuraciones ----

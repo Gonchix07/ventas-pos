@@ -50,6 +50,9 @@
 
 .cbte__cae { margin-top: 2.5mm; border-top: 1px solid #000; padding-top: 1.5mm; font-size: 8pt; text-align: center; }
 .cbte__cae .mono { font-family: Consolas, "Courier New", monospace; }
+/* CAE/vencimiento de una factura Electrónica real (sin controlador fiscal de por medio, ver
+   ComprobanteImpresion.tsx) — mismo alineado que .cbte__pagos, pero dentro del bloque centrado. */
+.cbte__cae-datos { display: flex; justify-content: space-between; text-align: left; }
 .cbte__leyenda { margin-top: 2mm; font-size: 6.5pt; text-align: center; color: #333; }
 
 .cbte__acciones { display: flex; gap: 8px; justify-content: center; margin: 14px 0; }

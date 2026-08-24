@@ -31,23 +31,32 @@ public class FacturacionService : IFacturacionService
     private static readonly TimeSpan TimeoutPago = TimeSpan.FromSeconds(10);
     private const int MaxIntentosPago = 3;
     private static readonly TimeSpan EsperaEntreIntentosPago = TimeSpan.FromMilliseconds(500);
+    // Regla SRS "límite de reintentos por CAE inaccesible" (ReintentosCaeReglas) — agotados estos
+    // intentos sin poder ni hablar con ARCA, se pasa a contingencia (CAEA precargado).
+    private const int MaxIntentosCae = 3;
+    private static readonly TimeSpan EsperaEntreIntentosCae = TimeSpan.FromMilliseconds(500);
 
     private readonly PosDbContext _db;
     private readonly IPaymentProviderFactory _pagos;
     private readonly IFiscalPrinter _impresora;
+    private readonly IFiscalService _fiscal;
+    private readonly ICaeaCargadoService _caeaCargado;
     private readonly ICurrentUser _currentUser;
     private readonly IPercepcionesCalculoService _percepciones;
     private readonly IInterfaseContableService _interfase;
 
-    // Nota: ya no depende de IFiscalService (CAE/CAEA) — modelo controlador fiscal, no factura
-    // electrónica; ver EmitirAsync. IFiscalService lo sigue usando FiscalHealthCheck, no se tocó.
+    // IFiscalService (CAE/CAEA) vuelve a inyectarse acá: convive con el controlador fiscal, pero
+    // cada punto de venta usa uno solo de los dos caminos (ver ModalidadPuntoVenta) — Fiscal sigue
+    // yendo por IFiscalPrinter (Hasar), Electrónica ahora va por acá. Ver EmitirAsync.
     public FacturacionService(PosDbContext db, IPaymentProviderFactory pagos,
-        IFiscalPrinter impresora, ICurrentUser currentUser, IPercepcionesCalculoService percepciones,
-        IInterfaseContableService interfase)
+        IFiscalPrinter impresora, IFiscalService fiscal, ICaeaCargadoService caeaCargado, ICurrentUser currentUser,
+        IPercepcionesCalculoService percepciones, IInterfaseContableService interfase)
     {
         _db = db;
         _pagos = pagos;
         _impresora = impresora;
+        _fiscal = fiscal;
+        _caeaCargado = caeaCargado;
         _currentUser = currentUser;
         _percepciones = percepciones;
         _interfase = interfase;
@@ -134,6 +143,12 @@ public class FacturacionService : IFacturacionService
         if (!esPresupuesto && puntoVenta.IdTipoPuntoVenta == (int)ModalidadPuntoVenta.Presupuesto)
             throw new DomainException("PUNTO_VENTA_ES_PRESUPUESTO",
                 "Ese punto de venta es de tipo Presupuesto: no puede emitir facturas fiscales/electrónicas.");
+
+        // El camino único de cada caja lo define el TIPO del punto de venta asignado (ABM de
+        // Asignación de Cajas / TiposPuntoVentaFijos), nunca el request: Presupuesto ya se resolvió
+        // arriba ignorando req.IdPuntoVenta; entre Fiscal (controlador Hasar) y Electrónica
+        // (CAE/CAEA vía ARCA) decide la asignación, no el cliente que factura.
+        var esElectronica = !esPresupuesto && puntoVenta.IdTipoPuntoVenta == (int)ModalidadPuntoVenta.Electronica;
 
         var sucursal = await _db.Sucursales.AsNoTracking().Include(s => s.Empresa)
             .FirstOrDefaultAsync(s => s.IdSucursal == req.IdSucursal, ct)
@@ -406,39 +421,111 @@ public class FacturacionService : IFacturacionService
                 totalNeto += netoDesc; totalIva += ivaDesc;
             }
 
-            // 3) Numeración + impresión fiscal. Modelo "controlador fiscal" (NO factura electrónica
-            // con CAE/CAEA — esa rama se sacó de acá): en Fiscal/Electrónica el ÚNICO numerador válido
-            // es el del controlador — lo asigna él mismo al abrir el documento (antes de imprimir
-            // ningún ítem), así que hay que imprimir PRIMERO y recién usar ESE número como el nuestro.
-            // Reservar un número propio de antemano (como se hacía antes) desincroniza para siempre
-            // el numerador interno del que realmente queda impreso en el papel/memoria fiscal — que
-            // es justo el problema que se reportó (interno 0002-00000032 vs. fiscal Nº 317).
-            // El presupuesto (letra X) no tiene valor fiscal, no toca el controlador y sigue con su
-            // propio numerador interno de siempre.
+            // 3) Numeración + autorización. Presupuesto usa su propio numerador interno (sin valor
+            // fiscal). Fiscal usa el modelo "controlador fiscal": el ÚNICO numerador válido es el
+            // del controlador Hasar — lo asigna él mismo al abrir el documento (antes de imprimir
+            // ningún ítem), así que hay que imprimir PRIMERO y recién usar ESE número como el nuestro
+            // (reservar un número propio de antemano desincroniza para siempre el numerador interno
+            // del que realmente queda impreso en el papel/memoria fiscal). Electrónica usa numerador
+            // propio (como Presupuesto) porque el número SÍ lo define el emisor antes de pedir el
+            // CAE — ARCA autoriza el número que uno le manda, no asigna uno nuevo.
             long numero;
             ComprobanteFiscal? comprobanteFiscal = null;
             ResultadoImpresion impresion;
+            string? cae = null;
+            DateTime? caeVencimiento = null;
+            var esCaea = false;
+
+            // Percepciones de IVA/IIBB como tributos separados — las necesitan por igual el
+            // controlador fiscal (Hasar, ver su manual: van después de los ítems/descuentos y
+            // antes de los pagos) y ARCA (WSFEv1 exige que ImpTotal cierre contra
+            // ImpTotConc+ImpNeto+ImpOpEx+ImpTrib+ImpIVA — sin esto acá, una Factura A a un
+            // Responsable Inscripto con percepción de IVA quedaba con el total mal cerrado y ARCA
+            // la rechazaba con el error 10048. Bug real encontrado facturando Electrónica de verdad
+            // en homologación (2026-08-24): el bloque de tributos vivía solo dentro de la rama
+            // Fiscal, nunca se armaba para Electrónica).
+            var tributos = new List<TributoFiscal>();
+            if (percepcionResultado.PercepcionIva21 > 0)
+                tributos.Add(new TributoFiscal(TipoTributoFiscal.PercepcionIva, "PERCEPCION IVA 21%",
+                    percepcionResultado.BaseImponibleIva21, percepcionResultado.PercepcionIva21));
+            if (percepcionResultado.PercepcionIva105 > 0)
+                tributos.Add(new TributoFiscal(TipoTributoFiscal.PercepcionIva, "PERCEPCION IVA 10,5%",
+                    percepcionResultado.BaseImponibleIva105, percepcionResultado.PercepcionIva105));
+            if (percepcionResultado.PercepcionIibb > 0)
+                tributos.Add(new TributoFiscal(TipoTributoFiscal.PercepcionIibb, "PERCEPCION IIBB",
+                    percepcionResultado.BaseImponibleIibb, percepcionResultado.PercepcionIibb));
+
             if (esPresupuesto)
             {
                 await AsegurarNumeradorAsync(req.IdSucursal, puntoVenta.IdPuntoVenta, ct);
                 numero = await IncrementarNumeradorAsync(req.IdSucursal, puntoVenta.IdPuntoVenta, ct);
                 impresion = new ResultadoImpresion(true, null, null); // no hay impresora fiscal que imprima esto
             }
+            else if (esElectronica)
+            {
+                // Serie propia por punto de venta + TIPO de comprobante: Factura A y Factura B (o
+                // cualquier otra letra) nunca comparten numeración ante ARCA.
+                var idNumeroElectronica = NumeradorIds.Factura(puntoVenta.IdPuntoVenta, int.Parse(tipoComprobante.CodigoArca!));
+                await AsegurarNumeradorAsync(req.IdSucursal, idNumeroElectronica, ct);
+                numero = await IncrementarNumeradorAsync(req.IdSucursal, idNumeroElectronica, ct);
+
+                comprobanteFiscal = new ComprobanteFiscal(sucursal.IdEmpresa, puntoVenta.NumeroPuntoVenta,
+                    tipoComprobante.Descripcion, letra, numero, clienteCuit, totalNeto, totalIva,
+                    totalNeto + totalIva + impuestoInternoTotal + percepcionResultado.Total, DateTime.UtcNow,
+                    req.IdSucursal, operacion.IdCaja,
+                    datosCliente is null ? null : ConstruirClienteFiscal(datosCliente.Descripcion,
+                        datosCliente.Cuit, datosCliente.Documento, datosCliente.Domicilio,
+                        datosCliente.CondIva, datosCliente.LetraCondIva),
+                    // El puerto de CAE necesita el detalle por línea (alícuota por ítem) para armar
+                    // el array de IVA que exige WSFEv1 — mismo criterio que la impresora fiscal: el
+                    // descuento por medio de pago va prorrateado dentro de los ítems reales.
+                    RepartirDescuentoMp(itemsFiscalesBase, descuentoMpTotal),
+                    null, tributos, tipoComprobante.CodigoArca);
+
+                // Reintentos por CAE inaccesible (ReintentosCaeReglas): solo cubren fallas de
+                // CONECTIVIDAD (timeout, ARCA caído) — un rechazo de negocio de ARCA (Ok=false con
+                // Error) no se reintenta, porque reintentar el mismo dato rechazado no cambia nada,
+                // y tampoco amerita contingencia (el problema no es que ARCA esté inaccesible).
+                ResultadoCae? resultadoCae = null;
+                Exception? fallaConectividad = null;
+                try
+                {
+                    resultadoCae = await ResilientCall.ConTimeoutYReintentosAsync(
+                        ct2 => _fiscal.SolicitarCaeAsync(comprobanteFiscal!, ct2),
+                        TimeoutFiscal, MaxIntentosCae, EsperaEntreIntentosCae, ct);
+                }
+                catch (Exception ex)
+                {
+                    fallaConectividad = ex;
+                }
+
+                if (resultadoCae is { Ok: true })
+                {
+                    cae = resultadoCae.Cae; caeVencimiento = resultadoCae.Vencimiento; esCaea = false;
+                }
+                else if (resultadoCae is { Ok: false })
+                {
+                    throw new DomainException("FISCAL_INDISPONIBLE",
+                        resultadoCae.Error ?? "ARCA no autorizó el comprobante.");
+                }
+                else
+                {
+                    // Se agotaron los reintentos sin poder ni hablar con ARCA: contingencia con el
+                    // CAEA precargado a mano (ver ICaeaCargadoService) — si no hay ninguno vigente
+                    // para hoy, no hay forma de emitir y se aborta la saga completa (con
+                    // compensación de los pagos ya aprobados, ver el catch más abajo).
+                    var caeaVigente = await _caeaCargado.BuscarVigenteAsync(sucursal.IdEmpresa, DateTime.UtcNow, ct);
+                    if (caeaVigente is null)
+                        throw new DomainException("FISCAL_INDISPONIBLE",
+                            $"No se pudo conectar con ARCA ({fallaConectividad?.Message}) y no hay un CAEA cargado vigente para hoy — no se puede emitir el comprobante.");
+                    cae = caeaVigente.Valor; caeVencimiento = caeaVigente.VigenciaHasta; esCaea = true;
+                }
+                // La impresión en sí es cosa de la comandera local del navegador (como
+                // Presupuesto), no hay un puerto de impresora acá.
+                impresion = new ResultadoImpresion(true, null, null);
+            }
             else
             {
-                // Percepciones de IVA/IIBB como tributos separados — van DESPUÉS de los ítems/
-                // descuentos y ANTES de los pagos (ver HasarFiscalPrinter, el manual lo exige así).
-                var tributos = new List<TributoFiscal>();
-                if (percepcionResultado.PercepcionIva21 > 0)
-                    tributos.Add(new TributoFiscal(TipoTributoFiscal.PercepcionIva, "PERCEPCION IVA 21%",
-                        percepcionResultado.BaseImponibleIva21, percepcionResultado.PercepcionIva21));
-                if (percepcionResultado.PercepcionIva105 > 0)
-                    tributos.Add(new TributoFiscal(TipoTributoFiscal.PercepcionIva, "PERCEPCION IVA 10,5%",
-                        percepcionResultado.BaseImponibleIva105, percepcionResultado.PercepcionIva105));
-                if (percepcionResultado.PercepcionIibb > 0)
-                    tributos.Add(new TributoFiscal(TipoTributoFiscal.PercepcionIibb, "PERCEPCION IIBB",
-                        percepcionResultado.BaseImponibleIibb, percepcionResultado.PercepcionIibb));
-
                 // El "Numero" que se manda acá es un placeholder sin uso real: AbrirDocumento no
                 // recibe número (lo asigna el equipo), y ya no se pide CAE (única otra cosa que lo
                 // usaba). Se sobreescribe más abajo con el número real que devuelve la impresora.
@@ -502,11 +589,16 @@ public class FacturacionService : IFacturacionService
                 PercepcionIibb = percepcionResultado.PercepcionIibb,
                 AlicuotaIibb = percepcionResultado.AlicuotaIibb,
                 Percepciones = percepcionResultado.Total,
-                Total = totalNeto + totalIva + impuestoInternoTotal + percepcionResultado.Total, Cae = null, CaeVencimiento = null, EsCaea = false,
+                Total = totalNeto + totalIva + impuestoInternoTotal + percepcionResultado.Total,
+                Cae = cae, CaeVencimiento = caeVencimiento, EsCaea = esCaea,
                 // Presupuesto: siempre Persistido (no hay impresora fiscal que lo pase a Impreso).
-                // Fiscal/Electrónica: si llegamos hasta acá ya se imprimió con éxito (si hubiera
-                // fallado, se arrojó FISCAL_INDISPONIBLE más arriba y nunca se persiste nada).
-                Estado = esPresupuesto ? EstadoComprobante.Persistido : EstadoComprobante.Impreso
+                // Electrónica: si llegamos hasta acá ya tiene CAE/CAEA autorizado por ARCA — queda
+                // CaeOk, la impresión en la comandera local es cosa del navegador, no de acá.
+                // Fiscal: si llegamos hasta acá ya se imprimió con éxito en el controlador (si
+                // hubiera fallado, se arrojó FISCAL_INDISPONIBLE más arriba y nunca se persiste nada).
+                Estado = esPresupuesto ? EstadoComprobante.Persistido
+                    : esElectronica ? EstadoComprobante.CaeOk
+                    : EstadoComprobante.Impreso
             };
             // Se agregan vía la navegación (no directo al DbSet) para que EF resuelva el orden
             // de inserción cabecera→detalle correctamente (claves compuestas asignadas a mano).

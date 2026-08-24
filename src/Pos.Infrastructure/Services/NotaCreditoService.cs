@@ -24,18 +24,24 @@ namespace Pos.Infrastructure.Services;
 public class NotaCreditoService : INotaCreditoService
 {
     private static readonly TimeSpan TimeoutFiscal = TimeSpan.FromSeconds(20);
+    // Mismo criterio que FacturacionService: reintentos por CAE inaccesible antes de pasar a
+    // contingencia con el CAEA precargado (ver ICaeaCargadoService).
+    private const int MaxIntentosCae = 3;
+    private static readonly TimeSpan EsperaEntreIntentosCae = TimeSpan.FromMilliseconds(500);
 
     private readonly PosDbContext _db;
     private readonly IFiscalService _fiscal;
+    private readonly ICaeaCargadoService _caeaCargado;
     private readonly IFiscalPrinter _impresora;
     private readonly ICurrentUser _currentUser;
     private readonly ISupervisorAuthService _supervisorAuth;
     private readonly IInterfaseContableService _interfase;
 
-    public NotaCreditoService(PosDbContext db, IFiscalService fiscal, IFiscalPrinter impresora,
-        ICurrentUser currentUser, ISupervisorAuthService supervisorAuth, IInterfaseContableService interfase)
+    public NotaCreditoService(PosDbContext db, IFiscalService fiscal, ICaeaCargadoService caeaCargado,
+        IFiscalPrinter impresora, ICurrentUser currentUser, ISupervisorAuthService supervisorAuth,
+        IInterfaseContableService interfase)
     {
-        _db = db; _fiscal = fiscal; _impresora = impresora; _currentUser = currentUser;
+        _db = db; _fiscal = fiscal; _caeaCargado = caeaCargado; _impresora = impresora; _currentUser = currentUser;
         _supervisorAuth = supervisorAuth; _interfase = interfase;
     }
 
@@ -178,6 +184,12 @@ public class NotaCreditoService : INotaCreditoService
             .FirstOrDefaultAsync(p => p.IdSucursal == req.IdSucursal && p.IdPuntoVenta == lote.IdPuntoVenta, ct)
             ?? throw new DomainException("PUNTO_VENTA_INEXISTENTE", "El punto de venta del lote no existe.");
 
+        // Mismo camino único que la venta: lo define el tipo de punto de venta de la CAJA que
+        // emite la NC (no el de la factura original — una caja Fiscal siempre sale por el
+        // controlador, una Electrónica siempre por CAE, sin importar qué modalidad tenía la
+        // venta que se está acreditando).
+        var esElectronica = puntoVenta.IdTipoPuntoVenta == (int)ModalidadPuntoVenta.Electronica;
+
         var medios = await _db.MediosPago.AsNoTracking().Include(m => m.TipoPago)
             .ToDictionaryAsync(m => m.IdMedioPago, m => m, ct);
         var efectivo = medios.Values.FirstOrDefault(m => m.TipoPago?.Fuente == FuentePago.Efectivo)
@@ -195,8 +207,10 @@ public class NotaCreditoService : INotaCreditoService
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
         try
         {
-            // Serie propia de notas de crédito (independiente de la de facturas ante ARCA).
-            var idNumero = NumeradorIds.NotaCredito(lote.IdPuntoVenta);
+            // Serie propia de notas de crédito (independiente de la de facturas ante ARCA), y
+            // propia por TIPO de comprobante: NC A y NC B del mismo punto de venta nunca comparten
+            // numeración ante ARCA.
+            var idNumero = NumeradorIds.NotaCredito(lote.IdPuntoVenta, int.Parse(tipoNc.CodigoArca!));
             await AsegurarNumeradorAsync(req.IdSucursal, idNumero, lote.IdPuntoVenta, ct);
             var numero = await IncrementarNumeradorAsync(req.IdSucursal, idNumero, ct);
 
@@ -307,17 +321,64 @@ public class NotaCreditoService : INotaCreditoService
                 });
             }
 
-            // CAE de la nota de crédito. Si falla, la NC no se emite: a diferencia de la impresión
-            // (best-effort), sin autorización fiscal no hay comprobante válido que entregar.
+            // Se arma completo (ítems + cliente + pagos) de una sola vez: lo necesitan tanto el
+            // pedido de CAE (Electrónica, el array de IVA de WSFEv1 sale de la alícuota por ítem)
+            // como la impresión fiscal (Fiscal, más abajo) — antes se armaba dos veces distinto.
             var cf = new ComprobanteFiscal(puntoVenta.IdSucursal, puntoVenta.NumeroPuntoVenta,
                 tipoNc.Descripcion, letra, numero, null, totalNeto, totalIva, totalNc, DateTime.UtcNow,
-                req.IdSucursal, req.IdCaja);
+                req.IdSucursal, req.IdCaja,
+                Cliente: await ClienteFiscalAsync(origen.IdCliente, letra, ct),
+                Items: lineasNc.Select(l => new ItemFiscal(l.Descripcion, l.Cantidad,
+                    l.PrecioUnitario, l.Alicuota, 0m, l.IdPresentacion.ToString())).ToList(),
+                // Caso general: un solo pago en Efectivo por el total, como siempre. Reversión
+                // completa: un renglón por cada medio realmente devuelto.
+                Pagos: devoluciones.Select(d => new PagoFiscal(
+                    medios.GetValueOrDefault(d.IdMedioPago)?.Descripcion ?? $"Medio {d.IdMedioPago}",
+                    d.Monto, medios.GetValueOrDefault(d.IdMedioPago)?.TipoPago?.Fuente ?? FuentePago.Efectivo,
+                    null, 1)).ToList(),
+                CodigoArca: tipoNc.CodigoArca);
 
-            var cae = await _fiscal.SolicitarCaeAsync(cf, ct);
-            if (!cae.Ok)
-                throw new DomainException("FISCAL_INDISPONIBLE",
-                    $"No se pudo autorizar la nota de crédito: {cae.Error}");
-            cabecera.Cae = cae.Cae; cabecera.CaeVencimiento = cae.Vencimiento; cabecera.EsCaea = cae.EsCaea;
+            // CAE de la nota de crédito — SOLO en caja Electrónica: en Fiscal, el controlador Hasar
+            // ya autoriza la NC al imprimirla (más abajo, fuera de la tx), pedir CAE ahí no
+            // correspondería a nada real. Mismos reintentos + contingencia CAEA que
+            // FacturacionService — un rechazo de negocio de ARCA no se reintenta ni pasa a CAEA
+            // (reintentar el mismo dato rechazado no cambia nada); solo la falla de conectividad lo
+            // hace, y sin autorización de ningún tipo la NC no se emite.
+            if (esElectronica)
+            {
+                ResultadoCae? resultadoCae = null;
+                Exception? fallaConectividad = null;
+                try
+                {
+                    resultadoCae = await ResilientCall.ConTimeoutYReintentosAsync(
+                        ct2 => _fiscal.SolicitarCaeAsync(cf, ct2), TimeoutFiscal, MaxIntentosCae, EsperaEntreIntentosCae, ct);
+                }
+                catch (Exception ex)
+                {
+                    fallaConectividad = ex;
+                }
+
+                if (resultadoCae is { Ok: true })
+                {
+                    cabecera.Cae = resultadoCae.Cae; cabecera.CaeVencimiento = resultadoCae.Vencimiento; cabecera.EsCaea = false;
+                }
+                else if (resultadoCae is { Ok: false })
+                {
+                    throw new DomainException("FISCAL_INDISPONIBLE",
+                        $"No se pudo autorizar la nota de crédito: {resultadoCae.Error}");
+                }
+                else
+                {
+                    var idEmpresa = await _db.Sucursales.AsNoTracking()
+                        .Where(s => s.IdSucursal == req.IdSucursal).Select(s => s.IdEmpresa).FirstOrDefaultAsync(ct);
+                    var caeaVigente = await _caeaCargado.BuscarVigenteAsync(idEmpresa, DateTime.UtcNow, ct);
+                    if (caeaVigente is null)
+                        throw new DomainException("FISCAL_INDISPONIBLE",
+                            $"No se pudo conectar con ARCA ({fallaConectividad?.Message}) y no hay un CAEA cargado vigente para hoy — no se puede emitir la nota de crédito.");
+                    cabecera.Cae = caeaVigente.Valor; cabecera.CaeVencimiento = caeaVigente.VigenciaHasta; cabecera.EsCaea = true;
+                }
+                cabecera.Estado = EstadoComprobante.CaeOk;
+            }
 
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
@@ -401,35 +462,31 @@ public class NotaCreditoService : INotaCreditoService
                 Prov: InterfaseContableReglas.ProvFijo, Empresa: codigoEmpresaNc,
                 IdVentaSalon: idComprobante, Hora: InterfaseContableReglas.Hora(cabecera.Fecha)), ct);
 
-            // Impresión fiscal (best-effort, fuera de la transacción): la NC ya está registrada y
-            // el efectivo ya salió de la caja; un fallo de la impresora no la invalida.
-            var cfImpresion = cf with
-            {
-                Cliente = await ClienteFiscalAsync(origen.IdCliente, letra, ct),
-                Items = lineasNc.Select(l => new ItemFiscal(l.Descripcion, l.Cantidad,
-                    l.PrecioUnitario, l.Alicuota, 0m, l.IdPresentacion.ToString())).ToList(),
-                // Caso general: un solo pago en Efectivo por el total, como siempre. Reversión
-                // completa: un renglón por cada medio realmente devuelto.
-                Pagos = devoluciones.Select(d => new PagoFiscal(
-                    medios.GetValueOrDefault(d.IdMedioPago)?.Descripcion ?? $"Medio {d.IdMedioPago}",
-                    d.Monto, medios.GetValueOrDefault(d.IdMedioPago)?.TipoPago?.Fuente ?? FuentePago.Efectivo,
-                    null, 1)).ToList()
-            };
-
+            // Impresión fiscal — SOLO en caja Fiscal (best-effort, fuera de la transacción: la NC ya
+            // está registrada y el efectivo ya salió de la caja; un fallo de la impresora no la
+            // invalida). En Electrónica no hay controlador que imprima nada acá: la comandera local
+            // la maneja el navegador, igual que una factura Electrónica o un Presupuesto.
             ResultadoImpresion impresion;
-            try
+            if (esElectronica)
             {
-                impresion = await ResilientCall.ConTimeoutAsync(
-                    ct2 => _impresora.ImprimirNotaCreditoAsync(cfImpresion, ct2), TimeoutFiscal, ct);
+                impresion = new ResultadoImpresion(true, null, null);
             }
-            catch (Exception ex)
+            else
             {
-                impresion = new ResultadoImpresion(false, null, ex.Message);
-            }
-            if (impresion.Ok)
-            {
-                cabecera.Estado = EstadoComprobante.Impreso;
-                await _db.SaveChangesAsync(ct);
+                try
+                {
+                    impresion = await ResilientCall.ConTimeoutAsync(
+                        ct2 => _impresora.ImprimirNotaCreditoAsync(cf, ct2), TimeoutFiscal, ct);
+                }
+                catch (Exception ex)
+                {
+                    impresion = new ResultadoImpresion(false, null, ex.Message);
+                }
+                if (impresion.Ok)
+                {
+                    cabecera.Estado = EstadoComprobante.Impreso;
+                    await _db.SaveChangesAsync(ct);
+                }
             }
 
             var devolucionesDto = devoluciones.Select(d => new DevolucionMedioDto(d.IdMedioPago,

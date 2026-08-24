@@ -3,17 +3,25 @@ namespace Pos.Domain.Services;
 /// <summary>
 /// Ids de numeradores en la tabla <c>Numeros</c>. La clave es <c>IdNumero</c> (con
 /// <c>IdPuntoVenta</c> como columna informativa), así que un mismo punto de venta puede tener
-/// varias series. Las notas de crédito llevan la suya: ante ARCA la numeración de NC es
-/// independiente de la de facturas, y mezclarlas dejaría huecos en ambas.
+/// varias series. Cada combinación de punto de venta + TIPO de comprobante (CbteTipo de ARCA)
+/// lleva su propia serie independiente — ante ARCA, Factura A y Factura B (o NC A y NC B) del
+/// mismo punto de venta nunca comparten numeración; mezclarlas dejaría huecos en ambas y
+/// desincronizaría contra <c>FECompUltimoAutorizado</c>, que también pide el CbteTipo por separado.
+/// Bug real encontrado probando Electrónica en homologación (2026-08-24): al principio
+/// <c>Factura</c> solo tomaba el punto de venta, así que Factura A y B terminaban compartiendo la
+/// serie de la que se usara primero.
 /// </summary>
 public static class NumeradorIds
 {
     /// <summary>Separación entre familias de numeradores. Un punto de venta nunca llega a 100.000.</summary>
     private const int OffsetNotaCredito = 100_000;
+    /// <summary>Lugar reservado por CbteTipo dentro de cada familia — un punto de venta interno
+    /// nunca llega a 1.000, y ningún CbteTipo de ARCA llega a 100 (los NC más altos rondan el 13).</summary>
+    private const int OffsetPorTipo = 1_000;
 
-    public static int Factura(int idPuntoVenta) => idPuntoVenta;
+    public static int Factura(int idPuntoVenta, int cbteTipo) => cbteTipo * OffsetPorTipo + idPuntoVenta;
 
-    public static int NotaCredito(int idPuntoVenta) => OffsetNotaCredito + idPuntoVenta;
+    public static int NotaCredito(int idPuntoVenta, int cbteTipo) => OffsetNotaCredito + cbteTipo * OffsetPorTipo + idPuntoVenta;
 }
 
 /// <summary>Qué se está anulando.</summary>

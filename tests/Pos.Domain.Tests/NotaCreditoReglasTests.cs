@@ -98,9 +98,21 @@ public class NotaCreditoReglasTests
     [Fact]
     public void NotaCredito_usa_una_serie_distinta_de_la_de_facturas()
     {
-        Assert.NotEqual(NumeradorIds.Factura(2), NumeradorIds.NotaCredito(2));
+        Assert.NotEqual(NumeradorIds.Factura(2, 6), NumeradorIds.NotaCredito(2, 8));
         // Y dos puntos de venta distintos no comparten serie de NC.
-        Assert.NotEqual(NumeradorIds.NotaCredito(2), NumeradorIds.NotaCredito(3));
+        Assert.NotEqual(NumeradorIds.NotaCredito(2, 8), NumeradorIds.NotaCredito(3, 8));
+    }
+
+    [Fact]
+    public void Factura_A_y_B_del_mismo_punto_de_venta_no_comparten_serie()
+    {
+        Assert.NotEqual(NumeradorIds.Factura(1, 1), NumeradorIds.Factura(1, 6));
+    }
+
+    [Fact]
+    public void NotaCredito_A_y_B_del_mismo_punto_de_venta_no_comparten_serie()
+    {
+        Assert.NotEqual(NumeradorIds.NotaCredito(1, 3), NumeradorIds.NotaCredito(1, 8));
     }
 
     [Fact]

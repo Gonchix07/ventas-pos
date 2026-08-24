@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import {
-  estructura, type CertificadoCae, type Empresa, type EmpresaInput, type Sucursal, type SucursalInput,
+  estructura, caea, type CaeaCargado, type CaeaCargadoInput, type CertificadoCae, type Empresa,
+  type EmpresaInput, type ProbarConexionAfip, type Sucursal, type SucursalInput,
 } from "../../shared/api/admin";
+
+const caeaVacio = (idEmpresa: number): CaeaCargadoInput => ({
+  idEmpresa, anio: new Date().getFullYear(), mes: new Date().getMonth() + 1, orden: 1,
+  valor: "", vigenciaDesde: "", vigenciaHasta: "",
+});
 
 const empresaVacia = (): EmpresaInput => ({
   codigoInterno: "", descripcion: "", cuit: "", certificadoAlias: "",
@@ -64,6 +70,20 @@ export function EstructuraPage() {
   const [passphraseClave, setPassphraseClave] = useState("");
   const [certBusy, setCertBusy] = useState(false);
 
+  // Prueba de conexión con ARCA: solo lectura (login WSAA + FEDummy + último autorizado), nunca
+  // emite ni autoriza nada. Requiere el punto de venta a chequear (número ARCA, no el id interno).
+  const [ptoVtaProbar, setPtoVtaProbar] = useState("");
+  const [cbteTipoProbar, setCbteTipoProbar] = useState(6);
+  const [resultadoProbar, setResultadoProbar] = useState<ProbarConexionAfip | null>(null);
+  const [probando, setProbando] = useState(false);
+
+  // CAEA precargado (contingencia): se consigue con conexión (FECAEASolicitar, con antelación por
+  // quincena) y se carga acá a mano para poder seguir facturando si ARCA está inaccesible en el
+  // momento de la venta.
+  const [caeas, setCaeas] = useState<CaeaCargado[]>([]);
+  const [formCaea, setFormCaea] = useState<CaeaCargadoInput | null>(null);
+  const [editCaea, setEditCaea] = useState<number | null>(null);
+
   const cargar = async () => {
     setError(null);
     try {
@@ -82,12 +102,39 @@ export function EstructuraPage() {
   const setE = (patch: Partial<EmpresaInput>) => setFormEmpresa((f) => (f ? { ...f, ...patch } : f));
   const setS = (patch: Partial<SucursalInput>) => setFormSucursal((f) => (f ? { ...f, ...patch } : f));
 
-  // Al editar una empresa existente se consulta el estado actual del certificado (nunca la clave).
+  // Al editar una empresa existente se consulta el estado actual del certificado (nunca la clave)
+  // y la lista de CAEA precargados; la prueba de conexión se limpia porque quedaría desactualizada.
   useEffect(() => {
-    if (editEmpresa == null) { setCertificado(null); return; }
+    if (editEmpresa == null) { setCertificado(null); setCaeas([]); setResultadoProbar(null); setFormCaea(null); return; }
     setArchivoCert(null); setClaveCert(""); setArchivoClavePrivada(null); setArchivoCertificado(null); setPassphraseClave("");
+    setResultadoProbar(null);
     estructura.certificado(editEmpresa).then(setCertificado).catch(() => setCertificado(null));
+    caea.list(editEmpresa).then(setCaeas).catch(() => setCaeas([]));
   }, [editEmpresa]);
+
+  const probarConexion = () => run(async () => {
+    if (editEmpresa == null || !ptoVtaProbar.trim()) return;
+    setProbando(true); setResultadoProbar(null);
+    try {
+      setResultadoProbar(await estructura.probarConexionAfip(editEmpresa, Number(ptoVtaProbar), cbteTipoProbar));
+    } finally { setProbando(false); }
+  });
+
+  const cargarCaeas = () => editEmpresa != null && caea.list(editEmpresa).then(setCaeas).catch(() => {});
+
+  const guardarCaea = () => run(async () => {
+    if (!formCaea) return;
+    if (editCaea) await caea.update(editCaea, formCaea);
+    else await caea.create(formCaea.idEmpresa, formCaea);
+    setFormCaea(null); setEditCaea(null);
+    await cargarCaeas();
+  });
+
+  const eliminarCaea = (id: number) => run(async () => {
+    if (!confirm("¿Eliminar este CAEA cargado?")) return;
+    await caea.remove(id);
+    await cargarCaeas();
+  });
 
   const subirCertificado = () => run(async () => {
     if (editEmpresa == null || !archivoCert || !claveCert) return;
@@ -134,6 +181,7 @@ export function EstructuraPage() {
 
   return (
     <div>
+      {probando && <PantallaBloqueada mensaje="Probando conexión con ARCA…" />}
       <div className="page-head">
         <h1>Empresas y sucursales</h1>
         <div className="row-actions">
@@ -187,6 +235,7 @@ export function EstructuraPage() {
           </div>
 
           {editEmpresa != null && (
+            <>
             <div className="cert-cae">
               <div className="cert-cae-head">
                 <span className="cert-cae-icon" aria-hidden="true">
@@ -273,6 +322,122 @@ export function EstructuraPage() {
                 </>
               )}
             </div>
+
+            <div className="cert-cae">
+              <h3>Probar conexión con ARCA</h3>
+              <p className="cert-cae-desc">
+                Solo lectura: login WSAA con el certificado cargado + FEDummy + último comprobante
+                autorizado en el punto de venta indicado. Nunca emite ni autoriza nada.
+              </p>
+              <div className="form-grid">
+                <label>Punto de venta ARCA
+                  <input className="mono" placeholder="Ej. 34" value={ptoVtaProbar}
+                    onChange={(e) => setPtoVtaProbar(e.target.value)} />
+                </label>
+                <label>Tipo de comprobante
+                  <select value={cbteTipoProbar} onChange={(e) => setCbteTipoProbar(Number(e.target.value))}>
+                    <option value={1}>001 · Factura A</option>
+                    <option value={6}>006 · Factura B</option>
+                    <option value={11}>011 · Factura C</option>
+                    <option value={3}>003 · Nota de Crédito A</option>
+                    <option value={8}>008 · Nota de Crédito B</option>
+                    <option value={13}>013 · Nota de Crédito C</option>
+                  </select>
+                </label>
+                <button className="primary" disabled={!ptoVtaProbar.trim() || probando} onClick={probarConexion}>
+                  Probar conexión
+                </button>
+              </div>
+              {resultadoProbar && (
+                <table className="grid" style={{ marginTop: 10 }}>
+                  <tbody>
+                    <tr>
+                      <td>Login WSAA</td>
+                      <td><span className={`badge ${resultadoProbar.wsaaOk ? "on" : "off"}`}>{resultadoProbar.wsaaOk ? "OK" : "Falló"}</span></td>
+                      <td className="muted">{resultadoProbar.wsaaError}</td>
+                    </tr>
+                    <tr>
+                      <td>WSFEv1 (FEDummy)</td>
+                      <td><span className={`badge ${resultadoProbar.dummyOk ? "on" : "off"}`}>{resultadoProbar.dummyOk ? "OK" : "Falló"}</span></td>
+                      <td className="muted">{resultadoProbar.dummyError}</td>
+                    </tr>
+                    <tr>
+                      <td>Último autorizado</td>
+                      <td className="mono">{resultadoProbar.ultimoAutorizado ?? "—"}</td>
+                      <td className="muted">{resultadoProbar.ultimoAutorizadoError}</td>
+                    </tr>
+                    {resultadoProbar.certificadoSubject && (
+                      <tr>
+                        <td>Certificado</td>
+                        <td colSpan={2} className="mono" style={{ fontSize: 12 }}>
+                          {resultadoProbar.certificadoSubject}<br />
+                          <span className="muted">Emitido por: {resultadoProbar.certificadoIssuer}</span>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="cert-cae">
+              <h3>CAEA precargado (contingencia)</h3>
+              <p className="cert-cae-desc">
+                Se usa automáticamente al facturar si ARCA no responde (CAE inaccesible). El valor
+                se consigue CON conexión (FECAEASolicitar, con antelación por quincena) y se carga
+                acá a mano — esta pantalla no le pide nada a ARCA.
+              </p>
+              <table className="grid">
+                <thead><tr><th>Período</th><th>Quincena</th><th>Valor</th><th>Vigencia</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                  {caeas.map((c) => (
+                    <tr key={c.idCaea}>
+                      <td className="mono">{c.anio}-{String(c.mes).padStart(2, "0")}</td>
+                      <td>{c.orden === 1 ? "1 al 15" : "16 a fin de mes"}</td>
+                      <td className="mono">{c.valor}</td>
+                      <td className="mono">{c.vigenciaDesde.slice(0, 10)} a {c.vigenciaHasta.slice(0, 10)}</td>
+                      <td><span className={`badge ${c.vigenteHoy ? "on" : "muted"}`}>{c.vigenteHoy ? "Vigente hoy" : "—"}</span></td>
+                      <td>
+                        <button onClick={() => { setEditCaea(c.idCaea); setFormCaea({
+                          idEmpresa: c.idEmpresa, anio: c.anio, mes: c.mes, orden: c.orden,
+                          valor: c.valor, vigenciaDesde: c.vigenciaDesde.slice(0, 10), vigenciaHasta: c.vigenciaHasta.slice(0, 10),
+                        }); }}>Editar</button>
+                        <button className="danger" onClick={() => eliminarCaea(c.idCaea)}>×</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {caeas.length === 0 && <tr><td colSpan={6} className="muted">Sin CAEA cargados.</td></tr>}
+                </tbody>
+              </table>
+
+              {formCaea ? (
+                <div className="form-grid" style={{ marginTop: 10 }}>
+                  <label>Año<input type="number" value={formCaea.anio}
+                    onChange={(e) => setFormCaea({ ...formCaea, anio: Number(e.target.value) })} /></label>
+                  <label>Mes<input type="number" min={1} max={12} value={formCaea.mes}
+                    onChange={(e) => setFormCaea({ ...formCaea, mes: Number(e.target.value) })} /></label>
+                  <label>Quincena
+                    <select value={formCaea.orden} onChange={(e) => setFormCaea({ ...formCaea, orden: Number(e.target.value) })}>
+                      <option value={1}>1 al 15</option>
+                      <option value={2}>16 a fin de mes</option>
+                    </select>
+                  </label>
+                  <label>Valor (CAEA)<input value={formCaea.valor}
+                    onChange={(e) => setFormCaea({ ...formCaea, valor: e.target.value })} maxLength={14} /></label>
+                  <label>Vigencia desde<input type="date" value={formCaea.vigenciaDesde}
+                    onChange={(e) => setFormCaea({ ...formCaea, vigenciaDesde: e.target.value })} /></label>
+                  <label>Vigencia hasta<input type="date" value={formCaea.vigenciaHasta}
+                    onChange={(e) => setFormCaea({ ...formCaea, vigenciaHasta: e.target.value })} /></label>
+                  <button className="primary"
+                    disabled={!formCaea.valor.trim() || !formCaea.vigenciaDesde || !formCaea.vigenciaHasta}
+                    onClick={guardarCaea}>Guardar</button>
+                  <button onClick={() => { setFormCaea(null); setEditCaea(null); }}>Cancelar</button>
+                </div>
+              ) : (
+                <button style={{ marginTop: 10 }} onClick={() => setFormCaea(caeaVacio(editEmpresa))}>+ Cargar CAEA</button>
+              )}
+            </div>
+            </>
           )}
         </div>
       )}
@@ -357,6 +522,20 @@ export function EstructuraPage() {
           {sucursales.length === 0 && <tr><td colSpan={5} className="muted">Sin sucursales.</td></tr>}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// Igual que en Padrones/Caja: tapa la pantalla con blur + spinner mientras se espera una consulta
+// lenta (acá, la prueba de conexión real contra ARCA — login WSAA + FEDummy puede tardar unos
+// segundos). Reutiliza las clases globales de App.css (pantalla-bloqueada / …-caja / spinner).
+function PantallaBloqueada({ mensaje }: { mensaje: string }) {
+  return (
+    <div className="pantalla-bloqueada" role="alert" aria-busy="true">
+      <div className="pantalla-bloqueada-caja">
+        <div className="spinner" aria-hidden="true" />
+        <p>{mensaje}</p>
+      </div>
     </div>
   );
 }

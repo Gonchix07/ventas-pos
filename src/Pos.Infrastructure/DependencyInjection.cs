@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<Pos.Application.Precios.IListaPrecioService, Services.ListaPrecioService>();
         services.AddScoped<Pos.Application.Abm.IPagoAdminService, Services.PagoAdminService>();
         services.AddScoped<Pos.Application.Abm.IEstructuraService, Services.EstructuraService>();
+        services.AddScoped<Pos.Application.Facturacion.ICaeaCargadoService, Services.CaeaCargadoService>();
         services.AddScoped<Pos.Application.Abm.IConfiguracionAdminService, Services.ConfiguracionAdminService>();
         services.AddScoped<Pos.Application.Abm.IConexionExternaAdminService, Services.ConexionExternaAdminService>();
         services.AddScoped<Pos.Application.Abm.ICajaEstructuraService, Services.CajaEstructuraService>();
@@ -82,8 +83,24 @@ public static class DependencyInjection
             Dias = int.TryParse(config["Jwt:RefreshDias"], out var dias) ? dias : 7
         });
 
-        // Adaptadores externos (selección por configuración; fase 1 = Mock)
-        services.AddSingleton<IFiscalService, MockFiscalService>();
+        // Piezas del adaptador AFIP/ARCA: se registran SIEMPRE (no tienen efecto ninguno hasta que
+        // alguien las llama — no abren conexión al construirse) para que se puedan usar desde un
+        // endpoint de "probar conexión" aunque el servicio fiscal activo siga siendo el Mock.
+        var ambiente = string.Equals(config["Fiscal:Afip:Ambiente"], "Produccion", StringComparison.OrdinalIgnoreCase)
+            ? Adapters.Afip.AfipAmbiente.Produccion
+            : Adapters.Afip.AfipAmbiente.Homologacion;
+        services.AddSingleton(new Adapters.Afip.AfipOptions { Ambiente = ambiente });
+        services.AddSingleton<Adapters.Afip.AfipCertificadoStore>();
+        services.AddSingleton<Adapters.Afip.AfipWsaaClient>();
+        services.AddSingleton<Adapters.Afip.AfipWsfeClient>();
+
+        // Servicio fiscal CAE/CAEA que consume la saga de venta: Mock por defecto (nada cambia
+        // salvo que se active a propósito), Afip habla de verdad con ARCA para las cajas de tipo
+        // Electrónica — Fiscal sigue yendo siempre por el controlador Hasar, nunca por acá.
+        if (string.Equals(config["Fiscal:Service"], "Afip", StringComparison.OrdinalIgnoreCase))
+            services.AddSingleton<IFiscalService, Adapters.Afip.AfipFiscalService>();
+        else
+            services.AddSingleton<IFiscalService, MockFiscalService>();
 
         // Impresora fiscal: Mock por defecto, Hasar contra los controladores fiscales 2G reales.
         if (string.Equals(config["Fiscal:Printer"], "Hasar", StringComparison.OrdinalIgnoreCase))

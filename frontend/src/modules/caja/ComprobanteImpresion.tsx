@@ -25,10 +25,13 @@ const porcentaje = (alicuota: number) =>
  *    final, sin discriminar impuestos, sea cual sea la condición de IVA del cliente).
  * La letra la decide el backend — acá solo se dibuja.
  *
- * Nota: A/B se emiten por controlador fiscal (equipo Hasar), no por factura electrónica — no hay
- * CAE/CAEA que mostrar acá. El comprobante fiscal real (con sus leyendas oficiales) lo imprime el
- * propio controlador aparte; esta vista es una copia/resumen para pantalla y reimpresión de respaldo
- * desde el navegador.
+ * Nota: A/B pueden salir por dos caminos según la caja (ver ModalidadPuntoVenta): Fiscal, por
+ * controlador fiscal (equipo Hasar) — ahí el comprobante fiscal real con sus leyendas oficiales lo
+ * imprime el propio controlador aparte, y esta vista es solo una copia/resumen sin CAE (nunca lo
+ * tuvo). Electrónica, por ARCA (CAE real vía WSFEv1) — ahí NO hay controlador fiscal de por medio:
+ * esta vista ES el comprobante que recibe el cliente, así que tiene que mostrar el CAE y su
+ * vencimiento (obligatorio en una factura electrónica real). Se distinguen por si el backend mandó
+ * `cae` o no — el camino Fiscal nunca lo completa.
  */
 export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolver }: {
   c: Comprobante; onCerrar?: () => void;
@@ -40,6 +43,9 @@ export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolv
 }) {
   const esA = c.letra?.toUpperCase() === "A";
   const esPresupuesto = c.letra?.toUpperCase() === "X";
+  // Solo el camino Electrónica completa el CAE acá — Fiscal (Hasar) lo deja siempre en null,
+  // porque ahí la autorización queda en el propio controlador, no en este comprobante.
+  const esElectronica = !esPresupuesto && !!c.cae;
   const { emisor, cliente } = c;
 
   return (
@@ -176,6 +182,20 @@ export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolv
             <div className="cbte__leyenda">
               Documento no válido como factura
             </div>
+          ) : esElectronica ? (
+            <>
+              <div className="cbte__cae-datos">
+                <span>CAE N°</span><span className="mono">{c.cae}</span>
+              </div>
+              {c.caeVencimiento && (
+                <div className="cbte__cae-datos">
+                  <span>Fecha de Vto. de CAE</span><span className="mono">{fecha(c.caeVencimiento)}</span>
+                </div>
+              )}
+              <div className="cbte__leyenda">
+                {c.esCaea ? "Comprobante autorizado (CAEA) — Comprobante Autorizado" : "Comprobante Autorizado"}
+              </div>
+            </>
           ) : (
             <div className="cbte__leyenda">
               Comprobante fiscal emitido por controlador fiscal homologado — vale como factura.

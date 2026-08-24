@@ -71,7 +71,11 @@ public record ComprobanteFiscal(
     ClienteFiscal? Cliente = null,
     IReadOnlyList<ItemFiscal>? Items = null,
     IReadOnlyList<PagoFiscal>? Pagos = null,
-    IReadOnlyList<TributoFiscal>? Tributos = null);
+    IReadOnlyList<TributoFiscal>? Tributos = null,
+    /// <summary>Código de comprobante ARCA (TipoComprobante.CodigoArca: "001" Fact.A, "006"
+    /// Fact.B, "003"/"008" NC A/B, etc.) — solo lo necesita el puerto de CAE/CAEA (WSFEv1 pide el
+    /// código numérico, no la descripción); el controlador Hasar no lo usa.</summary>
+    string? CodigoArca = null);
 
 public record ResultadoCae(bool Ok, string? Cae, DateTime? Vencimiento, bool EsCaea, string? Error);
 

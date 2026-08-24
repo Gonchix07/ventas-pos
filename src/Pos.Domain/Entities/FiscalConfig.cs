@@ -14,6 +14,26 @@ public class PadronExcepcionPercepcionIva : AuditableEntity
 }
 
 /// <summary>
+/// CAEA cargado a mano por un administrador — contingencia para cuando WSFEv1 (CAE) no responde al
+/// momento de facturar. El valor real se consigue CON conexión (FECAEASolicitar, se pide con
+/// antelación por quincena) y se guarda acá para poder seguir facturando aunque ARCA esté
+/// inaccesible justo en el momento de la venta. Uno por empresa+período+quincena — el CAEA de ARCA
+/// no depende del punto de venta (ver AfipWsfeClient.SolicitarCaeaAsync).
+/// </summary>
+public class CaeaCargado : AuditableEntity
+{
+    public int IdCaea { get; set; }
+    public int IdEmpresa { get; set; }
+    public int Anio { get; set; }
+    public int Mes { get; set; }
+    /// <summary>1 = del 1 al 15, 2 = del 16 a fin de mes.</summary>
+    public int Orden { get; set; }
+    public string Valor { get; set; } = "";
+    public DateTime VigenciaDesde { get; set; }
+    public DateTime VigenciaHasta { get; set; }
+}
+
+/// <summary>
 /// Configuraciones clave-valor: límites de facturación a Consumidor Final, límite de efectivo
 /// en caja, reintentos por CAE inaccesible, rango de redondeo, timeouts, etc.
 /// </summary>
