@@ -18,3 +18,8 @@ LIMITANTES SIN CORREGIR:
 	La impresion directa a comandera esta limitada a usar el modo Kiosko del navegador, el problema es que manda todo a imprimir a la predeterminada (Comandera), incluyendo reportes de cierre (A4)
 	El cierre Z debe loguearse un supervisor an cada Caja (se puede implementar un masivo, revisar)
 	Se usa newcheques en la integracion a FOX?
+	
+	
+	
+	
+	

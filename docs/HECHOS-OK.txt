@@ -11,7 +11,9 @@ Articulos
 	
 Clientes
 	Agregar Nombre de fantasia
-	Autorizados y funcion 	
+	Autorizados y funcion 
+	Lectura de DNI e impresion de tarjeta provisoria
+		Formato QR: 00696492766"ELIA GIMENEZ"TOMAS"M"43255207"B"05-02-2001"29-11-2022"202
 	
 Tarjetas	
 	Cambiar Busqueda por cliente

@@ -1223,7 +1223,7 @@ export function CajaPage() {
         )}
         {retiroAbierto && (
           <RetiroEfectivoModal idSucursal={idSucursal} idCaja={lote.idCaja}
-            usuario={usuario} descripcionCaja={lote.descripcionCaja}
+            usuario={usuario ?? ""} descripcionCaja={lote.descripcionCaja}
             onCerrar={() => setRetiroAbierto(false)} />
         )}
         {bloqueando && <PantallaBloqueada mensaje={bloqueando} />}
@@ -1536,7 +1536,7 @@ export function CajaPage() {
       )}
       {retiroAbierto && (
         <RetiroEfectivoModal idSucursal={idSucursal} idCaja={lote.idCaja}
-          usuario={usuario} descripcionCaja={lote.descripcionCaja}
+          usuario={usuario ?? ""} descripcionCaja={lote.descripcionCaja}
           onCerrar={() => { setRetiroAbierto(false); void revisarLimiteEfectivo(); }} />
       )}
       {bloqueando && <PantallaBloqueada mensaje={bloqueando} />}

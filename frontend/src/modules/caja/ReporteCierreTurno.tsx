@@ -1,4 +1,6 @@
+import { useState } from "react";
 import type { ArqueoX, CierreTurnoResultado } from "../../shared/api/caja";
+import { abrirPestañaParaRendicion, generarYAbrirRendicionPdf } from "./RendicionPdf";
 import "./cierre-print.css";
 
 const money = (n: number) =>
@@ -13,9 +15,13 @@ const fechaHora = (iso?: string | null) => {
 
 /**
  * Reporte de rendición del cajero (cierre de turno), formato A4, para firmar y presentar en
- * Tesorería. Se imprime desde el navegador (window.print()), mismo mecanismo que el resto de los
- * comprobantes de caja (ver comprobante-print.css) — acá con su propia página nombrada
- * "rendicion-caja" porque el formato es A4 y no ticket de 76/99mm.
+ * Tesorería. Esta vista en pantalla queda solo como previsualización — "Imprimir rendición" ya NO
+ * llama a `window.print()` (ver RendicionPdf.tsx): en el puesto de Caja el navegador corre en modo
+ * `--kiosk-printing` (docs/08-puesto-caja.md), que es un flag de TODO el proceso, no de esta
+ * pantalla puntual — así que `window.print()` acá también salía derecho a la comandera (impresora
+ * predeterminada, papel de ticket) sin dejar elegir la impresora de oficina/Tesorería. El botón
+ * genera un PDF real y lo abre en una pestaña nueva: se imprime desde ahí, cuando y con la
+ * impresora que se quiera.
  *
  * Reúne datos de dos respuestas ya disponibles en CajaPage al confirmar el cierre: el arqueo
  * tomado justo antes de cerrar (`arqueo`, con retiros/vueltos/anulaciones/saldo inicial) y el
@@ -32,6 +38,25 @@ export function ReporteCierreTurno({
   observaciones?: string | null;
   onCerrar?: () => void;
 }) {
+  const [generando, setGenerando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const imprimir = async () => {
+    // Sincrónico ANTES del await: si se abre la pestaña después, el navegador la bloquea como
+    // popup (no viene del gesto de click) — mismo criterio que EtiquetaPdf.tsx.
+    const ventana = abrirPestañaParaRendicion();
+    setError(null);
+    setGenerando(true);
+    try {
+      await generarYAbrirRendicionPdf({ arqueo, cierre, usuario, motivoDescripcion, observaciones }, ventana);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo generar el PDF de la rendición.");
+      ventana?.close();
+    } finally {
+      setGenerando(false);
+    }
+  };
+
   const totalEsperado = cierre.detalle.reduce((acc, d) => acc + d.esperado, 0);
   const totalDeclarado = cierre.detalle.reduce((acc, d) => acc + d.declarado, 0);
   const hayDiferencia = Math.abs(cierre.diferenciaTotal) >= 0.01;
@@ -234,9 +259,12 @@ export function ReporteCierreTurno({
       </div>
 
       <div className="rendicion__acciones cbte-no-print">
-        <button className="primary" onClick={() => window.print()}>Imprimir rendición</button>
+        <button className="primary" onClick={imprimir} disabled={generando}>
+          {generando ? "Generando PDF…" : "Imprimir rendición"}
+        </button>
         {onCerrar && <button onClick={onCerrar}>Volver a Caja</button>}
       </div>
+      {error && <p className="error cbte-no-print">{error}</p>}
     </>
   );
 }
