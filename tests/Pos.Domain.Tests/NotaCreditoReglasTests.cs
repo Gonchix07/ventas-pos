@@ -96,6 +96,49 @@ public class NotaCreditoReglasTests
     }
 
     [Fact]
+    public void RepartirPercepcion_reparte_segun_la_proporcion_de_cada_una_y_suma_exacto()
+    {
+        // Factura con 800 de percepción IVA 21%, 150 de IVA 10,5% y 50 de IIBB (1000 en total):
+        // acreditar 100 tiene que repartirse en la misma proporción (80/15/5).
+        var (iva21, iva105, iibb) = NotaCreditoReglas.RepartirPercepcion(100m, 800m, 150m, 50m);
+        Assert.Equal(80m, iva21);
+        Assert.Equal(15m, iva105);
+        Assert.Equal(5m, iibb);
+        Assert.Equal(100m, iva21 + iva105 + iibb);
+    }
+
+    [Fact]
+    public void RepartirPercepcion_una_sola_base_devuelve_todo_ahi()
+    {
+        var (iva21, iva105, iibb) = NotaCreditoReglas.RepartirPercepcion(250m, 0m, 0m, 1000m);
+        Assert.Equal(0m, iva21);
+        Assert.Equal(0m, iva105);
+        Assert.Equal(250m, iibb);
+    }
+
+    [Fact]
+    public void RepartirPercepcion_sin_percepcion_original_no_reparte_nada()
+    {
+        var (iva21, iva105, iibb) = NotaCreditoReglas.RepartirPercepcion(100m, 0m, 0m, 0m);
+        Assert.Equal(0m, iva21 + iva105 + iibb);
+    }
+
+    [Fact]
+    public void RepartirPercepcion_monto_cero_o_negativo_no_reparte_nada()
+    {
+        var (iva21, iva105, iibb) = NotaCreditoReglas.RepartirPercepcion(0m, 800m, 150m, 50m);
+        Assert.Equal(0m, iva21 + iva105 + iibb);
+    }
+
+    [Fact]
+    public void RepartirPercepcion_cierra_exacto_pese_al_redondeo()
+    {
+        // Proporciones que no dan números redondos (100/3): el último tramo (IIBB) absorbe el resto.
+        var (iva21, iva105, iibb) = NotaCreditoReglas.RepartirPercepcion(100m, 1m, 1m, 1m);
+        Assert.Equal(100m, iva21 + iva105 + iibb);
+    }
+
+    [Fact]
     public void NotaCredito_usa_una_serie_distinta_de_la_de_facturas()
     {
         Assert.NotEqual(NumeradorIds.Factura(2, 6), NumeradorIds.NotaCredito(2, 8));

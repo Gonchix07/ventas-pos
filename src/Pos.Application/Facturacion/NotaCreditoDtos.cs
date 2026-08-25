@@ -5,11 +5,19 @@ namespace Pos.Application.Facturacion;
 /// <summary>
 /// Una factura candidata a ser anulada, tal como se lista en el buscador de la caja.
 /// <paramref name="SaldoAnulable"/> ya descuenta las notas de crédito previas.
+///
+/// <paramref name="PercepcionIva21"/>/<paramref name="PercepcionIva105"/>/<paramref name="PercepcionIibb"/>:
+/// percepciones de la factura ORIGINAL (ya están adentro de <paramref name="Total"/>, se muestran
+/// aparte para que se entienda por qué el saldo anulable no cierra contra la suma de los artículos
+/// — viven en la cabecera, no en ninguna línea de detalle). Solo "Anulación total" las acredita
+/// (ver NotaCreditoService.EmitirAsync); "Por artículos" y "Por monto" anulan solo lo elegido, sin
+/// tocarlas.
 /// </summary>
 public record ComprobanteAnulableDto(
     int IdSucursal, int IdComprobante, string NumeroCompleto, string? Letra,
     DateTime Fecha, int? IdCliente, string? ClienteDescripcion,
-    decimal Total, decimal YaAcreditado, decimal SaldoAnulable, bool Anulable);
+    decimal Total, decimal YaAcreditado, decimal SaldoAnulable, bool Anulable,
+    decimal PercepcionIva21 = 0m, decimal PercepcionIva105 = 0m, decimal PercepcionIibb = 0m);
 
 /// <summary>
 /// Línea de la factura original, con cuánto de esa línea ya se acreditó en notas de crédito

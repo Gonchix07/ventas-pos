@@ -32,7 +32,7 @@ Tipos de Puntos de Venta
 		
 Punto de venta
 	Incorporar a cada
-		FISCAL - IP CONTROLADOR		
+		FISCAL - IP CONTROLADOR			
 		
 Caja
 	Agregar funcionalidad de cupones en tarjetas
@@ -56,6 +56,8 @@ Tipos de ofertas
 	
 Facturacion 
 	FISCAL
+	CAE, ELECTRONICA DIRECTA
+	CAEA, ELECTRONICA OFFLINE, PEDIDO DE CAEA QUINCENAL
 
 Ventas
 	Estadisticas	

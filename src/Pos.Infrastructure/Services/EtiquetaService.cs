@@ -66,7 +66,8 @@ public class EtiquetaService : IEtiquetaService
         _currentUser.AsegurarSucursal(idSucursal);
 
         var resultado = new List<EtiquetaDto>();
-        var fecha = DateTime.Now;
+        // UtcNow, no Now: ver PricingService — DateTime.Now depende de la zona horaria del servidor.
+        var fecha = DateTime.UtcNow;
 
         var tiposTarjeta = await _db.TiposTarjeta.AsNoTracking().Where(t => t.IdListaPrecio != null).ToListAsync(ct);
         var ofertasVigentes = await _db.CabecerasOfertas.AsNoTracking()

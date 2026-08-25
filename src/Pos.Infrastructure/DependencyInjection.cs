@@ -50,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<Pos.Application.Facturacion.IFacturacionService, Services.FacturacionService>();
         services.AddScoped<Pos.Application.Facturacion.INotaCreditoService, Services.NotaCreditoService>();
         services.AddScoped<Pos.Application.Facturacion.IReimpresionService, Services.ReimpresionService>();
+        services.AddScoped<Pos.Application.Facturacion.ICaeaLoteService, Services.CaeaLoteService>();
         services.AddScoped<Services.CierreLoteEjecutor>();
         services.AddScoped<Pos.Application.Cierres.ICierreCajaService, Services.CierreCajaService>();
         services.AddScoped<Pos.Application.Cierres.ICierreZFiscalService, Services.CierreZFiscalService>();

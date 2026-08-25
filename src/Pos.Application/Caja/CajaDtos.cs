@@ -4,8 +4,11 @@
 /// <summary><c>AdmitePresupuesto</c>: si ESTA caja habilita el modo Presupuesto (además el cliente
 /// necesita su propio <c>PermitePresupuesto</c> — ver ClienteResumen). Gatea el toggle en la pantalla
 /// de cobro.</summary>
+// ModoFacturacion: "FISCAL" o "ELECTRONICA" (nunca "PRESUPUESTO" — una caja no puede tener ese
+// punto de venta como principal, ver CajaEstructuraService.ValidarPuntoVentaDeCajaAsync). Se
+// resuelve del lado del servidor (TiposPuntoVentaFijos) para que el frontend solo lo muestre.
 public record LoteDto(int IdSucursal, int IdLote, int IdCaja, string DescripcionCaja, int IdPuntoVenta,
-    DateTime FechaApertura, string Estado, bool AdmitePresupuesto);
+    DateTime FechaApertura, string Estado, bool AdmitePresupuesto, string ModoFacturacion);
 // CodigoSupervisor: null salvo que se esté abriendo en un puesto distinto al propio (ver
 // CajaService.AbrirCajaAsync) y quien abre no sea ya Supervisor/Administrador.
 // MontoInicial: fondo de caja con el que arranca el turno (0 = sin fondo inicial, comportamiento de

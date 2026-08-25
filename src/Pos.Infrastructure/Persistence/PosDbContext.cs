@@ -308,9 +308,11 @@ public class PosDbContext : DbContext
         // "Abierto" el mismo día. Es por (caja, cajero) y NO solo por caja: varios cajeros pueden
         // compartir la misma caja física a la vez, cada uno con su propio lote.
         //
-        // El día va en la clave porque la regla de la app (LoteCajaReglas.PuedeAbrirNuevoLote y
-        // CajaService.ObtenerLoteAbiertoHoyAsync) es "un lote abierto por caja+cajero POR DÍA", y
-        // cierre/arqueo solo operan sobre el lote de hoy (decisión de FASE-5: un lote de ayer no se
+        // El día va en la clave porque la regla de la app (CajaService.ObtenerLoteAbiertoHoyAsync)
+        // es "un lote abierto por caja+cajero POR DÍA" (un mismo cajero puede abrir y cerrar más de
+        // un lote el mismo día, uno atrás del otro — lo que no puede haber es dos abiertos a la
+        // vez), y cierre/arqueo solo operan sobre el lote de hoy (decisión de FASE-5: un lote de
+        // ayer no se
         // toca). Sin el día acá, el índice enforceaba "un solo lote abierto de por vida": un lote de
         // un día anterior que quedó sin cerrar hacía fallar toda apertura futura de ese cajero en esa
         // caja con un choque de clave duplicada (500), sin forma de destrabarlo desde la app.

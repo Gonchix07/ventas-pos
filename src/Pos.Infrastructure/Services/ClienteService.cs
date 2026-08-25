@@ -80,7 +80,7 @@ public class ClienteService : IClienteService
             cliente.Autorizados.Add(new Autorizado
             {
                 Dni = a.Dni, Descripcion = a.Descripcion,
-                FechaAlta = a.FechaAlta ?? DateTime.Today, Activo = a.Activo
+                FechaAlta = a.FechaAlta ?? DateTime.UtcNow.Date, Activo = a.Activo
             });
 
         _db.Clientes.Add(cliente);
@@ -131,7 +131,7 @@ public class ClienteService : IClienteService
                     cliente.Autorizados.Add(new Autorizado
                     {
                         Dni = a.Dni, Descripcion = a.Descripcion,
-                        FechaAlta = a.FechaAlta ?? DateTime.Today, Activo = a.Activo
+                        FechaAlta = a.FechaAlta ?? DateTime.UtcNow.Date, Activo = a.Activo
                     });
                 else
                 {

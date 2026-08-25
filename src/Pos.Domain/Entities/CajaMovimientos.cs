@@ -40,6 +40,15 @@ public class LoteCaja : AuditableEntity
     public int? IdUsuarioCierre { get; set; }
     public int? IdMotivoCierre { get; set; }
     public string? ObservacionCierre { get; set; }
+
+    /// <summary>
+    /// Un lote sin movimientos no genera ninguna fila en <c>CierresLotesCaja</c> (no hay nada que
+    /// reconciliar por medio de pago) — sin este flag, Tesorería nunca podía "validar" un turno
+    /// vacío: TesoreriaService.ValidarCierreAsync no tenía dónde marcar el visto bueno, y devolvía
+    /// 404 ("No existe el cierre para ese lote") ante un cierre legítimo. Bug real encontrado en
+    /// producción (2026-08-25).
+    /// </summary>
+    public bool VerificadoTesoreriaVacio { get; set; }
 }
 
 public class MovimientoCaja : AuditableEntity

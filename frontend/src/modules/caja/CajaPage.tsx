@@ -15,6 +15,7 @@ import { NotaCreditoModal } from "./NotaCreditoModal";
 import { RetiroEfectivoModal } from "./RetiroEfectivoModal";
 import { IngresoInicialModal } from "./IngresoInicialModal";
 import { TicketIngresoInicial } from "./TicketIngresoInicial";
+import { ArqueoXTicket } from "./ArqueoXTicket";
 import { ReporteCierreTurno } from "./ReporteCierreTurno";
 import { VoucherComprobantePago, type ItemVoucherPago } from "./VoucherComprobantePago";
 import { useLectorCodigo } from "../../shared/ui/useLectorCodigo";
@@ -671,14 +672,21 @@ export function CajaPage() {
       // punto de venta de tipo Presupuesto de la sucursal.
       const resp = await facturacion.emitir(idSucursal, operacion.idOperacion, lote.idPuntoVenta,
         modoPresupuesto ? 0 : 2, pagosInput);
-      setComprobante(resp);
+      // El popup con spinner tiene que seguir tapando la pantalla hasta que el comprobante para
+      // imprimir esté armado, no solo hasta tener el CAE: si se llamara a setComprobante(resp) acá
+      // y recién después se pidiera la impresión, React ya cambiaría a la pantalla del comprobante
+      // (más abajo) mostrando por un instante el resumen simple de respaldo en vez del ticket real
+      // — se arman los dos datos primero y se setean juntos al final, ya con "bloqueando" activo.
+      let impresionResp: ComprobanteImpresion | null = null;
       try {
-        setImpresion(await facturacion.impresion(idSucursal, resp.idComprobante));
+        impresionResp = await facturacion.impresion(idSucursal, resp.idComprobante);
       } catch {
         // El comprobante YA se emitió: si falla el armado para imprimir se muestra el resumen
         // simple, nunca se pierde la venta.
-        setImpresion(null);
+        impresionResp = null;
       }
+      setComprobante(resp);
+      setImpresion(impresionResp);
 
       // Medios marcados "Imprime comprobante" (ej. VALE): se junta un ticket aparte con lo pagado
       // en esos medios, para que el empleado lo firme.
@@ -894,9 +902,13 @@ export function CajaPage() {
   if (arqueoActivo && arqueo) {
     return (
       <div className="caja-shell">
+        {/* Caja Electrónica: no hay controlador fiscal que imprima el Reporte X — lo imprime la
+            comandera (ver ArqueoXTicket). En Fiscal, el backend ya lo mandó al Hasar. */}
+        {arqueo.modoFacturacion === "ELECTRONICA" && <ArqueoXTicket arqueo={arqueo} usuario={usuario ?? ""} />}
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
           <div className="lote-badge">Lote #{arqueo.idLote} · {arqueo.descripcionCaja}</div>
+          <div className="modo-badge">{arqueo.modoFacturacion}</div>
           <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-body">
@@ -994,6 +1006,12 @@ export function CajaPage() {
             </div>
           )}
           <div className="row-actions" style={{ marginTop: 16 }}>
+            {/* Fiscal ya imprimió el ticket desde el backend al calcular el arqueo; acá es para
+                Electrónica, por si se cerró el diálogo de impresión automático o hace falta otra
+                copia — reimprime el mismo ArqueoXTicket ya montado más arriba. */}
+            {arqueo.modoFacturacion === "ELECTRONICA" && (
+              <button onClick={() => window.print()}>Imprimir</button>
+            )}
             <button className="primary" onClick={() => setArqueoActivo(false)}>Volver</button>
           </div>
         </div>
@@ -1007,6 +1025,7 @@ export function CajaPage() {
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
           <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
+          <div className="modo-badge">{lote.modoFacturacion}</div>
           <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-body">
@@ -1014,7 +1033,6 @@ export function CajaPage() {
             <ReporteCierreTurno
               arqueo={arqueo}
               cierre={cierreResultado}
-              idSucursal={idSucursal}
               usuario={usuario ?? ""}
               motivoDescripcion={cierreResultado.detalle.some((d) => d.requiereMotivo)
                 ? (motivos.find((m) => m.id === idMotivo)?.descripcion ?? null) : null}
@@ -1134,6 +1152,7 @@ export function CajaPage() {
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
           <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
+          <div className="modo-badge">{lote.modoFacturacion}</div>
           <div className="user-box">
             <span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span>
             <button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button>
@@ -1188,6 +1207,7 @@ export function CajaPage() {
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
           <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
+          <div className="modo-badge">{lote.modoFacturacion}</div>
           <div className="user-box">
             <button className="danger-solid" onClick={() => setNotaCreditoAbierta(true)}>Notas de Crédito</button>
           <button onClick={() => setRetiroAbierto(true)}>Retiro de efectivo</button>
@@ -1320,8 +1340,10 @@ export function CajaPage() {
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
           <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
+          <div className="modo-badge">{lote.modoFacturacion}</div>
           <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
         </header>
+        {bloqueando && <PantallaBloqueada mensaje={bloqueando} />}
         <div className="caja-body">
           <h1>Cobro</h1>
           <p className="muted">
@@ -1497,6 +1519,7 @@ export function CajaPage() {
       <header className="caja-header">
         <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
         <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
+        <div className="modo-badge">{lote.modoFacturacion}</div>
         <div className="user-box">
           <button className="danger-solid" onClick={() => setNotaCreditoAbierta(true)}>Notas de Crédito</button>
           <button className="warning-solid" onClick={anularOperacion}>Anular Operación</button>

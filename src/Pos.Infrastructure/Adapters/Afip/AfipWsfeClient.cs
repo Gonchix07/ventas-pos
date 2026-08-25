@@ -13,13 +13,18 @@ public record AfipTramoIva(int Id, decimal BaseImp, decimal Importe);
 /// base imponible, alícuota (%) y el importe efectivamente percibido.</summary>
 public record AfipTributo(int Id, string Descripcion, decimal BaseImponible, decimal Alicuota, decimal Importe);
 
+/// <summary>Comprobante asociado, para <c>CbtesAsoc</c> — obligatorio cuando <c>CbteTipo</c> es de
+/// Nota de Crédito/Débito (error 10197 si falta).</summary>
+public record AfipCbteAsoc(int Tipo, int PtoVta, long Nro);
+
 /// <summary>Lo mínimo que WSFEv1 necesita para autorizar UN comprobante (esta app emite de uno en
 /// uno, nunca en lote — <c>CantReg</c> siempre viaja en 1).</summary>
 public record AfipComprobanteReq(
     int PtoVta, int CbteTipo, int Concepto, int DocTipo, string DocNro,
     long CbteNro, DateTime Fecha, decimal ImpTotal, decimal ImpNeto, decimal ImpIva,
     decimal ImpTotConc, decimal ImpOpEx, decimal ImpTrib, int CondicionIvaReceptorId,
-    IReadOnlyList<AfipTramoIva> Ivas, IReadOnlyList<AfipTributo>? Tributos = null);
+    IReadOnlyList<AfipTramoIva> Ivas, IReadOnlyList<AfipTributo>? Tributos = null,
+    AfipCbteAsoc? CbteAsoc = null);
 
 public record AfipObservacion(string Codigo, string Mensaje);
 
@@ -82,6 +87,11 @@ public class AfipWsfeClient
         var tributosXml = string.Concat((c.Tributos ?? Array.Empty<AfipTributo>()).Select(t =>
             $"<Tributo><Id>{t.Id}</Id><Desc>{System.Security.SecurityElement.Escape(t.Descripcion)}</Desc>" +
             $"<BaseImp>{Dec(t.BaseImponible)}</BaseImp><Alic>{Dec(t.Alicuota)}</Alic><Importe>{Dec(t.Importe)}</Importe></Tributo>"));
+        // Obligatorio en Notas de Crédito/Débito (error 10197 si falta) — el comprobante que se
+        // está acreditando/debitando.
+        var cbteAsocXml = c.CbteAsoc is { } a
+            ? $"<CbteAsoc><Tipo>{a.Tipo}</Tipo><PtoVta>{a.PtoVta}</PtoVta><Nro>{a.Nro}</Nro></CbteAsoc>"
+            : "";
 
         var det =
             $"<Concepto>{c.Concepto}</Concepto>" +
@@ -93,6 +103,7 @@ public class AfipWsfeClient
             $"<ImpIVA>{Dec(c.ImpIva)}</ImpIVA><ImpTrib>{Dec(c.ImpTrib)}</ImpTrib>" +
             "<MonId>PES</MonId><MonCotiz>1</MonCotiz>" +
             $"<CondicionIVAReceptorId>{c.CondicionIvaReceptorId}</CondicionIVAReceptorId>" +
+            (string.IsNullOrEmpty(cbteAsocXml) ? "" : $"<CbtesAsoc>{cbteAsocXml}</CbtesAsoc>") +
             (string.IsNullOrEmpty(tributosXml) ? "" : $"<Tributos>{tributosXml}</Tributos>") +
             (c.Ivas.Count > 0 ? $"<Iva>{ivas}</Iva>" : "");
 

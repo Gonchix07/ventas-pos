@@ -16,13 +16,6 @@ public static class RedondeoService
     }
 }
 
-/// <summary>Regla SRS: un lote de caja por día por caja física.</summary>
-public static class LoteCajaReglas
-{
-    public static bool PuedeAbrirNuevoLote(IEnumerable<DateTime> fechasAperturaUtc, DateTime ahoraUtc) =>
-        !fechasAperturaUtc.Any(f => f.Date == ahoraUtc.Date);
-}
-
 /// <summary>
 /// Totales de una operación de caja a partir de las líneas ya resueltas (precio + oferta aplicados).
 /// Lógica pura: solo suma, no accede a datos.

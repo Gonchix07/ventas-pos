@@ -5,6 +5,8 @@ import { api, unwrap } from "./client";
 export interface Lote {
   idSucursal: number; idLote: number; idCaja: number; descripcionCaja: string; idPuntoVenta: number;
   fechaApertura: string; estado: string; admitePresupuesto: boolean;
+  /** "FISCAL" o "ELECTRONICA" (nunca "PRESUPUESTO" — ver ModoFacturacion en el DTO backend). */
+  modoFacturacion: string;
 }
 /** `fuente`: 2 = Tarjetas (pide cupón y lote), 5 = Cuenta corriente. `esPredeterminado`: el que
     la caja propone al abrir el cobro (se configura en Medios de pago). `imprimeComprobante`: si al
@@ -116,6 +118,7 @@ export interface ArqueoX {
       configurado (Configuracion.LimiteEfectivoCaja) — 0 significa "sin límite cargado". */
   efectivoAcumulado: number;
   limiteEfectivoCaja: number;
+  modoFacturacion: string;
 }
 export interface DeclaracionPago { idMedioPago: number; montoDeclarado: number; }
 export interface CierreTurnoDetalle {

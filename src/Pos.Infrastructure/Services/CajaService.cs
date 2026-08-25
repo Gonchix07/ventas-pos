@@ -71,13 +71,20 @@ public class CajaService : ICajaService
             }
         }
 
-        // Todo el chequeo "un lote por día" + la generación del próximo IdLote se hace bajo un
-        // lock de aplicación por caja+cajero: sin esto, dos aperturas simultáneas del MISMO cajero
-        // en la MISMA caja (doble clic, dos pestañas) pueden pasar ambas el chequeo antes de que
-        // ninguna haya insertado, y terminar con dos lotes "Abierto" el mismo día (ver FASE-5, bug
+        // El chequeo "no hay ya un lote abierto hoy" + la generación del próximo IdLote se hacen
+        // bajo un lock de aplicación por caja+cajero: sin esto, dos aperturas simultáneas del MISMO
+        // cajero en la MISMA caja (doble clic, dos pestañas) pueden pasar ambas el chequeo antes de
+        // que ninguna haya insertado, y terminar con dos lotes "Abierto" a la vez (ver FASE-5, bug
         // de lote viejo — este es el mismo problema pero en el mismo día). El lote es por
         // (sucursal, caja, cajero): varios cajeros pueden compartir la misma caja física a la vez,
         // cada uno con su propio lote — no confundir con "una caja física, un solo lote".
+        //
+        // Un cajero SÍ puede abrir más de un lote el mismo día, uno atrás del otro (turno partido,
+        // reabrir después de cerrar por error, etc.) — lo único que no puede haber es DOS abiertos
+        // a la vez, que es exactamente lo que impide el índice único de abajo (filtrado por
+        // Estado=Abierto, ver PosDbContext). Antes había además una regla de dominio
+        // (LoteCajaReglas.PuedeAbrirNuevoLote) que bloqueaba un SEGUNDO lote el mismo día aunque el
+        // primero ya estuviera cerrado — se sacó a pedido del usuario (2026-08-25).
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
         await RecursoLockHelper.AdquirirAsync(_db, $"LoteCaja:{req.IdSucursal}:{req.IdCaja}:{idUsuario}", ct);
 
@@ -87,13 +94,6 @@ public class CajaService : ICajaService
             await tx.CommitAsync(ct);
             return await MapAsync(existente, ct);
         }
-
-        var fechasHoy = await _db.LotesCaja.AsNoTracking()
-            .Where(l => l.IdSucursal == req.IdSucursal && l.IdCaja == req.IdCaja && l.IdUsuarioApertura == idUsuario)
-            .Select(l => l.FechaApertura).ToListAsync(ct);
-
-        if (!LoteCajaReglas.PuedeAbrirNuevoLote(fechasHoy, DateTime.UtcNow))
-            throw new DomainException("LOTE_YA_ABIERTO", "Ya existe un lote abierto hoy para este cajero en esta caja.");
 
         var next = (await _db.LotesCaja.Where(l => l.IdSucursal == req.IdSucursal)
             .Select(l => l.IdLote).MaxAsync(x => (int?)x, ct) ?? 0) + 1;
@@ -201,11 +201,16 @@ public class CajaService : ICajaService
 
     private async Task<LoteDto> MapAsync(LoteCaja l, CancellationToken ct)
     {
-        var caja = await _db.Cajas.AsNoTracking()
-            .Where(c => c.IdSucursal == l.IdSucursal && c.IdCaja == l.IdCaja)
-            .Select(c => new { c.IdPuntoVenta, c.Descripcion, c.AdmitePresupuesto }).FirstOrDefaultAsync(ct);
+        var caja = await (
+            from c in _db.Cajas.AsNoTracking()
+            join pv in _db.PuntosVenta.AsNoTracking()
+                on new { c.IdSucursal, c.IdPuntoVenta } equals new { pv.IdSucursal, pv.IdPuntoVenta }
+            where c.IdSucursal == l.IdSucursal && c.IdCaja == l.IdCaja
+            select new { c.IdPuntoVenta, c.Descripcion, c.AdmitePresupuesto, pv.IdTipoPuntoVenta }
+        ).FirstOrDefaultAsync(ct);
+        var modo = TiposPuntoVentaFijos.Buscar(caja?.IdTipoPuntoVenta ?? 0)?.Descripcion ?? "";
         return new LoteDto(l.IdSucursal, l.IdLote, l.IdCaja, caja?.Descripcion ?? "", caja?.IdPuntoVenta ?? 0,
-            l.FechaApertura, l.Estado.ToString(), caja?.AdmitePresupuesto ?? false);
+            l.FechaApertura, l.Estado.ToString(), caja?.AdmitePresupuesto ?? false, modo);
     }
 
     public async Task<string?> ObtenerDescripcionCajaAsync(int idSucursal, int idCaja, CancellationToken ct = default)

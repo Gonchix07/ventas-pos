@@ -40,8 +40,21 @@ public record PagoFiscal(
     int Cuotas);
 
 /// <summary>Tipos de tributo que reconoce el comando fiscal "ImprimirOtrosTributos" (protocolo 2G).
-/// Solo se listan los que este POS usa hoy — el enum completo del manual tiene más.</summary>
-public enum TipoTributoFiscal { PercepcionIva, PercepcionIibb }
+/// Solo se listan los que este POS usa hoy — el enum completo del manual tiene más.
+/// <c>ImpuestoInterno</c> es el único que el controlador Hasar NO recibe como tributo aparte (va
+/// adentro del precio del ítem, ver ImprimirItem) — solo lo usa el camino Electrónico, para que
+/// ImpTotal cierre contra ARCA en un comprobante con bebidas alcohólicas u otro artículo con
+/// impuesto interno (ver AfipFiscalService.MapearComprobante).</summary>
+public enum TipoTributoFiscal { PercepcionIva, PercepcionIibb, ImpuestoInterno }
+
+/// <summary>
+/// El comprobante que una Nota de Crédito/Débito está acreditando — WSFEv1 lo exige siempre que
+/// <see cref="ComprobanteFiscal.CodigoArca"/> sea de tipo NC/ND (error 10197 si falta: "Si el
+/// comprobante es Debito o Credito, enviar estructura CbteAsoc o PeriodoAsoc"). El controlador
+/// Hasar no lo necesita — la asociación queda solo en nuestra propia base
+/// (ComprobanteAsociado/IdComprobanteOrigen).
+/// </summary>
+public record ComprobanteAsociadoFiscal(int PuntoVenta, string CodigoArca, long Numero);
 
 /// <summary>
 /// Tributo distinto del IVA/impuesto interno de cada ítem (percepciones de IVA/IIBB). Se imprime
@@ -75,7 +88,11 @@ public record ComprobanteFiscal(
     /// <summary>Código de comprobante ARCA (TipoComprobante.CodigoArca: "001" Fact.A, "006"
     /// Fact.B, "003"/"008" NC A/B, etc.) — solo lo necesita el puerto de CAE/CAEA (WSFEv1 pide el
     /// código numérico, no la descripción); el controlador Hasar no lo usa.</summary>
-    string? CodigoArca = null);
+    string? CodigoArca = null,
+    /// <summary>Solo en Notas de Crédito/Débito: el comprobante que se está acreditando. Obligatorio
+    /// para WSFEv1 en ese caso (ver <see cref="ComprobanteAsociadoFiscal"/>); el controlador Hasar
+    /// no lo usa.</summary>
+    ComprobanteAsociadoFiscal? Asociado = null);
 
 public record ResultadoCae(bool Ok, string? Cae, DateTime? Vencimiento, bool EsCaea, string? Error);
 
@@ -88,9 +105,18 @@ public record EstadoServicioFiscal(bool Disponible, string? Detalle);
 /// <summary>Puerto de servicios fiscales (ARCA/AFIP). Adaptador Mock en fase 1.</summary>
 public interface IFiscalService
 {
+    /// <summary>El próximo número a usar para un comprobante Electrónico (último autorizado en
+    /// ARCA + 1) — fuente de verdad para la numeración de este camino: nunca se persiste ni se
+    /// reserva localmente (a diferencia de Fiscal/Presupuesto, que sí usan la tabla Numeros), así
+    /// que no puede desincronizarse: se pregunta de nuevo cada vez, justo antes de pedir el CAE.</summary>
+    Task<long> ObtenerProximoNumeroAsync(int idEmpresa, int puntoVenta, int cbteTipo, CancellationToken ct);
     Task<ResultadoCae> SolicitarCaeAsync(ComprobanteFiscal cmp, CancellationToken ct);
     Task<ResultadoCaea> ObtenerCaeaAsync(int idEmpresa, PeriodoFiscal periodo, CancellationToken ct);
-    Task<ResultadoCaea> InformarComprobantesCaeaAsync(int idEmpresa, IEnumerable<ComprobanteFiscal> lote, CancellationToken ct);
+    /// <summary>Informa a ARCA (FECAEARegInformativo) un lote de comprobantes ya emitidos bajo
+    /// <paramref name="caea"/> — obligatorio dentro de las 48hs de emitidos. Todo el lote tiene que
+    /// ser del mismo punto de venta y tipo de comprobante (limitación de WSFEv1); el llamador es
+    /// responsable de agruparlo así antes de invocar esto (ver módulo "Facturación CAEA").</summary>
+    Task<ResultadoCaea> InformarComprobantesCaeaAsync(int idEmpresa, string caea, IReadOnlyList<ComprobanteFiscal> lote, CancellationToken ct);
     Task<EstadoServicioFiscal> PingAsync(CancellationToken ct);
 }
 

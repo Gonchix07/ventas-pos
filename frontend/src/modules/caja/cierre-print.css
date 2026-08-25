@@ -41,6 +41,9 @@
 }
 .rendicion__meta div { display: flex; justify-content: space-between; gap: 3mm; }
 .rendicion__meta span { color: #555; }
+/* Apertura/cierre de turno ocupan la fila entera (debajo de Cajero/Caja/Lote) — son datos más
+   largos (fecha + hora) que no entran cómodos compartiendo columna con el resto. */
+.rendicion__meta-full { grid-column: 1 / -1; }
 
 .rendicion__bloque { margin-bottom: 5mm; }
 .rendicion__bloque h2 {

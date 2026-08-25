@@ -44,6 +44,11 @@ public class CabeceraComprobante : AuditableEntity
     public string? Cae { get; set; }
     public DateTime? CaeVencimiento { get; set; }
     public bool EsCaea { get; set; }
+    /// <summary>Cuándo se informó este comprobante a ARCA como parte de un lote CAEA
+    /// (FECAEARegInformativo) — null mientras está pendiente. Solo aplica si <see cref="EsCaea"/>;
+    /// un comprobante con CAE normal nunca lo necesita (ya quedó autorizado al pedir el CAE). Ver
+    /// módulo "Facturación CAEA".</summary>
+    public DateTime? FechaInformadoCaeaUtc { get; set; }
     public EstadoComprobante Estado { get; set; } = EstadoComprobante.Iniciado;
 
     /// <summary>

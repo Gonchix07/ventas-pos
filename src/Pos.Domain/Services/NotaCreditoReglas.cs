@@ -138,4 +138,29 @@ public static class NotaCreditoReglas
         }
         return resultado;
     }
+
+    /// <summary>
+    /// Reparte un importe de percepción entre IVA 21%/10,5%/IIBB en la misma proporción en que
+    /// aparecen en la factura original (<paramref name="baseIva21"/>/<paramref name="baseIva105"/>/
+    /// <paramref name="baseIibb"/> = lo que tenía la factura de cada una). El último tramo (IIBB)
+    /// se calcula por diferencia, mismo criterio que <see cref="Prorratear"/>, para que la suma
+    /// cierre exacta contra <paramref name="monto"/>.
+    ///
+    /// Lo usa una "Anulación total" para acreditar también la percepción que le queda pendiente al
+    /// comprobante original, algo que las líneas de detalle no pueden reflejar porque la percepción
+    /// vive en la cabecera, no en ninguna línea (ver NotaCreditoService.EmitirAsync).
+    /// </summary>
+    public static (decimal Iva21, decimal Iva105, decimal Iibb) RepartirPercepcion(
+        decimal monto, decimal baseIva21, decimal baseIva105, decimal baseIibb)
+    {
+        var baseTotal = baseIva21 + baseIva105 + baseIibb;
+        if (monto <= 0m || baseTotal <= 0m) return (0m, 0m, 0m);
+
+        var iva21 = Redondear2(monto * baseIva21 / baseTotal);
+        var iva105 = Redondear2(monto * baseIva105 / baseTotal);
+        var iibb = Redondear2(monto - iva21 - iva105);
+        return (iva21, iva105, iibb);
+    }
+
+    private static decimal Redondear2(decimal v) => Math.Round(v, 2, MidpointRounding.AwayFromZero);
 }

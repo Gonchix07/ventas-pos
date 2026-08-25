@@ -111,7 +111,22 @@ public class TesoreriaService : ITesoreriaService
         _currentUser.AsegurarSucursal(idSucursal);
         var filas = await _db.CierresLotesCaja
             .Where(c => c.IdSucursal == idSucursal && c.IdLote == idLote).ToListAsync(ct);
-        if (filas.Count == 0) return false;
+
+        if (filas.Count == 0)
+        {
+            // Lote cerrado sin movimientos: no generó ninguna fila en CierresLotesCaja (nada que
+            // reconciliar por medio de pago), así que el visto bueno de Tesorería se marca en el
+            // propio lote — sin esto, un turno vacío nunca podía "validarse" (404 permanente).
+            var lote = await _db.LotesCaja
+                .FirstOrDefaultAsync(l => l.IdSucursal == idSucursal && l.IdLote == idLote, ct);
+            if (lote is not { Estado: EstadoLote.Cerrado }) return false;
+
+            lote.VerificadoTesoreriaVacio = true;
+            lote.IdMotivoCierre ??= req.IdMotivoCierre;
+            lote.ObservacionCierre ??= req.ObservacionTesoreria;
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
 
         foreach (var f in filas)
         {
@@ -285,8 +300,11 @@ public class TesoreriaService : ITesoreriaService
             {
                 var filasCierre = await _db.CierresLotesCaja.AsNoTracking()
                     .Where(c => c.IdSucursal == l.IdSucursal && c.IdLote == l.IdLote).ToListAsync(ct);
-                estadoCierre = filasCierre.Count > 0 && filasCierre.All(f => f.VerificaTesoreria)
-                    ? "CierreTesoreria" : "CierreCajero";
+                // Lote sin movimientos (cero filas): el visto bueno de Tesorería queda en el propio
+                // lote (ver ValidarCierreAsync), no hay filas por medio de pago que reconciliar.
+                estadoCierre = filasCierre.Count > 0
+                    ? (filasCierre.All(f => f.VerificaTesoreria) ? "CierreTesoreria" : "CierreCajero")
+                    : (l.VerificadoTesoreriaVacio ? "CierreTesoreria" : "CierreCajero");
                 saldo = filasCierre.Sum(f => f.Total);
             }
 

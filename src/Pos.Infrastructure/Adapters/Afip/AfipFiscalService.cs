@@ -39,6 +39,14 @@ public class AfipFiscalService : IFiscalService
         _certificados = certificados;
     }
 
+    public async Task<long> ObtenerProximoNumeroAsync(int idEmpresa, int puntoVenta, int cbteTipo, CancellationToken ct)
+    {
+        var cuit = await _certificados.ObtenerCuitAsync(idEmpresa, ct);
+        var cred = await _wsaa.ObtenerCredencialAsync(idEmpresa, Servicio, ct);
+        var ultimoAutorizado = await _wsfe.UltimoAutorizadoAsync(cred, cuit, puntoVenta, cbteTipo, ct);
+        return ultimoAutorizado + 1;
+    }
+
     public async Task<ResultadoCae> SolicitarCaeAsync(ComprobanteFiscal cmp, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(cmp.CodigoArca))
@@ -49,15 +57,16 @@ public class AfipFiscalService : IFiscalService
         var cuit = await _certificados.ObtenerCuitAsync(cmp.IdEmpresa, ct);
         var cred = await _wsaa.ObtenerCredencialAsync(cmp.IdEmpresa, Servicio, ct);
 
-        // Verificación contra el numerador real de ARCA antes de pedir nada: el numerador propio
-        // (Numeros, ver FacturacionService/NotaCreditoService) tiene que estar SIEMPRE un paso por
-        // delante del último autorizado. Si no coincide, algo se desincronizó (reintento fallido,
-        // comprobante de prueba emitido a mano, etc.) — mejor frenar con un error claro que pedir un
-        // número que ARCA va a rechazar de todas formas.
+        // Última verificación contra ARCA antes de pedir nada: el número ya se resolvió llamando a
+        // ObtenerProximoNumeroAsync justo antes de armar este comprobante (nunca se reserva ni se
+        // persiste localmente para Electrónica, a diferencia de Fiscal/Presupuesto — ver
+        // FacturacionService/NotaCreditoService), así que en el caso normal esto siempre cierra. Se
+        // repite igual como red de seguridad contra una emisión concurrente que haya tomado el
+        // siguiente número en el instante entre medio.
         var ultimoAutorizado = await _wsfe.UltimoAutorizadoAsync(cred, cuit, cmp.PuntoVenta, cbteTipo, ct);
         if (cmp.Numero != ultimoAutorizado + 1)
             return new ResultadoCae(false, null, null, false,
-                $"Numerador desincronizado con ARCA: se pidió el Nº {cmp.Numero} pero el último autorizado en ARCA para este punto de venta/tipo es {ultimoAutorizado} (correspondería el {ultimoAutorizado + 1}).");
+                $"Numerador desincronizado con ARCA: se pidió el Nº {cmp.Numero} pero el último autorizado en ARCA para este punto de venta/tipo es {ultimoAutorizado} (correspondería el {ultimoAutorizado + 1}). Volvé a intentar la emisión.");
 
         var req = MapearComprobante(cmp, cbteTipo);
         var resultado = await _wsfe.SolicitarCaeAsync(cred, cuit, req, ct);
@@ -90,11 +99,38 @@ public class AfipFiscalService : IFiscalService
         return new ResultadoCaea(resultado.Ok, resultado.Caea, resultado.Desde, resultado.Hasta, resultado.Error);
     }
 
-    public Task<ResultadoCaea> InformarComprobantesCaeaAsync(int idEmpresa, IEnumerable<ComprobanteFiscal> lote, CancellationToken ct) =>
-        throw new DomainException("CAEA_INTERFAZ_INCOMPLETA",
-            "IFiscalService.InformarComprobantesCaeaAsync no recibe el CAEA del lote a informar (el " +
-            "puerto no lo expone) — hace falta extender la interfaz antes de poder implementarlo de " +
-            "verdad. Hoy nada llama a este método (la contingencia CAEA no está conectada en la saga).");
+    public async Task<ResultadoCaea> InformarComprobantesCaeaAsync(int idEmpresa, string caea,
+        IReadOnlyList<ComprobanteFiscal> lote, CancellationToken ct)
+    {
+        if (lote.Count == 0)
+            return new ResultadoCaea(false, caea, null, null, "No hay comprobantes para informar.");
+        if (lote.Any(c => string.IsNullOrWhiteSpace(c.CodigoArca)))
+            return new ResultadoCaea(false, caea, null, null,
+                "Alguno de los comprobantes del lote no tiene código ARCA (TipoComprobante.CodigoArca).");
+        // FECAEARegInformativo manda un solo PtoVta+CbteTipo por llamada (ver
+        // AfipWsfeClient.InformarLoteCaeaAsync) — agrupar mezclado es responsabilidad del llamador
+        // (CaeaLoteService), esto es solo la última verificación antes de mandarlo.
+        if (lote.Any(c => c.PuntoVenta != lote[0].PuntoVenta || c.CodigoArca != lote[0].CodigoArca))
+            return new ResultadoCaea(false, caea, null, null,
+                "El lote mezcla comprobantes de distinto punto de venta o tipo — ARCA exige informarlos por separado.");
+
+        var cbteTipo = int.Parse(lote[0].CodigoArca!);
+        var cuit = await _certificados.ObtenerCuitAsync(idEmpresa, ct);
+        var cred = await _wsaa.ObtenerCredencialAsync(idEmpresa, Servicio, ct);
+        var reqs = lote.Select(c => MapearComprobante(c, cbteTipo)).ToList();
+
+        // WSFEv1 acepta hasta 250 comprobantes por llamada (ver InformarLoteCaeaAsync) — se
+        // manda en tandas si el lote junta más que eso.
+        AfipResultadoCaea? ultimo = null;
+        foreach (var tanda in reqs.Chunk(250))
+        {
+            var resultado = await _wsfe.InformarLoteCaeaAsync(cred, cuit, caea, tanda, ct);
+            if (!resultado.Ok)
+                return new ResultadoCaea(false, caea, null, null, resultado.Error);
+            ultimo = resultado;
+        }
+        return new ResultadoCaea(true, ultimo?.Caea ?? caea, null, null, null);
+    }
 
     public async Task<EstadoServicioFiscal> PingAsync(CancellationToken ct)
     {
@@ -153,6 +189,11 @@ public class AfipFiscalService : IFiscalService
             .ToList();
         var impTrib = tributosAfip.Sum(t => t.Importe);
 
+        // Obligatorio en NC/ND (error 10197 si falta): qué comprobante se está acreditando.
+        var cbteAsoc = cmp.Asociado is { } a
+            ? new AfipCbteAsoc(int.Parse(a.CodigoArca), a.PuntoVenta, a.Numero)
+            : null;
+
         return new AfipComprobanteReq(
             PtoVta: cmp.PuntoVenta, CbteTipo: cbteTipo,
             Concepto: 1, // Productos — este POS no vende servicios.
@@ -160,7 +201,7 @@ public class AfipFiscalService : IFiscalService
             CbteNro: cmp.Numero, Fecha: cmp.Fecha,
             ImpTotal: cmp.Total, ImpNeto: cmp.Neto, ImpIva: cmp.Iva,
             ImpTotConc: 0m, ImpOpEx: impOpEx, ImpTrib: impTrib,
-            CondicionIvaReceptorId: condicionIva, Ivas: tramos, Tributos: tributosAfip);
+            CondicionIvaReceptorId: condicionIva, Ivas: tramos, Tributos: tributosAfip, CbteAsoc: cbteAsoc);
     }
 
     /// <summary>Id de tributo de WSFEv1 (tabla FEParamGetTiposTributos): 1=Impuestos nacionales
@@ -171,6 +212,7 @@ public class AfipFiscalService : IFiscalService
     {
         TipoTributoFiscal.PercepcionIva => 1,
         TipoTributoFiscal.PercepcionIibb => 2,
+        TipoTributoFiscal.ImpuestoInterno => 4,
         _ => 99
     };
 
@@ -178,6 +220,7 @@ public class AfipFiscalService : IFiscalService
     {
         TipoTributoFiscal.PercepcionIva => "Percepcion IVA",
         TipoTributoFiscal.PercepcionIibb => "Percepcion IIBB",
+        TipoTributoFiscal.ImpuestoInterno => "Impuestos Internos",
         _ => "Otro"
     };
 

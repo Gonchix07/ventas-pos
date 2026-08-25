@@ -75,7 +75,8 @@ public class NotaCreditoService : INotaCreditoService
         // Se ordena ANTES de proyectar: EF no traduce OrderBy sobre una proyección a record.
         var cabeceras = await q.OrderByDescending(x => x.c.Fecha).Take(100)
             .Select(x => new { x.c.IdComprobante, x.c.NumeroCompleto, x.c.Letra, x.c.Fecha,
-                               x.c.IdCliente, x.c.Total })
+                               x.c.IdCliente, x.c.Total,
+                               x.c.PercepcionIva21, x.c.PercepcionIva105, x.c.PercepcionIibb })
             .ToListAsync(ct);
 
         var ids = cabeceras.Select(c => c.IdComprobante).ToList();
@@ -89,7 +90,8 @@ public class NotaCreditoService : INotaCreditoService
             return new ComprobanteAnulableDto(idSucursal, c.IdComprobante, c.NumeroCompleto ?? "",
                 c.Letra, c.Fecha, c.IdCliente,
                 c.IdCliente is int id ? clientes.GetValueOrDefault(id) : null,
-                c.Total, ya, saldo, saldo > 0);
+                c.Total, ya, saldo, saldo > 0,
+                c.PercepcionIva21, c.PercepcionIva105, c.PercepcionIibb);
         }).ToList();
     }
 
@@ -118,7 +120,8 @@ public class NotaCreditoService : INotaCreditoService
             new ComprobanteAnulableDto(idSucursal, idComprobante, cab.NumeroCompleto ?? "", cab.Letra,
                 cab.Fecha, cab.IdCliente,
                 cab.IdCliente is int id ? clientes.GetValueOrDefault(id) : null,
-                cab.Total, ya, saldo, saldo > 0),
+                cab.Total, ya, saldo, saldo > 0,
+                cab.PercepcionIva21, cab.PercepcionIva105, cab.PercepcionIibb),
             lineas.Select(d =>
             {
                 var cantidadYaAnulada = anuladas.GetValueOrDefault(d.IdDetalleComprobante);
@@ -170,6 +173,25 @@ public class NotaCreditoService : INotaCreditoService
             throw new DomainException("NADA_PARA_ANULAR", "No hay nada para anular con esos datos.");
 
         var totalNc = lineasNc.Sum(l => l.Importe);
+
+        // "Anulación total" tiene que arrastrar también las percepciones (IVA 21%/10,5%/IIBB) que
+        // todavía queden sin acreditar — viven en la cabecera del comprobante original
+        // (PercepcionIva21/105/Iibb), no en ninguna línea de detalle, así que ArmarLineas nunca las
+        // ve. Sin esto, el saldo anulable (que SÍ las incluye, ver SaldoAnulable) nunca se podía
+        // acreditar completo en una factura con percepciones: quedaba un remanente perdido sin
+        // aviso, Y la devolución en efectivo le daba de menos al cliente (ver "devoluciones" más
+        // abajo, que reparte exactamente totalNc).
+        // No hace falta saber cuánta percepción ya se acreditó en NC anteriores: "saldo" ya lo
+        // sabe (es el total original menos TODO lo acreditado hasta ahora, sin importar de qué
+        // estaba compuesto) — lo que falta entre el saldo y lo que suman los artículos de ESTA NC
+        // es, por descarte, la percepción (u otro concepto fuera de línea) que todavía falta.
+        var percepcionRestante = req.Tipo == TipoAnulacion.Total
+            ? Math.Round(saldo - totalNc, 2, MidpointRounding.AwayFromZero) : 0m;
+        var (percepcionIva21Nc, percepcionIva105Nc, percepcionIibbNc) = percepcionRestante > 0.005m
+            ? NotaCreditoReglas.RepartirPercepcion(percepcionRestante, origen.PercepcionIva21, origen.PercepcionIva105, origen.PercepcionIibb)
+            : (0m, 0m, 0m);
+        totalNc += percepcionIva21Nc + percepcionIva105Nc + percepcionIibbNc;
+
         if (!NotaCreditoReglas.ImporteAcreditable(totalNc, saldo))
             throw new DomainException("EXCEDE_SALDO_ANULABLE",
                 $"La nota de crédito (${totalNc:0.00}) supera el saldo anulable del comprobante (${saldo:0.00}).");
@@ -190,6 +212,9 @@ public class NotaCreditoService : INotaCreditoService
         // venta que se está acreditando).
         var esElectronica = puntoVenta.IdTipoPuntoVenta == (int)ModalidadPuntoVenta.Electronica;
 
+        var idEmpresa = await _db.Sucursales.AsNoTracking()
+            .Where(s => s.IdSucursal == req.IdSucursal).Select(s => s.IdEmpresa).FirstOrDefaultAsync(ct);
+
         var medios = await _db.MediosPago.AsNoTracking().Include(m => m.TipoPago)
             .ToDictionaryAsync(m => m.IdMedioPago, m => m, ct);
         var efectivo = medios.Values.FirstOrDefault(m => m.TipoPago?.Fuente == FuentePago.Efectivo)
@@ -207,14 +232,30 @@ public class NotaCreditoService : INotaCreditoService
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
         try
         {
-            // Serie propia de notas de crédito (independiente de la de facturas ante ARCA), y
-            // propia por TIPO de comprobante: NC A y NC B del mismo punto de venta nunca comparten
-            // numeración ante ARCA.
-            var idNumero = NumeradorIds.NotaCredito(lote.IdPuntoVenta, int.Parse(tipoNc.CodigoArca!));
-            await AsegurarNumeradorAsync(req.IdSucursal, idNumero, lote.IdPuntoVenta, ct);
-            var numero = await IncrementarNumeradorAsync(req.IdSucursal, idNumero, ct);
+            var cbteTipoNc = int.Parse(tipoNc.CodigoArca!);
+            long numero;
+            if (esElectronica)
+            {
+                // Igual que en FacturacionService: para Electrónica, ARCA es la única fuente de
+                // verdad del próximo número — nunca se reserva ni se persiste localmente, así que
+                // no puede desincronizarse. El lock se toma acá (antes recién más abajo) para
+                // serializar "preguntar+pedir CAE" completo contra otra emisión concurrente del
+                // mismo punto de venta.
+                await RecursoLockHelper.AdquirirAsync(_db, $"Comprobante:{req.IdSucursal}", ct);
+                numero = await _fiscal.ObtenerProximoNumeroAsync(idEmpresa, puntoVenta.NumeroPuntoVenta, cbteTipoNc, ct);
+            }
+            else
+            {
+                // Fiscal: serie propia de notas de crédito (independiente de la de facturas), propia
+                // por TIPO de comprobante (NC A y NC B del mismo punto de venta nunca comparten
+                // numeración) — acá SÍ se persiste en Numeros porque no hay ARCA de por medio que
+                // trackee un "último autorizado" con el que contrastar.
+                var idNumero = NumeradorIds.NotaCredito(lote.IdPuntoVenta, cbteTipoNc);
+                await AsegurarNumeradorAsync(req.IdSucursal, idNumero, lote.IdPuntoVenta, ct);
+                numero = await IncrementarNumeradorAsync(req.IdSucursal, idNumero, ct);
 
-            await RecursoLockHelper.AdquirirAsync(_db, $"Comprobante:{req.IdSucursal}", ct);
+                await RecursoLockHelper.AdquirirAsync(_db, $"Comprobante:{req.IdSucursal}", ct);
+            }
 
             // Re-chequeo del saldo DESPUÉS de tomar el lock: entre la lectura de más arriba y este
             // punto, otra caja pudo haber acreditado la misma factura. Sin esto, dos notas de
@@ -253,7 +294,10 @@ public class NotaCreditoService : INotaCreditoService
                 IdTipoComprobante = tipoNc.IdTipoComprobante, IdCliente = origen.IdCliente,
                 IdPuntoVenta = lote.IdPuntoVenta, IdOperacion = null, Letra = letra,
                 NumeroCompleto = NumeroComprobanteFormatter.Formatear(puntoVenta.NumeroPuntoVenta, numero),
-                Fecha = DateTime.UtcNow, Neto = totalNeto, Iva = totalIva, Percepciones = 0,
+                Fecha = DateTime.UtcNow, Neto = totalNeto, Iva = totalIva,
+                Percepciones = percepcionIva21Nc + percepcionIva105Nc + percepcionIibbNc,
+                PercepcionIva21 = percepcionIva21Nc, PercepcionIva105 = percepcionIva105Nc,
+                PercepcionIibb = percepcionIibbNc, AlicuotaIibb = percepcionIibbNc > 0 ? origen.AlicuotaIibb : 0m,
                 Total = totalNc, Estado = EstadoComprobante.Persistido,
                 IdComprobanteOrigen = req.IdComprobanteOrigen,
                 MotivoAnulacion = Limpiar(req.Motivo)
@@ -324,7 +368,7 @@ public class NotaCreditoService : INotaCreditoService
             // Se arma completo (ítems + cliente + pagos) de una sola vez: lo necesitan tanto el
             // pedido de CAE (Electrónica, el array de IVA de WSFEv1 sale de la alícuota por ítem)
             // como la impresión fiscal (Fiscal, más abajo) — antes se armaba dos veces distinto.
-            var cf = new ComprobanteFiscal(puntoVenta.IdSucursal, puntoVenta.NumeroPuntoVenta,
+            var cf = new ComprobanteFiscal(idEmpresa, puntoVenta.NumeroPuntoVenta,
                 tipoNc.Descripcion, letra, numero, null, totalNeto, totalIva, totalNc, DateTime.UtcNow,
                 req.IdSucursal, req.IdCaja,
                 Cliente: await ClienteFiscalAsync(origen.IdCliente, letra, ct),
@@ -336,7 +380,21 @@ public class NotaCreditoService : INotaCreditoService
                     medios.GetValueOrDefault(d.IdMedioPago)?.Descripcion ?? $"Medio {d.IdMedioPago}",
                     d.Monto, medios.GetValueOrDefault(d.IdMedioPago)?.TipoPago?.Fuente ?? FuentePago.Efectivo,
                     null, 1)).ToList(),
-                CodigoArca: tipoNc.CodigoArca);
+                CodigoArca: tipoNc.CodigoArca,
+                // Obligatorio para WSFEv1 (error 10197 si falta): el comprobante que esta NC
+                // acredita. PtoVta y Numero salen de su propio NumeroCompleto ("PPPP-NNNNNNNN"),
+                // no del de esta NC — puede haberse emitido por otro punto de venta.
+                Asociado: tipoOrigen?.CodigoArca is string codigoArcaOrigen
+                    ? new ComprobanteAsociadoFiscal(
+                        int.Parse(origen.NumeroCompleto!.Split('-')[0]), codigoArcaOrigen,
+                        long.Parse(origen.NumeroCompleto!.Split('-')[1]))
+                    : null,
+                // Percepción que esta NC acredita (solo en Anulación total, ver más arriba) — sin
+                // esto, ImpTotal no cerraba contra ImpNeto+ImpIva+ImpTrib y ARCA rechazaba con el
+                // mismo error 10048 que ya se corrigió una vez en FacturacionService. BaseImponible
+                // en 0: no se persistió la base original de cada percepción (solo el importe
+                // final), y ARCA no la valida contra el resto del comprobante.
+                Tributos: BuildTributosNc(percepcionIva21Nc, percepcionIva105Nc, percepcionIibbNc));
 
             // CAE de la nota de crédito — SOLO en caja Electrónica: en Fiscal, el controlador Hasar
             // ya autoriza la NC al imprimirla (más abajo, fuera de la tx), pedir CAE ahí no
@@ -369,8 +427,6 @@ public class NotaCreditoService : INotaCreditoService
                 }
                 else
                 {
-                    var idEmpresa = await _db.Sucursales.AsNoTracking()
-                        .Where(s => s.IdSucursal == req.IdSucursal).Select(s => s.IdEmpresa).FirstOrDefaultAsync(ct);
                     var caeaVigente = await _caeaCargado.BuscarVigenteAsync(idEmpresa, DateTime.UtcNow, ct);
                     if (caeaVigente is null)
                         throw new DomainException("FISCAL_INDISPONIBLE",
@@ -383,10 +439,11 @@ public class NotaCreditoService : INotaCreditoService
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
-            // Interfase contable (best-effort, ver IInterfaseContableService): la NC no calcula
-            // percepciones de IVA/IIBB (Percepciones=0 siempre acá arriba), así que iva_adic/
-            // baseimp/impperc/porciibb1 van en 0 — a diferencia de la Factura, no es que falten,
-            // es que no corresponden.
+            // Interfase contable (best-effort, ver IInterfaseContableService): mismo criterio que
+            // FacturacionService (iva_adic/periva = percepción IVA 21%+10,5%, impperc/porciibb1 =
+            // percepción IIBB) — solo que acá casi siempre da 0, porque la NC solo llega a
+            // acreditar percepción en una Anulación total (ver más arriba). baseimp queda en 0: no
+            // se persistió la base imponible de IIBB de la factura original, solo el importe final.
             var datosClienteNc = await DatosInterfaseClienteAsync(origen.IdCliente, ct);
             var codigoEmpresaNc = await _db.Sucursales.AsNoTracking()
                 .Where(s => s.IdSucursal == req.IdSucursal)
@@ -400,8 +457,11 @@ public class NotaCreditoService : INotaCreditoService
                 Tipo: InterfaseContableReglas.TipoComprobante(tipoNc.Signo, letra),
                 Prenum: InterfaseContableReglas.Prenum(puntoVenta.NumeroPuntoVenta),
                 Numero: InterfaseContableReglas.Numero(numero),
-                Neto: totalNeto, Iva: totalIva, IvaAdic: 0m, Exento: netoExento, Periva: 0m, Final: totalNc,
-                BaseImp: 0m, ImpPerc: 0m, PorcIibb1: 0m,
+                Neto: totalNeto, Iva: totalIva,
+                IvaAdic: percepcionIva21Nc + percepcionIva105Nc, Exento: netoExento,
+                Periva: percepcionIva21Nc + percepcionIva105Nc, Final: totalNc,
+                BaseImp: 0m, ImpPerc: percepcionIibbNc,
+                PorcIibb1: percepcionIibbNc > 0 ? origen.AlicuotaIibb : 0m,
                 Prov: InterfaseContableReglas.ProvFijo, Empresa: codigoEmpresaNc,
                 IdVentaSalon: idComprobante), ct);
 
@@ -589,6 +649,18 @@ public class NotaCreditoService : INotaCreditoService
         new(d.DescripcionTicket, cantidad, d.PrecioUnit, d.AlicuotaIva,
             NotaCreditoReglas.ImporteProporcional(d.Importe, d.Cantidad, cantidad),
             d.IdPresentacion, d.IdDetalleComprobante);
+
+    private static List<TributoFiscal>? BuildTributosNc(decimal percepcionIva21, decimal percepcionIva105, decimal percepcionIibb)
+    {
+        var tributos = new List<TributoFiscal>();
+        if (percepcionIva21 > 0m)
+            tributos.Add(new TributoFiscal(TipoTributoFiscal.PercepcionIva, "PERCEPCION IVA 21%", 0m, percepcionIva21));
+        if (percepcionIva105 > 0m)
+            tributos.Add(new TributoFiscal(TipoTributoFiscal.PercepcionIva, "PERCEPCION IVA 10,5%", 0m, percepcionIva105));
+        if (percepcionIibb > 0m)
+            tributos.Add(new TributoFiscal(TipoTributoFiscal.PercepcionIibb, "PERCEPCION IIBB", 0m, percepcionIibb));
+        return tributos.Count > 0 ? tributos : null;
+    }
 
     // ---------- Reversión completa (todos los medios originales, cupones incluidos) ----------
 

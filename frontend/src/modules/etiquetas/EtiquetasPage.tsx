@@ -63,6 +63,7 @@ export function EtiquetasPage() {
   };
 
   const quitar = (idPresentacion: number) => setLista((l) => l.filter((x) => x.idPresentacion !== idPresentacion));
+  const quitarTodo = () => { if (confirm("¿Vaciar toda la lista armada?")) setLista([]); };
 
   // Genera el PDF real (fleje 90x40mm o A4/A5) y lo abre en una pestaña nueva para imprimir desde
   // el visor de PDF del navegador — ver EtiquetaPdf.tsx. Ya no hay una "vista de impresión" propia
@@ -103,6 +104,7 @@ export function EtiquetasPage() {
           <button onClick={logout}>Salir</button>
         </div>
       </header>
+      {cargando && <PantallaBloqueada mensaje="Generando PDF…" />}
       <div className="page-shell">
         <h1>Etiquetas</h1>
         {error && <p className="error">{error}</p>}
@@ -174,6 +176,9 @@ export function EtiquetasPage() {
               <button className="primary" disabled={lista.length === 0 || cargando} onClick={generar}>
                 {cargando ? "Generando PDF…" : "Generar PDF"}
               </button>
+              <button className="danger" disabled={lista.length === 0 || cargando} onClick={quitarTodo}>
+                Quitar todo
+              </button>
             </div>
           </div>
           <table className="grid">
@@ -193,5 +198,19 @@ export function EtiquetasPage() {
         </div>
       </div>
     </>
+  );
+}
+
+// Igual que en CajaPage/PadronesPage: tapa la pantalla con blur + spinner mientras se arma el PDF
+// (puede tardar con listas largas). Reutiliza las clases globales de App.css (pantalla-bloqueada /
+// pantalla-bloqueada-caja / spinner).
+function PantallaBloqueada({ mensaje }: { mensaje: string }) {
+  return (
+    <div className="pantalla-bloqueada" role="alert" aria-busy="true">
+      <div className="pantalla-bloqueada-caja">
+        <div className="spinner" aria-hidden="true" />
+        <p>{mensaje}</p>
+      </div>
+    </div>
   );
 }

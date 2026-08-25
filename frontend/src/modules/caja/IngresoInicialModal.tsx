@@ -22,7 +22,12 @@ interface Props {
  * siquiera con $0: "confirmar apertura" es el único botón que llama a caja.abrir.
  */
 export function IngresoInicialModal({ idSucursal, idCaja, codigoSupervisor, onAbierta, onCerrar }: Props) {
-  const [monto, setMonto] = useState<number | null>(0);
+  // Arranca vacío (null), no en 0: con "0,00" ya escrito en el campo, cada letra que el cajero
+  // tipea se inserta DENTRO de ese texto en vez de reemplazarlo — el cursor no queda al final tras
+  // el primer re-render con separador de miles (ver MonedaInput.formatearMientrasEscribe), así que
+  // "500" podía terminar dando $5.000 o de plano parecer que el campo no dejaba escribir. Mismo
+  // criterio que RetiroEfectivoModal (arranca en null); "Dejalo en $0" ya lo cubre el `?? 0` de abajo.
+  const [monto, setMonto] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 

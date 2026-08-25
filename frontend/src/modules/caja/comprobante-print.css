@@ -82,6 +82,16 @@
 .cbte--ingreso .cbte__totales { font-size: 13pt; }
 .cbte--ingreso .cbte__totales .total { font-size: 20pt; }
 
+/* Ticket de "Arqueo X" en caja Electrónica: no hay controlador fiscal de por medio (ver
+   ArqueoXTicket.tsx), así que este ticket ES el reporte — mismo criterio tipográfico que Retiro/
+   Ingreso (comprobante interno, no fiscal, para leerse rápido en la comandera). */
+.cbte--arqueo .cbte__tipo h2 { font-size: 18pt; }
+.cbte--arqueo .cbte__meta { font-size: 10pt; }
+.cbte--arqueo .cbte__cliente { font-size: 10pt; }
+.cbte--arqueo .cbte__lineas { font-size: 10pt; }
+.cbte--arqueo .cbte__pagos { font-size: 10pt; margin-top: 1.5mm; }
+.cbte--arqueo .cbte__totales .total { font-size: 15pt; }
+
 /* Comprobante de pago (VALE u otro medio marcado "Imprime comprobante"): fuentes grandes igual que
    Retiro (comprobante interno para firmar en el momento, no la factura fiel). Agrega un renglón en
    blanco + etiquetas para la firma y aclaración del empleado. */
@@ -124,4 +134,7 @@
 
   @page vale-ticket { size: 99mm auto; margin: 0; }
   .cbte--vale { page: vale-ticket; width: 99mm; }
+
+  @page arqueo-ticket { size: 99mm auto; margin: 0; }
+  .cbte--arqueo { page: arqueo-ticket; width: 99mm; }
 }

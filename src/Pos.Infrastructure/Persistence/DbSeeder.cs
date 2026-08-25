@@ -120,6 +120,26 @@ public static class DbSeeder
             await db.SaveChangesAsync(ct);
         }
 
+        // Módulo "Facturación CAEA" (2026-08-24): lista comprobantes emitidos en contingencia
+        // todavía sin informar a ARCA y permite subir el lote. Mismo acceso que Tesorería/Reimpresión
+        // — es una obligación fiscal de back-office (Administrador/Tesorero), no de mostrador.
+        var moduloCaea = await db.Modulos.FirstOrDefaultAsync(m => m.Descripcion == "FacturacionCaea", ct);
+        if (moduloCaea is null)
+        {
+            moduloCaea = new Modulo { Descripcion = "FacturacionCaea" };
+            db.Modulos.Add(moduloCaea);
+            await db.SaveChangesAsync(ct);
+        }
+        foreach (var descripcionRol in new[] { "Administrador", "Tesorero" })
+        {
+            var rol = await db.Roles.FirstOrDefaultAsync(r => r.Descripcion == descripcionRol, ct);
+            if (rol is null) continue;
+            if (!await db.Permisos.AnyAsync(p => p.IdRol == rol.IdRol && p.IdModulo == moduloCaea.IdModulo, ct))
+                db.Permisos.Add(new Permiso { IdRol = rol.IdRol, IdModulo = moduloCaea.IdModulo,
+                    PuedeVer = true, PuedeEditar = true, EsEspecial = true });
+        }
+        await db.SaveChangesAsync(ct);
+
         // Cada medio Tarjeta necesita al menos un plan de cuotas (obligatorio elegir uno al cobrar,
         // ver FacturacionService): alta pedida después de que ya existían medios Tarjeta sin
         // ninguno cargado, por eso el backfill acá — PagoAdminService.AsegurarPlanPorDefectoAsync

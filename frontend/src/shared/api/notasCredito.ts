@@ -21,6 +21,12 @@ export interface ComprobanteAnulable {
   yaAcreditado: number;
   saldoAnulable: number;
   anulable: boolean;
+  /** Percepciones de la factura ORIGINAL (ya están adentro de `total`) — viven en la cabecera, no
+   *  en ninguna línea de detalle, por eso no aparecen en la tabla de artículos. Solo "Anulación
+   *  total" las acredita; "Por artículos" y "Por monto" anulan solo lo elegido, sin tocarlas. */
+  percepcionIva21: number;
+  percepcionIva105: number;
+  percepcionIibb: number;
 }
 
 export interface LineaAnulable {

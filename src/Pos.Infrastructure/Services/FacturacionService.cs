@@ -463,11 +463,38 @@ public class FacturacionService : IFacturacionService
             }
             else if (esElectronica)
             {
-                // Serie propia por punto de venta + TIPO de comprobante: Factura A y Factura B (o
-                // cualquier otra letra) nunca comparten numeración ante ARCA.
-                var idNumeroElectronica = NumeradorIds.Factura(puntoVenta.IdPuntoVenta, int.Parse(tipoComprobante.CodigoArca!));
-                await AsegurarNumeradorAsync(req.IdSucursal, idNumeroElectronica, ct);
-                numero = await IncrementarNumeradorAsync(req.IdSucursal, idNumeroElectronica, ct);
+                // La numeración Electrónica NO se reserva ni se persiste en la tabla Numeros: ARCA
+                // es la única fuente de verdad de "cuál es el próximo número" para este punto de
+                // venta + tipo de comprobante (Factura A y B, o cualquier otra letra, llevan cada
+                // una su propia serie ahí). Guardar un contador local en paralelo es justo lo que
+                // se desincroniza si una emisión anterior consiguió el CAE pero la transacción local
+                // no llegó a confirmar (rollback posterior, caída de red después de la respuesta,
+                // etc.) — un contador que no existe no puede desincronizarse. Se pregunta de nuevo
+                // en cada emisión, justo antes de pedir el CAE.
+                //
+                // El lock de sucursal se toma ACÁ (no solo más abajo, donde ya estaba) para
+                // serializar el "preguntar+pedir CAE" completo: sin él, dos emisiones Electrónica
+                // concurrentes sobre el mismo punto de venta podrían preguntarle a ARCA el mismo
+                // último autorizado y competir por el mismo próximo número (antes esto lo evitaba
+                // el UPDATE atómico sobre Numeros, que ya no se usa acá).
+                await RecursoLockHelper.AdquirirAsync(_db, $"Comprobante:{req.IdSucursal}", ct);
+                var cbteTipoElectronica = int.Parse(tipoComprobante.CodigoArca!);
+                numero = await _fiscal.ObtenerProximoNumeroAsync(sucursal.IdEmpresa,
+                    puntoVenta.NumeroPuntoVenta, cbteTipoElectronica, ct);
+
+                // Bug real (2026-08-25): un artículo con Impuesto Interno (bebidas alcohólicas —
+                // ver impuestoInternoTotal más arriba) infla el Total pero no viajaba como tributo a
+                // ARCA — quedaba afuera de ImpTotConc+ImpNeto+ImpOpEx+ImpTrib+ImpIVA y WSFEv1
+                // rechazaba TODA factura Electrónica con Fernet/Whisky/etc. con el error 10048. Se
+                // arma una lista APARTE (no se agrega a `tributos`, que también usa la rama Fiscal
+                // más abajo): el controlador Hasar NUNCA debe recibir esto como tributo — ya lo
+                // imprime adentro de cada ítem (MagnitudImpuestoInterno en ImprimirItem); mandarlo
+                // también acá lo duplicaría en el ticket fiscal físico. BaseImponible en 0: es un
+                // monto fijo por unidad, no un % sobre una base.
+                var tributosElectronica = impuestoInternoTotal > 0
+                    ? tributos.Append(new TributoFiscal(TipoTributoFiscal.ImpuestoInterno,
+                        "IMPUESTOS INTERNOS", 0m, impuestoInternoTotal)).ToList()
+                    : tributos;
 
                 comprobanteFiscal = new ComprobanteFiscal(sucursal.IdEmpresa, puntoVenta.NumeroPuntoVenta,
                     tipoComprobante.Descripcion, letra, numero, clienteCuit, totalNeto, totalIva,
@@ -480,7 +507,7 @@ public class FacturacionService : IFacturacionService
                     // el array de IVA que exige WSFEv1 — mismo criterio que la impresora fiscal: el
                     // descuento por medio de pago va prorrateado dentro de los ítems reales.
                     RepartirDescuentoMp(itemsFiscalesBase, descuentoMpTotal),
-                    null, tributos, tipoComprobante.CodigoArca);
+                    null, tributosElectronica, tipoComprobante.CodigoArca);
 
                 // Reintentos por CAE inaccesible (ReintentosCaeReglas): solo cubren fallas de
                 // CONECTIVIDAD (timeout, ARCA caído) — un rechazo de negocio de ARCA (Ok=false con

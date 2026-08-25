@@ -45,6 +45,7 @@ public record ComprobanteLoteDto(int IdComprobante, string? NumeroCompleto, stri
     string TipoDescripcion, DateTime Fecha, decimal Total, decimal MontoEnMedio,
     string? ClienteCodigo, string? ClienteDescripcion);
 
+// ModoFacturacion: "FISCAL" o "ELECTRONICA", igual criterio que LoteDto (ver Pos.Application.Caja).
 public record ArqueoXResponse(int IdSucursal, int IdLote, int IdCaja, string DescripcionCaja, DateTime FechaApertura,
     List<AcumuladoDto> Acumulados, decimal TotalGeneral, string? Referencia,
     List<AnulacionDto> Anulaciones, decimal TotalAnulaciones,
@@ -57,7 +58,7 @@ public record ArqueoXResponse(int IdSucursal, int IdLote, int IdCaja, string Des
     // Efectivo acumulado en el lote (dentro de Acumulados/TotalGeneral, no aparte) y el tope
     // configurado (Configuracion.LimiteEfectivoCaja) — para que la pantalla de caja avise al
     // cajero que conviene hacer un retiro. LimiteEfectivoCaja = 0 significa "sin límite cargado".
-    decimal EfectivoAcumulado = 0, decimal LimiteEfectivoCaja = 0);
+    decimal EfectivoAcumulado = 0, decimal LimiteEfectivoCaja = 0, string ModoFacturacion = "");
 
 public record DeclaracionPagoInput(int IdMedioPago, decimal MontoDeclarado);
 

@@ -455,6 +455,10 @@ td.money, th.money { text-align: right; font-family: ui-monospace, Consolas, mon
   padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--line); }
 .lote-badge { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--petrol-ink);
   background: #e3efec; padding: 5px 12px; border-radius: 100px; }
+/* Modo de facturación de la caja (FISCAL/ELECTRONICA) — al lado del lote-badge, en naranja para
+   que se distinga de un vistazo qué camino de emisión usa esa caja. */
+.modo-badge { font-family: ui-monospace, Consolas, monospace; font-size: 12px; font-weight: 600;
+  color: #9a4b00; background: #ffe4c2; padding: 5px 12px; border-radius: 100px; }
 .caja-center { flex: 1; display: grid; place-items: center; padding: 24px; }
 .caja-body { max-width: 1200px; margin: 0 auto; padding: 24px; width: 100%; }
 /* Pantalla a todo el ancho con márgenes estrechos: la usa la identificación de cliente, donde la
@@ -542,6 +546,16 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 /* ---- Popup de Notas de Crédito: 20% más grande que el modal genérico (más líneas de artículos
    que un modal común, se quedaba apretado) ---- */
 .modal-caja.nc-modal { width: min(1032px, 100%); padding: 24px; }
+
+/* Ticket de Nota de Crédito impreso DESDE el modal (a diferencia de la factura, que se muestra a
+   página completa): sin este reseteo, el fondo oscuro fijo y el ancho fijo de la caja interfieren
+   con el @page de 76mm del ticket (ver comprobante-print.css) y sale mal encuadrado en la hoja. */
+@media print {
+  .modal-fondo { position: static; inset: auto; background: none; padding: 0; display: block;
+    overflow: visible; z-index: auto; }
+  .modal-caja, .modal-caja.nc-modal { width: auto; max-width: none; padding: 0; margin: 0;
+    border: none; border-radius: 0; box-shadow: none; background: none; }
+}
 
 /* ---- Popup de código de supervisor (ver shared/ui/SupervisorGate.tsx) ---- */
 /* Angosto a propósito: es un solo campo, no un formulario — que no ocupe toda la pantalla. */

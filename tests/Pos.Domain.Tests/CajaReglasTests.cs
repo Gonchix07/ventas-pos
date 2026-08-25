@@ -33,22 +33,6 @@ public class CajaReglasTests
     }
 
     [Fact]
-    public void Lote_NoPermiteAbrirDosVecesElMismoDia()
-    {
-        var hoy = new DateTime(2026, 8, 7, 10, 0, 0, DateTimeKind.Utc);
-        var existentes = new[] { new DateTime(2026, 8, 7, 8, 0, 0, DateTimeKind.Utc) };
-        Assert.False(LoteCajaReglas.PuedeAbrirNuevoLote(existentes, hoy));
-    }
-
-    [Fact]
-    public void Lote_PermiteAbrirSiNoHayLoteHoy()
-    {
-        var hoy = new DateTime(2026, 8, 7, 10, 0, 0, DateTimeKind.Utc);
-        var existentes = new[] { new DateTime(2026, 8, 6, 8, 0, 0, DateTimeKind.Utc) };
-        Assert.True(LoteCajaReglas.PuedeAbrirNuevoLote(existentes, hoy));
-    }
-
-    [Fact]
     public void Totales_SumaBrutoDescuentoYCalculaNeto()
     {
         var t = OperacionTotales.Calcular(new[] { (100m, 10m), (50m, 0m) });

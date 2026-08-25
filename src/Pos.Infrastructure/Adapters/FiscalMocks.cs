@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Pos.Application.Abstractions.Fiscal;
 
 namespace Pos.Infrastructure.Adapters;
@@ -5,6 +6,14 @@ namespace Pos.Infrastructure.Adapters;
 /// <summary>Servicio fiscal simulado: genera CAE/CAEA ficticios. Reemplazar por ARCA WSFEv1.</summary>
 public class MockFiscalService : IFiscalService
 {
+    // Solo para desarrollo/tests: acá no hay un ARCA real que trackee el último autorizado, así
+    // que se simula con un contador en memoria por (empresa, punto de venta, tipo). No persiste
+    // entre reinicios — no hace falta, el mock nunca convive con datos reales.
+    private static readonly ConcurrentDictionary<(int, int, int), long> _ultimoPorSerie = new();
+
+    public Task<long> ObtenerProximoNumeroAsync(int idEmpresa, int puntoVenta, int cbteTipo, CancellationToken ct) =>
+        Task.FromResult(_ultimoPorSerie.AddOrUpdate((idEmpresa, puntoVenta, cbteTipo), 1, (_, v) => v + 1));
+
     public Task<ResultadoCae> SolicitarCaeAsync(ComprobanteFiscal cmp, CancellationToken ct)
     {
         var cae = GenerarNumerico(14, cmp.PuntoVenta * 100000 + cmp.Numero);
@@ -18,8 +27,8 @@ public class MockFiscalService : IFiscalService
         return Task.FromResult(new ResultadoCaea(true, caea, desde, desde.AddMonths(1).AddDays(-1), null));
     }
 
-    public Task<ResultadoCaea> InformarComprobantesCaeaAsync(int idEmpresa, IEnumerable<ComprobanteFiscal> lote, CancellationToken ct)
-        => Task.FromResult(new ResultadoCaea(true, null, null, null, null));
+    public Task<ResultadoCaea> InformarComprobantesCaeaAsync(int idEmpresa, string caea, IReadOnlyList<ComprobanteFiscal> lote, CancellationToken ct)
+        => Task.FromResult(new ResultadoCaea(true, caea, null, null, null));
 
     public Task<EstadoServicioFiscal> PingAsync(CancellationToken ct)
         => Task.FromResult(new EstadoServicioFiscal(true, "Mock fiscal disponible"));

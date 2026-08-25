@@ -8,6 +8,9 @@ const MODULOS = [
   { key: "Administracion", desc: "ABM de datos maestros y configuración", to: "/admin" },
   { key: "Reimpresion", desc: "Buscar y reimprimir facturas o notas de crédito ya emitidas", to: "/reimpresion" },
   { key: "Ventas", desc: "Dashboard de estadísticas de ventas", to: "/ventas" },
+  // "label" solo para el título de la tarjeta: la sigla CAEA va en mayúsculas, a diferencia de
+  // "key" (que tiene que coincidir tal cual con Modulo.Descripcion del backend/permisos).
+  { key: "FacturacionCaea", label: "Facturación CAEA", desc: "Comprobantes emitidos en contingencia (CAEA) pendientes de informar a ARCA", to: "/facturacion-caea" },
 ];
 
 export function DashboardPage() {
@@ -41,7 +44,7 @@ export function DashboardPage() {
                 className={`module-card ${on ? "" : "disabled"} ${clickable ? "clickable" : ""}`}
                 onClick={() => clickable && navigate(m.to!)}
               >
-                <h3>{m.key}</h3>
+                <h3>{m.label ?? m.key}</h3>
                 <p>{m.desc}</p>
                 <span className="badge">{on ? (m.to ? "Abrir" : "Habilitado") : "Sin permiso"}</span>
               </div>

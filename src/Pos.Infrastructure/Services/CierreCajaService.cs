@@ -50,18 +50,28 @@ public class CierreCajaService : ICierreCajaService
         var retiros = await _ejecutor.RetirosAsync(idSucursal, lote.IdLote, ct);
         var vueltos = await _ejecutor.VueltosAsync(idSucursal, lote.IdLote, ct);
         var ingresoInicial = await _ejecutor.IngresoInicialAsync(idSucursal, lote.IdLote, ct);
+
+        var caja = await (
+            from c in _db.Cajas.AsNoTracking()
+            join pv in _db.PuntosVenta.AsNoTracking()
+                on new { c.IdSucursal, c.IdPuntoVenta } equals new { pv.IdSucursal, pv.IdPuntoVenta }
+            where c.IdSucursal == idSucursal && c.IdCaja == idCaja
+            select new { c.Descripcion, pv.IdTipoPuntoVenta }
+        ).FirstOrDefaultAsync(ct);
+        var descripcionCaja = caja?.Descripcion ?? "";
+        var modoFacturacion = TiposPuntoVentaFijos.Buscar(caja?.IdTipoPuntoVenta ?? 0)?.Descripcion ?? "";
+        var esFiscal = caja?.IdTipoPuntoVenta == (int)ModalidadPuntoVenta.Fiscal;
+
         // Best-effort: el arqueo X es una vista, no persiste nada — un fallo/timeout de la
         // impresora fiscal no debe impedir mostrar los acumulados. Si imprimir=false (ej. el
         // preview que arma la pantalla de "Cerrar turno") no se dispara la impresión física: ese
         // flujo ya emite su propia rendición al confirmar, un reporte X del controlador ahí es un
-        // papel de más que nadie pide.
-        var impresion = imprimir
+        // papel de más que nadie pide. En caja Electrónica no hay controlador fiscal de por medio
+        // (mismo criterio que Facturación/NC): el reporte lo imprime el frontend por la comandera
+        // (ver ArqueoXTicket.tsx), acá no hay nada que llamar.
+        var impresion = imprimir && esFiscal
             ? await ImprimirBestEffortAsync(ct2 => _impresora.ArqueoXAsync(idSucursal, idCaja, ct2), ct)
             : new ResultadoImpresion(false, null, null);
-
-        var descripcionCaja = await _db.Cajas.AsNoTracking()
-            .Where(c => c.IdSucursal == idSucursal && c.IdCaja == idCaja)
-            .Select(c => c.Descripcion).FirstOrDefaultAsync(ct) ?? "";
 
         // Para avisarle al cajero que conviene hacer un retiro: cuánto Efectivo hay acumulado
         // (ya está adentro de acumulados/TotalGeneral, esto es solo para identificarlo aparte) vs.
@@ -75,7 +85,8 @@ public class CierreCajaService : ICierreCajaService
         return new ArqueoXResponse(idSucursal, lote.IdLote, idCaja, descripcionCaja, lote.FechaApertura,
             acumulados, acumulados.Sum(a => a.Total), impresion.Ok ? impresion.Referencia : null,
             anulaciones, anulaciones.Sum(a => a.Total), retiros, retiros.Sum(r => r.Monto),
-            vueltos, vueltos.Sum(v => v.Monto), ingresoInicial, efectivoAcumulado, limiteEfectivoCaja);
+            vueltos, vueltos.Sum(v => v.Monto), ingresoInicial, efectivoAcumulado, limiteEfectivoCaja,
+            modoFacturacion);
     }
 
     /// <summary>Lee un valor numérico de la tabla Configuracion (clave/valor); si no está cargada o
@@ -167,7 +178,8 @@ public class CierreCajaService : ICierreCajaService
 
     private async Task<LoteCaja?> ObtenerLoteAbiertoAsync(int idSucursal, int idCaja, int idUsuario, CancellationToken ct)
     {
-        // El lote a operar es el de HOY (SRS: un lote por día) Y del cajero logueado — varios
+        // El lote a operar es el ABIERTO de HOY (a lo sumo uno a la vez, ver índice único en
+        // PosDbContext) Y del cajero logueado — varios
         // cajeros pueden compartir la misma caja física con lotes propios simultáneos, así que
         // "la caja" sola no identifica un único lote. Un lote abierto de un día anterior que haya
         // quedado sin cerrar no debe confundirse con el actual — evita cerrar por error un lote

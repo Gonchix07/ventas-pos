@@ -13,7 +13,10 @@ public class PricingService : IPricingService
 
     public async Task<ResolverPrecioResponse> ResolverPrecioAsync(ResolverPrecioRequest req, CancellationToken ct = default)
     {
-        var fecha = DateTime.Now;
+        // UtcNow, no Now: DateTime.Now depende de la zona horaria configurada en el SERVIDOR (si no
+        // está en UTC-3 Buenos Aires, esto queda desalineado contra todo lo demás del sistema, que
+        // guarda instantes en UTC — ver LoteCaja.FechaApertura, CabeceraComprobante.Fecha, etc.).
+        var fecha = DateTime.UtcNow;
 
         // Candidatos: precios de la presentación en listas de la sucursal.
         var candidatos = await (
@@ -70,7 +73,10 @@ public class PricingService : IPricingService
 
     public async Task<AplicarOfertasResponse> AplicarOfertasAsync(AplicarOfertasRequest req, CancellationToken ct = default)
     {
-        var fecha = DateTime.Now;
+        // UtcNow, no Now: DateTime.Now depende de la zona horaria configurada en el SERVIDOR (si no
+        // está en UTC-3 Buenos Aires, esto queda desalineado contra todo lo demás del sistema, que
+        // guarda instantes en UTC — ver LoteCaja.FechaApertura, CabeceraComprobante.Fecha, etc.).
+        var fecha = DateTime.UtcNow;
 
         // Datos de artículo para cada presentación pedida.
         var idsPres = req.Lineas.Select(l => l.IdPresentacion).Distinct().ToList();

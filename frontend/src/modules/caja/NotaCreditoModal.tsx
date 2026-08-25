@@ -3,6 +3,8 @@ import {
   notasCredito, TipoAnulacion,
   type ComprobanteAnulable, type ComprobanteAnulableDetalle, type LineaAnulable, type NotaCreditoResultado,
 } from "../../shared/api/notasCredito";
+import { facturacion, type ComprobanteImpresion } from "../../shared/api/facturacion";
+import { ComprobanteImpresionView } from "./ComprobanteImpresion";
 import { formatearMoneda, MonedaInput } from "../../shared/ui/moneda";
 import { useSupervisorGate } from "../../shared/ui/SupervisorGate";
 
@@ -29,6 +31,9 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
   const [monto, setMonto] = useState<number | null>(null);
   const [motivo, setMotivo] = useState("");
   const [emitida, setEmitida] = useState<NotaCreditoResultado | null>(null);
+  // Ticket real para imprimir en la comandera (mismo componente que usa Caja para la factura) —
+  // null solo si falló armarlo, ahí se cae al resumen simple de siempre para no perder la venta.
+  const [impresion, setImpresion] = useState<ComprobanteImpresion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const { ejecutarConSupervisor, modal: modalSupervisor } = useSupervisorGate();
@@ -107,7 +112,7 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
     if (!detalle) return;
     setError(null); setCargando(true);
     try {
-      setEmitida(await notasCredito.emitir({
+      const resultado = await notasCredito.emitir({
         idSucursal,
         idComprobanteOrigen: detalle.comprobante.idComprobante,
         idCaja,
@@ -118,7 +123,15 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
         monto: tipo === TipoAnulacion.PorMonto ? monto : null,
         motivo: motivo.trim() || null,
         codigoSupervisor,
-      }));
+      });
+      setEmitida(resultado);
+      try {
+        setImpresion(await facturacion.impresion(idSucursal, resultado.idComprobante));
+      } catch {
+        // La NC YA se emitió: si falla el armado del ticket se muestra el resumen simple, nunca
+        // se pierde la anulación ya hecha.
+        setImpresion(null);
+      }
     } catch (e) {
       const mensaje = e instanceof Error ? e.message : "No se pudo emitir la nota de crédito.";
       setError(mensaje);
@@ -130,42 +143,46 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
 
   // ---- Comprobante emitido ----
   if (emitida) {
+    // Con el ticket real (mismo componente que usa Caja para la factura) alcanza y sobra: ya
+    // muestra número, CAE/vencimiento y totales tal como salen impresos. El resumen de abajo es
+    // solo un respaldo por si falló armar el ticket (la NC ya quedó emitida de cualquier forma).
     return (
       <Overlay onCerrar={onCerrar}>
-        <h2>Nota de crédito emitida</h2>
-        <p className="nc-numero mono">{emitida.numeroCompleto} <span className="nc-letra">{emitida.letra}</span></p>
-        <table className="grid">
-          <tbody>
-            <tr><td>Neto</td><td className="mono">{formatearMoneda(emitida.neto)}</td></tr>
-            <tr><td>IVA</td><td className="mono">{formatearMoneda(emitida.iva)}</td></tr>
-            <tr><td><b>Total acreditado</b></td><td className="mono"><b>{formatearMoneda(emitida.total)}</b></td></tr>
-            {emitida.reversionCompleta ? (
-              emitida.devoluciones.map((d) => (
-                <tr key={d.idMedioPago}>
-                  <td><b>Devuelto en {d.medioDescripcion}</b></td>
-                  <td className="mono"><b>{formatearMoneda(d.monto)}</b></td>
-                </tr>
-              ))
-            ) : (
-              <tr><td><b>A devolver en efectivo</b></td><td className="mono"><b>{formatearMoneda(emitida.devueltoEnEfectivo)}</b></td></tr>
-            )}
-            {emitida.cae && <tr><td>CAE</td><td className="mono">{emitida.cae}</td></tr>}
-          </tbody>
-        </table>
+        {impresion ? (
+          <ComprobanteImpresionView c={impresion} onCerrar={onCerrar} textoVolver="Cerrar" />
+        ) : (
+          <>
+            <h2>Nota de crédito emitida</h2>
+            <p className="nc-numero mono">{emitida.numeroCompleto} <span className="nc-letra">{emitida.letra}</span></p>
+            <table className="grid">
+              <tbody>
+                <tr><td>Neto</td><td className="mono">{formatearMoneda(emitida.neto)}</td></tr>
+                <tr><td>IVA</td><td className="mono">{formatearMoneda(emitida.iva)}</td></tr>
+                <tr><td><b>Total acreditado</b></td><td className="mono"><b>{formatearMoneda(emitida.total)}</b></td></tr>
+                {emitida.cae && <tr><td>CAE</td><td className="mono">{emitida.cae}</td></tr>}
+              </tbody>
+            </table>
+            <div className="row-actions" style={{ marginTop: 16 }}>
+              <button className="primary" onClick={onCerrar}>Cerrar</button>
+            </div>
+          </>
+        )}
         {emitida.reversionCompleta && (
-          <p className="muted" style={{ margin: 0 }}>
+          <p className="muted cbte-no-print" style={{ margin: "8px 0 0" }}>
             Anulación total del mismo día: se revirtieron todos los medios de pago de la venta
             original (los cupones de tarjeta quedaron marcados como anulados).
           </p>
         )}
+        {!emitida.reversionCompleta && (
+          <p className="muted cbte-no-print" style={{ margin: "8px 0 0" }}>
+            A devolver en efectivo: {formatearMoneda(emitida.devueltoEnEfectivo)}
+          </p>
+        )}
         {!emitida.impreso && (
-          <p className="error">
+          <p className="error cbte-no-print">
             La nota de crédito quedó registrada pero NO se imprimió: {emitida.errorImpresion}
           </p>
         )}
-        <div className="row-actions" style={{ marginTop: 16 }}>
-          <button className="primary" onClick={onCerrar}>Cerrar</button>
-        </div>
       </Overlay>
     );
   }
@@ -186,6 +203,23 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
           <span>Ya acreditado <b className="mono">{formatearMoneda(c.yaAcreditado)}</b></span>
           <span>Saldo anulable <b className="mono">{formatearMoneda(c.saldoAnulable)}</b></span>
         </div>
+
+        {/* Las percepciones viven en la cabecera de la factura, no en ninguna línea de detalle —
+            por eso no aparecen en la tabla de artículos de abajo, aunque ya están adentro de
+            "Total factura"/"Saldo anulable". Solo "Anulación total" las acredita. */}
+        {(c.percepcionIva21 > 0 || c.percepcionIva105 > 0 || c.percepcionIibb > 0) && (
+          <div className="nc-saldos nc-percepciones">
+            <span>Percepción IVA 21% <b className="mono">{formatearMoneda(c.percepcionIva21)}</b></span>
+            <span>Percepción IVA 10,5% <b className="mono">{formatearMoneda(c.percepcionIva105)}</b></span>
+            <span>Percepción IIBB <b className="mono">{formatearMoneda(c.percepcionIibb)}</b></span>
+          </div>
+        )}
+        {(c.percepcionIva21 > 0 || c.percepcionIva105 > 0 || c.percepcionIibb > 0) && tipo !== TipoAnulacion.Total && (
+          <p className="muted" style={{ marginTop: -4 }}>
+            Esta factura tiene percepciones (ya incluidas en el saldo anulable) — solo se acreditan
+            con "Anulación total"; con {tipo === TipoAnulacion.PorArticulos ? "Por artículos" : "Por diferencia de precio"} quedan sin tocar.
+          </p>
+        )}
 
         <div className="nc-tipos">
           <label>

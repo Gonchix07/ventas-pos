@@ -23,11 +23,10 @@ const fechaHora = (iso?: string | null) => {
  * final, que es la fuente de verdad ya persistida en CierresLotesCaja).
  */
 export function ReporteCierreTurno({
-  arqueo, cierre, idSucursal, usuario, motivoDescripcion, observaciones, onCerrar,
+  arqueo, cierre, usuario, motivoDescripcion, observaciones, onCerrar,
 }: {
   arqueo: ArqueoX;
   cierre: CierreTurnoResultado;
-  idSucursal: number;
   usuario: string;
   motivoDescripcion?: string | null;
   observaciones?: string | null;
@@ -52,12 +51,11 @@ export function ReporteCierreTurno({
         </header>
 
         <section className="rendicion__meta">
-          <div><span>Sucursal</span><strong>{idSucursal}</strong></div>
+          <div><span>Cajero</span><strong>{usuario}</strong></div>
           <div><span>Caja</span><strong>{arqueo.descripcionCaja}</strong></div>
           <div><span>Lote</span><strong>#{arqueo.idLote}</strong></div>
-          <div><span>Cajero</span><strong>{usuario}</strong></div>
-          <div><span>Apertura del turno</span><strong>{fechaHora(arqueo.fechaApertura)}</strong></div>
-          <div><span>Cierre del turno</span><strong>{fechaHora(cierre.fechaCierre)}</strong></div>
+          <div className="rendicion__meta-full"><span>Apertura del turno</span><strong>{fechaHora(arqueo.fechaApertura)}</strong></div>
+          <div className="rendicion__meta-full"><span>Cierre del turno</span><strong>{fechaHora(cierre.fechaCierre)}</strong></div>
         </section>
 
         {arqueo.ingresoInicial && (

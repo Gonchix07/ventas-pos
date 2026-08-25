@@ -29,6 +29,7 @@ import { CuponesPage } from "./modules/admin/CuponesPage";
 import { EtiquetasPage } from "./modules/etiquetas/EtiquetasPage";
 import { ReimpresionPage } from "./modules/reimpresion/ReimpresionPage";
 import { VentasPage } from "./modules/ventas/VentasPage";
+import { FacturacionCaeaPage } from "./modules/caea/FacturacionCaeaPage";
 import "./App.css";
 
 const queryClient = new QueryClient();
@@ -77,6 +78,9 @@ function AnimatedRoutes() {
         } />
         <Route path="/ventas" element={
           <RequireAuth roles={["Administrador"]}><VentasPage /></RequireAuth>
+        } />
+        <Route path="/facturacion-caea" element={
+          <RequireAuth roles={["Tesorero", "Administrador"]}><FacturacionCaeaPage /></RequireAuth>
         } />
         <Route path="/admin" element={
           <RequireAuth roles={["Administrador"]}><AdminLayout /></RequireAuth>
