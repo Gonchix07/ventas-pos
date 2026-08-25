@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Pos.Api.Common;
 using Pos.Application.Common;
 using Pos.Infrastructure.Persistence;
 
@@ -9,7 +10,8 @@ namespace Pos.Api.Controllers.Admin;
 /// <summary>Listas de referencia de solo lectura para poblar combos del ABM.</summary>
 [ApiController]
 [Route("api/v1/admin/referencias")]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 public class ReferenciasController : ControllerBase
 {
     private readonly PosDbContext _db;
@@ -30,7 +32,8 @@ public class ReferenciasController : ControllerBase
     // Administrador (ver App.tsx) para poblar el combo de sucursal — sin este override esos roles
     // recibían 403 al pedir la lista y el combo quedaba vacío ("no puede ver la sucursal").
     [HttpGet("sucursales")]
-    [Authorize(Roles = "Supervisor,Tesorero,Administrador")]
+    [Authorize]
+    [ModuloAutorizado("Reimpresion,Tesoreria,Administracion", "Supervisor,Tesorero,Administrador")]
     public async Task<IActionResult> Sucursales(CancellationToken ct)
     {
         var items = await _db.Sucursales.AsNoTracking()

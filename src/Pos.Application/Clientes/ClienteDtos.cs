@@ -24,6 +24,16 @@ public record ClienteInput(
     string? Domicilio, string? CodigoPostal, string? Localidad, string? Provincia, string? Email,
     List<AutorizadoInput>? Autorizados = null);
 
+/// <summary>
+/// Resultado de búsqueda para el módulo "Clientes" (ficha + ticket de comandera): a diferencia de
+/// <see cref="Pos.Application.Caja.ClienteResumen"/> no depende de una sucursal (no hay convenio ni
+/// precio de por medio, solo se busca e imprime al cliente) y solo trae la tarjeta VIGENTE.
+/// </summary>
+/// <param name="Origen">"Titular" si el DNI escaneado es el documento propio del cliente, o
+/// "Autorizado" si el DNI pertenece a alguien autorizado a comprar en esa cuenta.</param>
+public record ClienteTicketDto(int IdCliente, string CodigoInt, string Descripcion, string? Documento,
+    string? NroTarjeta, string? TipoTarjeta, string Origen);
+
 public interface IClienteService
 {
     /// <param name="soloCuentaCorriente">true = solo los que admiten cuenta corriente.</param>
@@ -33,4 +43,11 @@ public interface IClienteService
     Task<int> CreateAsync(ClienteInput input, CancellationToken ct = default);
     Task<bool> UpdateAsync(int id, ClienteInput input, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Busca por DNI escaneado (QR del documento): trae la cuenta propia del cliente cuyo Documento
+    /// coincide Y toda cuenta donde ese DNI figure como Autorizado activo — un mismo DNI puede
+    /// aparecer en más de una cuenta (la propia + las que puede comprar en nombre de otro).
+    /// </summary>
+    Task<IReadOnlyList<ClienteTicketDto>> BuscarPorDniAsync(string dni, CancellationToken ct = default);
 }

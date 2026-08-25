@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Common;
 using Pos.Application.Estadisticas;
 
@@ -9,7 +10,8 @@ namespace Pos.Api.Controllers.Admin;
 /// endpoint cada tanto, no hay push por WebSocket todavía).</summary>
 [ApiController]
 [Route("api/v1/admin/estadisticas")]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Ventas", "Administrador")]
 public class EstadisticasController : ControllerBase
 {
     private readonly IEstadisticasService _service;

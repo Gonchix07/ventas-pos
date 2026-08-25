@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Abstractions;
 using Pos.Application.Common;
 using Pos.Domain.Common;
@@ -14,7 +15,8 @@ public record LookupInput(string Descripcion);
 /// Protegido para rol Administrador (ABM = Administrador, según SRS).
 /// </summary>
 [ApiController]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 public abstract class LookupController<TEntity> : ControllerBase
     where TEntity : class, IEntidadLookup, new()
 {

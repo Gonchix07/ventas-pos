@@ -681,3 +681,15 @@ export const listasPrecios = {
   removePrecio: (id: number, idPresentacion: number) =>
     unwrap<boolean>(api.delete(`/admin/listas-precios/${id}/precios/${idPresentacion}`)),
 };
+
+// ---- Permisos por rol (acceso a los módulos del menú principal) ----
+export interface ModuloPermiso { idModulo: number; descripcion: string; }
+export interface CeldaPermiso { idModulo: number; puedeVer: boolean; }
+export interface FilaPermisoRol { idRol: number; rolDescripcion: string; celdas: CeldaPermiso[]; }
+export interface MatrizPermisos { modulos: ModuloPermiso[]; roles: FilaPermisoRol[]; }
+
+export const permisos = {
+  matriz: () => unwrap<MatrizPermisos>(api.get(`/admin/permisos`)),
+  actualizar: (idRol: number, idModulo: number, puedeVer: boolean) =>
+    unwrap<boolean>(api.put(`/admin/permisos`, { idRol, idModulo, puedeVer })),
+};

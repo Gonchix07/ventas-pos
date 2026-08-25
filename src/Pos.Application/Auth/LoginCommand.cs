@@ -75,8 +75,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResult<Login
 
         var auth = new UsuarioAutenticado(usuario.IdUsuario, usuario.NombreUsuario,
             usuario.IdRol, usuario.Rol?.Descripcion ?? "");
-        var (token, expira) = _jwt.Generar(auth, caja?.IdSucursal, caja?.IdCaja);
         var modulos = await _permisos.ModulosPorRolAsync(usuario.IdRol, ct);
+        var (token, expira) = _jwt.Generar(auth, caja?.IdSucursal, caja?.IdCaja, modulos);
 
         var (refreshToken, refreshHash) = _refreshGen.Generar();
         var refreshExpira = ahora.AddDays(_refreshOpt.Dias);

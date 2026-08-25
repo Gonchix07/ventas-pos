@@ -175,6 +175,54 @@ public class ClienteService : IClienteService
         return true;
     }
 
+    public async Task<IReadOnlyList<ClienteTicketDto>> BuscarPorDniAsync(string dni, CancellationToken ct = default)
+    {
+        var d = (dni ?? "").Trim();
+        if (d.Length == 0) return Array.Empty<ClienteTicketDto>();
+
+        // Titular: el DNI escaneado es el documento propio del cliente.
+        var titulares = await _db.Clientes.AsNoTracking()
+            .Where(c => c.Activo && c.Documento == d)
+            .OrderBy(c => c.Descripcion)
+            .ToListAsync(ct);
+
+        // Autorizado: el DNI figura como autorizado activo de OTRA cuenta (puede ser más de una).
+        var idsAutorizado = await _db.Autorizados.AsNoTracking()
+            .Where(a => a.Activo && a.Dni == d)
+            .Select(a => a.IdCliente)
+            .Distinct().ToListAsync(ct);
+        var autorizados = idsAutorizado.Count == 0 ? new List<Cliente>()
+            : await _db.Clientes.AsNoTracking()
+                .Where(c => c.Activo && idsAutorizado.Contains(c.IdCliente))
+                .OrderBy(c => c.Descripcion)
+                .ToListAsync(ct);
+
+        var ids = titulares.Select(c => c.IdCliente).Concat(autorizados.Select(c => c.IdCliente)).Distinct().ToList();
+        var tarjetas = await (
+            from t in _db.TarjetasClientes.AsNoTracking().Where(t => ids.Contains(t.IdCliente) && t.Activa)
+            join tt in _db.TiposTarjeta.AsNoTracking() on t.IdTipoTarjeta equals tt.IdTipoTarjeta
+            select new { t.IdCliente, t.NroTarjeta, tt.Descripcion }
+        ).ToListAsync(ct);
+        (string? nro, string? tipo) Tarjeta(int idCliente)
+        {
+            var t = tarjetas.FirstOrDefault(x => x.IdCliente == idCliente);
+            return (t?.NroTarjeta, t?.Descripcion);
+        }
+
+        var resultado = new List<ClienteTicketDto>();
+        resultado.AddRange(titulares.Select(c =>
+        {
+            var (nro, tipo) = Tarjeta(c.IdCliente);
+            return new ClienteTicketDto(c.IdCliente, c.CodigoInt, c.Descripcion, c.Documento, nro, tipo, "Titular");
+        }));
+        resultado.AddRange(autorizados.Select(c =>
+        {
+            var (nro, tipo) = Tarjeta(c.IdCliente);
+            return new ClienteTicketDto(c.IdCliente, c.CodigoInt, c.Descripcion, c.Documento, nro, tipo, "Autorizado");
+        }));
+        return resultado;
+    }
+
     private static ClienteDto Map(Cliente c) => new(
         c.IdCliente, c.CodigoInt, c.Cuit, c.Documento, c.Descripcion, c.NombreFantasia,
         c.IdCondIva, c.CondicionIva?.Descripcion, c.PermitePresupuesto, c.AdmiteCuentaCorriente, c.Activo,

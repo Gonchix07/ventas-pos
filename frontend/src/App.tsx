@@ -16,6 +16,7 @@ import { ConfiguracionesPage } from "./modules/admin/ConfiguracionesPage";
 import { EstructuraCajaPage } from "./modules/admin/EstructuraCajaPage";
 import { AsignacionCajasPage } from "./modules/admin/AsignacionCajasPage";
 import { UsuariosPage } from "./modules/admin/UsuariosPage";
+import { PermisosPage } from "./modules/admin/PermisosPage";
 import { ConveniosPage } from "./modules/admin/ConveniosPage";
 import { CuentaCorrientePage } from "./modules/admin/CuentaCorrientePage";
 import { ClustersPage } from "./modules/admin/ClustersPage";
@@ -24,6 +25,9 @@ import { PadronesPage } from "./modules/admin/PadronesPage";
 import { OfertasPage } from "./modules/admin/OfertasPage";
 import { OfertasMedioPagoPage } from "./modules/admin/OfertasMedioPagoPage";
 import { CajaPage } from "./modules/caja/CajaPage";
+// Alias: ya existe un ClientesPage (ABM de Administración) importado abajo con el mismo nombre de
+// componente — este es la ficha/ticket de mostrador del módulo "Clientes" del menú principal.
+import { ClientesPage as ClientesModuloPage } from "./modules/clientes/ClientesPage";
 import { TesoreriaPage } from "./modules/admin/TesoreriaPage";
 import { CuponesPage } from "./modules/admin/CuponesPage";
 import { EtiquetasPage } from "./modules/etiquetas/EtiquetasPage";
@@ -34,13 +38,23 @@ import "./App.css";
 
 const queryClient = new QueryClient();
 
-function RequireAuth({ children, roles }: { children: ReactNode; roles?: string[] }) {
-  const { isAuthenticated, isLoading, rol } = useAuth();
+/**
+ * `roles`: lista fija de siempre (igual criterio que el backend, ver ModuloAutorizadoAttribute).
+ * `modulo`: además de esa lista, deja pasar a cualquier rol al que "Permisos por rol" (Admin →
+ * Sistema) le haya dado acceso a este módulo — mismo claim "modulo" del JWT que ya valida el
+ * backend, así que un 403 de la API y el bloqueo de esta ruta siempre están de acuerdo. Si no se
+ * pasa `modulo`, el criterio es solo por rol, como antes.
+ */
+function RequireAuth({ children, roles, modulo }: { children: ReactNode; roles?: string[]; modulo?: string }) {
+  const { isAuthenticated, isLoading, rol, modulos } = useAuth();
   // Mientras se rehidrata la sesión desde el token guardado (F5), no se decide nada todavía: ni
   // se manda a /login ni se renderiza la pantalla protegida con datos a medio cargar.
   if (isLoading) return null;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (roles && (!rol || !roles.includes(rol))) return <Navigate to="/" replace />;
+  const porRol = !roles || (!!rol && roles.includes(rol));
+  const porModulo = !!modulo && modulos.includes(modulo);
+  if (roles && !porRol && !porModulo) return <Navigate to="/" replace />;
+  if (!roles && modulo && !porModulo) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -61,29 +75,32 @@ function AnimatedRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
         <Route path="/caja" element={
-          <RequireAuth roles={["Cajero", "Supervisor", "Administrador"]}><CajaPage /></RequireAuth>
+          <RequireAuth roles={["Cajero", "Supervisor", "Administrador"]} modulo="Caja"><CajaPage /></RequireAuth>
+        } />
+        <Route path="/clientes" element={
+          <RequireAuth roles={["Cajero", "Supervisor", "Tesorero", "Administrador"]} modulo="Clientes"><ClientesModuloPage /></RequireAuth>
         } />
         <Route path="/tesoreria" element={
-          <RequireAuth roles={["Tesorero", "Administrador"]}><TesoreriaPage /></RequireAuth>
+          <RequireAuth roles={["Tesorero", "Administrador"]} modulo="Tesoreria"><TesoreriaPage /></RequireAuth>
         } />
         {/* Cupones también lo puede corregir Supervisor (no tiene acceso al resto de Tesorería) */}
         <Route path="/tesoreria/cupones" element={
-          <RequireAuth roles={["Tesorero", "Supervisor", "Administrador"]}><CuponesPage /></RequireAuth>
+          <RequireAuth roles={["Tesorero", "Supervisor", "Administrador"]} modulo="Tesoreria"><CuponesPage /></RequireAuth>
         } />
         <Route path="/etiquetas" element={
-          <RequireAuth roles={["Repositor", "Tesorero", "Cajero", "Supervisor", "Administrador"]}><EtiquetasPage /></RequireAuth>
+          <RequireAuth roles={["Repositor", "Tesorero", "Cajero", "Supervisor", "Administrador"]} modulo="Etiquetas"><EtiquetasPage /></RequireAuth>
         } />
         <Route path="/reimpresion" element={
-          <RequireAuth roles={["Supervisor", "Tesorero", "Administrador"]}><ReimpresionPage /></RequireAuth>
+          <RequireAuth roles={["Supervisor", "Tesorero", "Administrador"]} modulo="Reimpresion"><ReimpresionPage /></RequireAuth>
         } />
         <Route path="/ventas" element={
-          <RequireAuth roles={["Administrador"]}><VentasPage /></RequireAuth>
+          <RequireAuth roles={["Administrador"]} modulo="Ventas"><VentasPage /></RequireAuth>
         } />
         <Route path="/facturacion-caea" element={
-          <RequireAuth roles={["Tesorero", "Administrador"]}><FacturacionCaeaPage /></RequireAuth>
+          <RequireAuth roles={["Tesorero", "Administrador"]} modulo="FacturacionCaea"><FacturacionCaeaPage /></RequireAuth>
         } />
         <Route path="/admin" element={
-          <RequireAuth roles={["Administrador"]}><AdminLayout /></RequireAuth>
+          <RequireAuth roles={["Administrador"]} modulo="Administracion"><AdminLayout /></RequireAuth>
         }>
           <Route index element={<Navigate to="/admin/articulos" replace />} />
           <Route path="articulos" element={<ArticulosPage />} />
@@ -95,6 +112,7 @@ function AnimatedRoutes() {
           <Route path="estructura-caja" element={<EstructuraCajaPage />} />
           <Route path="asignacion-cajas" element={<AsignacionCajasPage />} />
           <Route path="usuarios" element={<UsuariosPage />} />
+          <Route path="permisos" element={<PermisosPage />} />
           <Route path="convenios" element={<ConveniosPage />} />
           <Route path="cuenta-corriente" element={<CuentaCorrientePage />} />
           <Route path="ofertas" element={<OfertasPage />} />

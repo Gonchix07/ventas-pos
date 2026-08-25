@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Common;
 using Pos.Application.Etiquetas;
 
@@ -8,7 +9,8 @@ namespace Pos.Api.Controllers;
 /// <summary>Módulo de etiquetas (SRS): búsqueda/escaneo, selección por clasificación, impresión.</summary>
 [ApiController]
 [Route("api/v1/etiquetas")]
-[Authorize(Roles = "Repositor,Tesorero,Cajero,Administrador")]
+[Authorize]
+[ModuloAutorizado("Etiquetas", "Repositor,Tesorero,Cajero,Administrador")]
 public class EtiquetasController : ControllerBase
 {
     private readonly IEtiquetaService _service;

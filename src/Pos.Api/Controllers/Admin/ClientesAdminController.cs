@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Clientes;
 using Pos.Application.Common;
 
@@ -7,7 +8,8 @@ namespace Pos.Api.Controllers.Admin;
 
 [ApiController]
 [Route("api/v1/admin/clientes")]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 public class ClientesAdminController : ControllerBase
 {
     private readonly IClienteService _service;

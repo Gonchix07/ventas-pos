@@ -104,6 +104,17 @@
 .cbte__firma-linea { border-top: 1px solid #000; margin: 0 4mm; }
 .cbte__firma-etiquetas { display: flex; justify-content: space-between; margin: 1mm 4mm 0; font-size: 7.5pt; color: #333; }
 
+/* Ticket del módulo "Clientes": ficha para identificar al cliente en cualquier mostrador (no solo
+   Caja), con el código de barras de su tarjeta para volver a escanearla desde el ticket mismo.
+   Mismo criterio tipográfico grande que Retiro/Ingreso (comprobante interno, no fiscal). */
+.cbte--cliente .cbte__tipo h2 { font-size: 15pt; }
+.cbte--cliente .cbte__cliente { font-size: 12pt; flex-direction: column; gap: 1mm; }
+.cbte--cliente .cbte__cliente div { justify-content: flex-start; }
+.cbte--cliente .cbte__cliente span:first-child { min-width: 32mm; font-weight: 600; }
+.cbte__barcode { text-align: center; margin-top: 3mm; }
+.cbte__barcode svg { width: 100%; max-width: 68mm; height: auto; }
+.cbte__barcode .mono { display: block; font-size: 9pt; letter-spacing: 1px; margin-top: 1mm; }
+
 @media print {
   @page { size: 76mm auto; margin: 0; }
   .cbte-no-print { display: none !important; }
@@ -137,4 +148,7 @@
 
   @page arqueo-ticket { size: 99mm auto; margin: 0; }
   .cbte--arqueo { page: arqueo-ticket; width: 99mm; }
+
+  @page cliente-ticket { size: 99mm auto; margin: 0; }
+  .cbte--cliente { page: cliente-ticket; width: 99mm; }
 }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Common;
 using Pos.Application.Cupones;
 
@@ -11,7 +12,8 @@ namespace Pos.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/tesoreria/cupones")]
-[Authorize(Roles = "Tesorero,Supervisor,Administrador")]
+[Authorize]
+[ModuloAutorizado("Tesoreria", "Tesorero,Supervisor,Administrador")]
 public class CuponesController : ControllerBase
 {
     private readonly ICuponesService _service;

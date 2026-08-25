@@ -10,7 +10,8 @@ namespace Pos.Api.Controllers.Admin;
 
 [ApiController]
 [Route("api/v1/admin")]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 public class ConveniosController : ControllerBase
 {
     private readonly IConvenioService _service;
@@ -37,7 +38,8 @@ public class ConveniosController : ControllerBase
 
 [ApiController]
 [Route("api/v1/admin/clusters")]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 public class ClustersController : ControllerBase
 {
     private readonly IClusterService _service;
@@ -88,7 +90,8 @@ public class ClustersController : ControllerBase
 
 [ApiController]
 [Route("api/v1/admin")]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 public class TarjetasController : ControllerBase
 {
     private readonly ITarjetaAdminService _service;
@@ -133,7 +136,8 @@ public class TarjetasController : ControllerBase
 
 [ApiController]
 [Route("api/v1/admin")]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 public class CuentaCorrienteAdminController : ControllerBase
 {
     private readonly IClienteEnCuentaService _service;
@@ -160,7 +164,8 @@ public class CuentaCorrienteAdminController : ControllerBase
 
 [ApiController]
 [Route("api/v1/admin/padrones")]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 public class PadronesController : ControllerBase
 {
     private readonly IPadronService _service;

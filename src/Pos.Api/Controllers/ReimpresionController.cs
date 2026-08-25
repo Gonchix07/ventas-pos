@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Common;
 using Pos.Application.Facturacion;
 
@@ -14,7 +15,8 @@ namespace Pos.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/reimpresion")]
-[Authorize(Roles = "Supervisor,Tesorero,Administrador")]
+[Authorize]
+[ModuloAutorizado("Reimpresion", "Supervisor,Tesorero,Administrador")]
 public class ReimpresionController : ControllerBase
 {
     private readonly IReimpresionService _service;

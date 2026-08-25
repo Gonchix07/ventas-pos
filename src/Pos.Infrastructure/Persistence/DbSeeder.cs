@@ -140,6 +140,26 @@ public static class DbSeeder
         }
         await db.SaveChangesAsync(ct);
 
+        // Módulo "Clientes" (2026-08-25): búsqueda de cliente por documento/tarjeta (con escaneo de
+        // QR de DNI) e impresión de un ticket con sus datos por comandera. Acceso de mostrador —
+        // mismos roles que Etiquetas, más Tesorero (que también atiende cliente en algunas sucursales).
+        var moduloClientes = await db.Modulos.FirstOrDefaultAsync(m => m.Descripcion == "Clientes", ct);
+        if (moduloClientes is null)
+        {
+            moduloClientes = new Modulo { Descripcion = "Clientes" };
+            db.Modulos.Add(moduloClientes);
+            await db.SaveChangesAsync(ct);
+        }
+        foreach (var descripcionRol in new[] { "Administrador", "Cajero", "Supervisor", "Tesorero" })
+        {
+            var rol = await db.Roles.FirstOrDefaultAsync(r => r.Descripcion == descripcionRol, ct);
+            if (rol is null) continue;
+            if (!await db.Permisos.AnyAsync(p => p.IdRol == rol.IdRol && p.IdModulo == moduloClientes.IdModulo, ct))
+                db.Permisos.Add(new Permiso { IdRol = rol.IdRol, IdModulo = moduloClientes.IdModulo,
+                    PuedeVer = true, PuedeEditar = true });
+        }
+        await db.SaveChangesAsync(ct);
+
         // Cada medio Tarjeta necesita al menos un plan de cuotas (obligatorio elegir uno al cobrar,
         // ver FacturacionService): alta pedida después de que ya existían medios Tarjeta sin
         // ninguno cargado, por eso el backfill acá — PagoAdminService.AsegurarPlanPorDefectoAsync

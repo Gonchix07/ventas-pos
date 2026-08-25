@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Catalogo;
 using Pos.Application.Common;
 
@@ -11,7 +12,8 @@ namespace Pos.Api.Controllers.Admin;
 /// dependientes de Artículos, Etiquetas y Ofertas).
 /// </summary>
 [ApiController]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 [Route("api/v1/admin/familias")]
 public class FamiliasController : ControllerBase
 {

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Abm;
 using Pos.Application.Common;
 
@@ -8,7 +9,8 @@ namespace Pos.Api.Controllers.Admin;
 /// <summary>Configuración (singleton) de la conexión a la base MySQL externa — ver ConexionExternaMySql.</summary>
 [ApiController]
 [Route("api/v1/admin/conexion-externa")]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 public class ConexionExternaController : ControllerBase
 {
     private readonly IConexionExternaAdminService _service;

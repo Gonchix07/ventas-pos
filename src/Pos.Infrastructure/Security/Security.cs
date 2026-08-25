@@ -30,7 +30,8 @@ public class JwtTokenGenerator : IJwtTokenGenerator
     private readonly JwtOptions _opt;
     public JwtTokenGenerator(JwtOptions opt) => _opt = opt;
 
-    public (string token, DateTime expiraUtc) Generar(UsuarioAutenticado usuario, int? idSucursal, int? idCaja)
+    public (string token, DateTime expiraUtc) Generar(UsuarioAutenticado usuario, int? idSucursal, int? idCaja,
+        IReadOnlyList<string> modulos)
     {
         var expira = DateTime.UtcNow.AddMinutes(_opt.Minutos);
         var claims = new List<Claim>
@@ -42,6 +43,9 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         };
         if (idSucursal is not null) claims.Add(new("idSucursal", idSucursal.ToString()!));
         if (idCaja is not null) claims.Add(new("idCaja", idCaja.ToString()!));
+        // Un claim "modulo" por cada módulo habilitado (ver ModuloAutorizadoAttribute) — así el
+        // tilde de "Permisos por rol" habilita el acceso real, no solo la tarjeta del menú.
+        foreach (var m in modulos) claims.Add(new("modulo", m));
 
         var creds = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_opt.Key)),

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Common;
 using Pos.Application.Facturacion;
 
@@ -10,7 +11,8 @@ namespace Pos.Api.Controllers;
 /// obligación fiscal de back-office, no una operación de mostrador.</summary>
 [ApiController]
 [Route("api/v1/caea-lote")]
-[Authorize(Roles = "Tesorero,Administrador")]
+[Authorize]
+[ModuloAutorizado("FacturacionCaea", "Tesorero,Administrador")]
 public class CaeaLoteController : ControllerBase
 {
     private readonly ICaeaLoteService _service;

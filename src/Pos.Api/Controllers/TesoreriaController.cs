@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Common;
 using Pos.Application.Tesoreria;
 
@@ -8,7 +9,8 @@ namespace Pos.Api.Controllers;
 /// <summary>Módulo de reportes de tesorería (SRS): dashboard, cierres y validación.</summary>
 [ApiController]
 [Route("api/v1/tesoreria")]
-[Authorize(Roles = "Tesorero,Administrador")]
+[Authorize]
+[ModuloAutorizado("Tesoreria", "Tesorero,Administrador")]
 public class TesoreriaController : ControllerBase
 {
     private readonly ITesoreriaService _service;

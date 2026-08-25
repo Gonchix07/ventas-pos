@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Abm;
 using Pos.Application.Abstractions;
 using Pos.Application.Common;
@@ -24,7 +25,8 @@ public class LineasController : LookupController<Linea>
 // Los tipos de oferta son fijos: cada uno tiene un comportamiento programado en el motor, así que
 // solo se listan para poblar el combo de Acción en el ABM de Ofertas. Sin alta/edición/baja.
 [ApiController]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 [Route("api/v1/admin/tipos-oferta")]
 public class TiposOfertaController : ControllerBase
 {

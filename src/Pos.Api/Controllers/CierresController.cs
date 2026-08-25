@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Cierres;
 using Pos.Application.Common;
 
@@ -12,7 +13,8 @@ namespace Pos.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/caja")]
-[Authorize(Roles = "Cajero,Supervisor,Administrador")]
+[Authorize]
+[ModuloAutorizado("Caja", "Cajero,Supervisor,Administrador")]
 public class CierresController : ControllerBase
 {
     private readonly ICierreCajaService _service;

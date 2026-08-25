@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Abm;
 using Pos.Application.Common;
 using Pos.Application.Facturacion;
@@ -8,7 +9,8 @@ namespace Pos.Api.Controllers.Admin;
 
 [ApiController]
 [Route("api/v1/admin")]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 public class EstructuraController : ControllerBase
 {
     private readonly IEstructuraService _service;

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Common;
 using Pos.Application.Facturacion;
 
@@ -7,7 +8,8 @@ namespace Pos.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/notas-credito")]
-[Authorize(Roles = "Cajero,Supervisor,Administrador")]
+[Authorize]
+[ModuloAutorizado("Caja", "Cajero,Supervisor,Administrador")]
 public class NotasCreditoController : ControllerBase
 {
     private readonly INotaCreditoService _service;

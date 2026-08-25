@@ -1,10 +1,10 @@
 # 08 — Puesto físico de Caja: impresión de tickets sin diálogo
 
 La app de Caja es una SPA que corre en un navegador normal (no hay wrapper nativo tipo Electron).
-Los tickets no fiscales (Retiro de efectivo, Presupuesto, comprobante de Vale) se imprimen con
-`window.print()` contra la impresora "comandera" configurada en Windows — ver
-`frontend/src/modules/caja/comprobante-print.css`. El comprobante fiscal (Factura A/B) sale por el
-controlador Hasar, no por acá.
+Los tickets no fiscales (Retiro de efectivo, Presupuesto, comprobante de Vale, ficha del módulo
+Clientes) se imprimen con `window.print()` contra la impresora "comandera" configurada en Windows —
+ver `frontend/src/modules/caja/comprobante-print.css`. El comprobante fiscal (Factura A/B) sale por
+el controlador Hasar, no por acá.
 
 Por defecto, `window.print()` siempre abre el diálogo de impresión / vista previa del navegador:
 no hay forma de saltearlo desde JavaScript. Para que la comandera imprima directo (sin que el

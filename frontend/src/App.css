@@ -83,6 +83,17 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .module-card.clickable { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
 .module-card.clickable:hover { border-color: var(--petrol); box-shadow: 0 6px 18px rgba(12,107,99,.12); }
 
+/* Solo la tarjeta de Administración: imagen de fondo en la esquina inferior derecha, detrás del
+   texto (que sigue con su fondo propio arriba, position:relative lo asegura). Semitransparente
+   para que no compita con el título/badge de la tarjeta. */
+.module-card--admin { position: relative; overflow: hidden; }
+.module-card--admin::after {
+  content: ""; position: absolute; right: -6px; bottom: -6px; width: 72px; height: 72px;
+  background: url("/ajustes.jpg") no-repeat center / contain;
+  opacity: 0.18; pointer-events: none;
+}
+.module-card--admin > * { position: relative; }
+
 /* ---- Admin ---- */
 .admin { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
 .admin-side { background: var(--surface); border-right: 1px solid var(--line);

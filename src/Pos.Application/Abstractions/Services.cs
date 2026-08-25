@@ -33,7 +33,11 @@ public record UsuarioAutenticado(int IdUsuario, string Usuario, int IdRol, strin
 /// <summary>Emisión de tokens JWT.</summary>
 public interface IJwtTokenGenerator
 {
-    (string token, DateTime expiraUtc) Generar(UsuarioAutenticado usuario, int? idSucursal, int? idCaja);
+    /// <paramref name="modulos"/>: los módulos que el rol puede ver (ver IPermisoRepository.ModulosPorRolAsync)
+    /// — van como claims "modulo" en el token, para que los controllers puedan autorizar por
+    /// módulo además de por rol fijo (ver Pos.Api.Common.ModuloAutorizadoAttribute).
+    (string token, DateTime expiraUtc) Generar(UsuarioAutenticado usuario, int? idSucursal, int? idCaja,
+        IReadOnlyList<string> modulos);
 }
 
 /// <summary>

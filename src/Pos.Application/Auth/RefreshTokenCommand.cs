@@ -73,8 +73,8 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
 
         var auth = new UsuarioAutenticado(usuario.IdUsuario, usuario.NombreUsuario,
             usuario.IdRol, usuario.Rol?.Descripcion ?? "");
-        var (token, expira) = _jwt.Generar(auth, existente.IdSucursal, existente.IdCaja);
         var modulos = await _permisos.ModulosPorRolAsync(usuario.IdRol, ct);
+        var (token, expira) = _jwt.Generar(auth, existente.IdSucursal, existente.IdCaja, modulos);
 
         var (nuevoRefresh, nuevoHash) = _refreshGen.Generar();
         var nuevaExpiraRefresh = ahora.AddDays(_refreshOpt.Dias);

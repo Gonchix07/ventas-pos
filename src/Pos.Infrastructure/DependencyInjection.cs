@@ -37,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<Pos.Application.Abm.IConexionExternaAdminService, Services.ConexionExternaAdminService>();
         services.AddScoped<Pos.Application.Abm.ICajaEstructuraService, Services.CajaEstructuraService>();
         services.AddScoped<Pos.Application.Abm.IUsuarioAdminService, Services.UsuarioAdminService>();
+        services.AddScoped<Pos.Application.Abm.IPermisoAdminService, Services.PermisoAdminService>();
         services.AddScoped<Pos.Application.Abm.IConvenioService, Services.ConvenioService>();
         services.AddScoped<Pos.Application.Abm.IClusterService, Services.ClusterService>();
         services.AddScoped<Pos.Application.Abm.ITarjetaAdminService, Services.TarjetaAdminService>();

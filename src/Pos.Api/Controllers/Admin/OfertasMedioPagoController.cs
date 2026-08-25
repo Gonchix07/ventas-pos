@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Abm;
 using Pos.Application.Common;
 
@@ -7,7 +8,8 @@ namespace Pos.Api.Controllers.Admin;
 
 [ApiController]
 [Route("api/v1/admin/sucursales/{idSucursal:int}/ofertas-medio-pago")]
-[Authorize(Roles = "Administrador")]
+[Authorize]
+[ModuloAutorizado("Administracion", "Administrador")]
 public class OfertasMedioPagoController : ControllerBase
 {
     private readonly IOfertaMedioPagoAdminService _service;

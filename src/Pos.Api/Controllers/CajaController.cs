@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Caja;
 using Pos.Application.Common;
 
@@ -8,7 +9,8 @@ namespace Pos.Api.Controllers;
 /// <summary>Operaciones de caja (módulo de caja del SRS): apertura, identificación, lectura, operación.</summary>
 [ApiController]
 [Route("api/v1/caja")]
-[Authorize(Roles = "Cajero,Supervisor,Administrador")]
+[Authorize]
+[ModuloAutorizado("Caja", "Cajero,Supervisor,Administrador")]
 public class CajaController : ControllerBase
 {
     private readonly ICajaService _service;

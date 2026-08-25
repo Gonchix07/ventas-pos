@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Pos.Api.Common;
 using Pos.Application.Common;
 using Pos.Application.Facturacion;
 
@@ -8,7 +9,8 @@ namespace Pos.Api.Controllers;
 /// <summary>Emisión y consulta de comprobantes (módulo de Facturación del SRS).</summary>
 [ApiController]
 [Route("api/v1/facturacion")]
-[Authorize(Roles = "Cajero,Supervisor,Administrador")]
+[Authorize]
+[ModuloAutorizado("Caja", "Cajero,Supervisor,Administrador")]
 public class FacturacionController : ControllerBase
 {
     private readonly IFacturacionService _service;
