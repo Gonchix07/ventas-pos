@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../shared/auth/auth";
 import { clientesModulo, type ClienteTicket } from "../../shared/api/clientes";
 import { parseDniQr } from "../../shared/ui/dni";
 import { TicketCliente } from "./TicketCliente";
@@ -17,9 +15,6 @@ import { TicketCliente } from "./TicketCliente";
  * comprar (Autorizado) — un mismo documento puede traer más de una fila.
  */
 export function ClientesPage() {
-  const { usuario, logout, ip } = useAuth();
-  const navigate = useNavigate();
-
   const inputRef = useRef<HTMLInputElement>(null);
   const [texto, setTexto] = useState("");
   const [popup, setPopup] = useState(false);
@@ -27,6 +22,16 @@ export function ClientesPage() {
   const [resultados, setResultados] = useState<ClienteTicket[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aImprimir, setAImprimir] = useState<ClienteTicket | null>(null);
+
+  // Pantalla de cara al cliente: en vez de usuario/IP/Módulos/Salir (de uso interno del cajero),
+  // el header muestra fecha y hora en vivo.
+  const [ahora, setAhora] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setAhora(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const fecha = ahora.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const hora = ahora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 
   // El foco vuelve solo al campo de escaneo apenas queda libre (al abrir la pantalla, cerrar el
   // popup o terminar de imprimir) — el lector necesita que el foco esté siempre ahí, nadie hace
@@ -86,19 +91,18 @@ export function ClientesPage() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" style={{ background: "#fff", minHeight: "100vh" }}>
       <header className="app-header">
         <div className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Mayorista</span></div>
         <div className="user-box">
-          <span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span>
-          <button onClick={() => navigate("/")}>Módulos</button>
-          <button onClick={logout}>Salir</button>
+          <span className="mono">{fecha} · {hora}</span>
         </div>
       </header>
       <main className="app-main">
-        <div className="card" style={{ textAlign: "center", padding: "48px 24px" }}>
-          <h1 style={{ marginTop: 0 }}>¡Bienvenido a Hergo Mayorista!</h1>
-          <p className="muted" style={{ fontSize: 16 }}>Por favor escanee su DNI para una búsqueda más ágil</p>
+        <div className="card" style={{ textAlign: "center", padding: "16px 24px 48px" }}>
+          <img src="/LogoHergo.png" alt="Hergo — El Mayorista de Mar del Plata" style={{ maxWidth: 473, marginBottom: 16 }} />
+          <h1 style={{ marginTop: 0, fontSize: 34 }}>¡Bienvenido!</h1>
+          <p className="muted" style={{ fontSize: 22 }}>Si te olvidaste la Tarjeta, escanea el QR de tu DNI aquí</p>
           <img src="/barcode-scan.gif" alt="Escaneando código de barras" style={{ maxWidth: 260, marginTop: 12 }} />
         </div>
 
