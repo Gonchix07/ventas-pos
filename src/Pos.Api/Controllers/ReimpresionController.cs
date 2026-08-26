@@ -28,12 +28,12 @@ public class ReimpresionController : ControllerBase
         _facturacion = facturacion;
     }
 
-    /// <summary>Busca comprobantes (facturas y notas de crédito) por número, cliente o CUIT.</summary>
+    /// <summary>Busca comprobantes (facturas, notas de crédito y presupuestos) por número, cliente o CUIT.</summary>
     [HttpGet("comprobantes")]
     public async Task<IActionResult> Buscar([FromQuery] int idSucursal, [FromQuery] string? texto,
-        [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta, CancellationToken ct) =>
+        [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta, [FromQuery] string? tipo, CancellationToken ct) =>
         Ok(ApiResult<IReadOnlyList<ComprobanteReimpresionDto>>.Success(
-            await _service.BuscarAsync(idSucursal, texto ?? "", desde, hasta, ct)));
+            await _service.BuscarAsync(idSucursal, texto ?? "", desde, hasta, tipo, ct)));
 
     /// <summary>Comprobante armado para imprimir (formato A o B según la letra emitida) — mismo DTO
     /// que la vista inmediata post-emisión.</summary>
@@ -44,5 +44,22 @@ public class ReimpresionController : ControllerBase
         return c is null
             ? NotFound(ApiResult<ComprobanteImpresionDto>.Fail("NO_ENCONTRADO", "El comprobante no existe."))
             : Ok(ApiResult<ComprobanteImpresionDto>.Success(c));
+    }
+
+    /// <summary>Busca rendiciones (cierres de turno de cajero, lotes CERRADOS) por número o cajero.</summary>
+    [HttpGet("rendiciones")]
+    public async Task<IActionResult> BuscarRendiciones([FromQuery] int idSucursal, [FromQuery] string? texto,
+        [FromQuery] DateTime? desde, [FromQuery] DateTime? hasta, CancellationToken ct) =>
+        Ok(ApiResult<IReadOnlyList<RendicionReimpresionDto>>.Success(
+            await _service.BuscarRendicionesAsync(idSucursal, texto ?? "", desde, hasta, ct)));
+
+    /// <summary>Rendición de un lote puntual armada para reimprimir — mismo PDF que genera Caja al cerrar el turno.</summary>
+    [HttpGet("rendiciones/{idLote:int}")]
+    public async Task<IActionResult> Rendicion(int idLote, [FromQuery] int idSucursal, CancellationToken ct)
+    {
+        var r = await _service.ObtenerRendicionAsync(idSucursal, idLote, ct);
+        return r is null
+            ? NotFound(ApiResult<RendicionImpresionDto>.Fail("NO_ENCONTRADO", "El lote no existe o no está cerrado."))
+            : Ok(ApiResult<RendicionImpresionDto>.Success(r));
     }
 }

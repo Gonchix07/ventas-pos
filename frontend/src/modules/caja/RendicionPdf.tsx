@@ -58,10 +58,16 @@ const s = StyleSheet.create({
   filaFoot: { flexDirection: "row", borderTopWidth: 1, borderColor: "#16211f", paddingTop: 3, fontWeight: 700 },
   celda: { flex: 2 },
   celdaNum: { flex: 1, textAlign: "right" },
+  // Variante para la tabla de Retiros: "Autorizó / retiró" es casi siempre un nombre de usuario
+  // corto, así que se le achica el ancho para darle más lugar al importe (un retiro grande, ej.
+  // "−$8.000.000,00", se cortaba en dos líneas con el ancho parejo de celdaNum).
+  celdaCorta: { flex: 1 },
+  celdaNumAncha: { flex: 1.6, textAlign: "right" },
   diferencia: { color: "#b3261e" },
 
-  resumenGrid: { flexDirection: "row", flexWrap: "wrap", marginTop: 4 },
-  resumenItem: { width: "50%", flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 },
+  resumenGrid: { flexDirection: "column", marginTop: 4 },
+  resumenItem: { width: "100%", flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 },
+  resumenItemBold: { width: "100%", flexDirection: "row", justifyContent: "space-between", paddingVertical: 2, fontWeight: 700 },
   resumenTotal: { width: "100%", flexDirection: "row", justifyContent: "space-between",
     borderTopWidth: 1, borderColor: "#16211f", paddingTop: 4, marginTop: 4, fontWeight: 800, fontSize: 10.5 },
 
@@ -86,6 +92,21 @@ function RendicionDocument({ arqueo, cierre, usuario, motivoDescripcion, observa
   const totalEsperado = cierre.detalle.reduce((acc, d) => acc + d.esperado, 0);
   const totalDeclarado = cierre.detalle.reduce((acc, d) => acc + d.declarado, 0);
   const hayDiferencia = Math.abs(cierre.diferenciaTotal) >= 0.01;
+
+  // "Efectivo Real (contado)" y "Otros Medios (contado)" — el detalle por medio de pago
+  // (cierre.detalle) ya viene con el saldo inicial sumado y retiros/vueltos/notas de crédito
+  // restados del medio Efectivo (ver ArmarDetalleAsync/AcumularAsync en el backend). La línea
+  // "Efectivo" de acá arriba deshace esos descuentos para mostrar la venta BRUTA en efectivo del
+  // turno, antes de que salieran los retiros/vueltos/créditos — el cajero la usa para ver de un
+  // vistazo cuánto vendió en efectivo, no solo cuánto quedó al final.
+  const efectivo = cierre.detalle.find((d) => d.descripcion === "Efectivo");
+  const efectivoReal = efectivo?.declarado ?? 0;
+  const saldoInicial = arqueo.ingresoInicial?.monto ?? 0;
+  // efectivoReal ya trae el saldo inicial sumado (no solo ventas) — se resta acá para no
+  // contarlo dos veces al deshacer el resto de los descuentos.
+  const efectivoBruto = efectivoReal - saldoInicial + arqueo.totalRetiros + arqueo.totalVueltos + cierre.totalAnulaciones;
+  const otrosMedios = cierre.detalle.filter((d) => d.descripcion !== "Efectivo")
+    .reduce((acc, d) => acc + d.declarado, 0);
 
   return (
     <Document>
@@ -175,19 +196,19 @@ function RendicionDocument({ arqueo, cierre, usuario, motivoDescripcion, observa
             <Text style={s.h2}>Retiros de efectivo</Text>
             <View style={s.filaHead}>
               <Text style={s.celda}>Hora</Text><Text style={s.celda}>Concepto</Text>
-              <Text style={s.celda}>Autorizó / retiró</Text><Text style={s.celdaNum}>Importe</Text>
+              <Text style={s.celdaCorta}>Autorizó / retiró</Text><Text style={s.celdaNumAncha}>Importe</Text>
             </View>
             {arqueo.retiros.map((r) => (
               <View style={s.fila} key={r.idMovCaja}>
                 <Text style={s.celda}>{fechaHora(r.fecha)}</Text>
                 <Text style={s.celda}>{r.concepto ?? "—"}</Text>
-                <Text style={s.celda}>{r.usuario ?? "—"}</Text>
-                <Text style={s.celdaNum}>−${money(r.monto)}</Text>
+                <Text style={s.celdaCorta}>{r.usuario ?? "—"}</Text>
+                <Text style={s.celdaNumAncha}>−${money(r.monto)}</Text>
               </View>
             ))}
             <View style={s.filaFoot}>
-              <Text style={{ flex: 3 }}>Total retiros</Text>
-              <Text style={s.celdaNum}>−${money(arqueo.totalRetiros)}</Text>
+              <Text style={{ flex: 5 }}>Total retiros</Text>
+              <Text style={s.celdaNumAncha}>−${money(arqueo.totalRetiros)}</Text>
             </View>
           </View>
         )}
@@ -195,20 +216,12 @@ function RendicionDocument({ arqueo, cierre, usuario, motivoDescripcion, observa
         {arqueo.vueltos.length > 0 && (
           <View style={s.bloque}>
             <Text style={s.h2}>Vueltos entregados</Text>
-            <View style={s.filaHead}>
-              <Text style={s.celda}>Hora</Text><Text style={s.celda}>Concepto</Text>
-              <Text style={s.celda}>Cajero</Text><Text style={s.celdaNum}>Importe</Text>
-            </View>
-            {arqueo.vueltos.map((v) => (
-              <View style={s.fila} key={v.idMovCaja}>
-                <Text style={s.celda}>{fechaHora(v.fecha)}</Text>
-                <Text style={s.celda}>{v.concepto ?? "—"}</Text>
-                <Text style={s.celda}>{v.usuario ?? "—"}</Text>
-                <Text style={s.celdaNum}>−${money(v.monto)}</Text>
-              </View>
-            ))}
-            <View style={s.filaFoot}>
-              <Text style={{ flex: 3 }}>Total vueltos</Text>
+            {/* Un solo ítem con el total del turno — no uno por comprobante (a diferencia de
+                Retiros/Notas de crédito, que sí se justifican caso por caso, el vuelto es un
+                goteo constante de casi todas las ventas en efectivo y detallarlo uno por uno
+                no aporta nada a la rendición). */}
+            <View style={s.fila}>
+              <Text style={{ flex: 3 }}>Total de vueltos entregados en el turno</Text>
               <Text style={s.celdaNum}>−${money(arqueo.totalVueltos)}</Text>
             </View>
           </View>
@@ -217,22 +230,16 @@ function RendicionDocument({ arqueo, cierre, usuario, motivoDescripcion, observa
         <View style={s.bloque}>
           <Text style={s.h2}>Resumen del turno</Text>
           <View style={s.resumenGrid}>
-            {arqueo.ingresoInicial && (
-              <View style={s.resumenItem}><Text>Saldo inicial</Text><Text>${money(arqueo.ingresoInicial.monto)}</Text></View>
-            )}
+            <View style={s.resumenItem}><Text>Saldo Inicial</Text><Text>${money(saldoInicial)}</Text></View>
+            <View style={s.resumenItem}><Text>Efectivo</Text><Text>${money(efectivoBruto)}</Text></View>
+            <View style={s.resumenItem}><Text>Retiros</Text><Text>−${money(arqueo.totalRetiros)}</Text></View>
+            <View style={s.resumenItem}><Text>Créditos</Text><Text>−${money(cierre.totalAnulaciones)}</Text></View>
+            <View style={s.resumenItem}><Text>Vueltos</Text><Text>−${money(arqueo.totalVueltos)}</Text></View>
+            <View style={s.resumenItemBold}><Text>Efectivo Real (contado)</Text><Text>${money(efectivoReal)}</Text></View>
+            <View style={s.resumenItemBold}><Text>Otros Medios (contado)</Text><Text>${money(otrosMedios)}</Text></View>
             <View style={s.resumenItem}><Text>Total esperado (sistema)</Text><Text>${money(totalEsperado)}</Text></View>
-            <View style={s.resumenItem}><Text>Total declarado (contado)</Text><Text>${money(totalDeclarado)}</Text></View>
-            {cierre.anulaciones.length > 0 && (
-              <View style={s.resumenItem}><Text>Notas de crédito</Text><Text>−${money(cierre.totalAnulaciones)}</Text></View>
-            )}
-            {arqueo.retiros.length > 0 && (
-              <View style={s.resumenItem}><Text>Retiros de efectivo</Text><Text>−${money(arqueo.totalRetiros)}</Text></View>
-            )}
-            {arqueo.vueltos.length > 0 && (
-              <View style={s.resumenItem}><Text>Vueltos entregados</Text><Text>−${money(arqueo.totalVueltos)}</Text></View>
-            )}
             <View style={[s.resumenTotal, hayDiferencia ? s.diferencia : undefined]}>
-              <Text>Diferencia total</Text><Text>${money(cierre.diferenciaTotal)}</Text>
+              <Text>Diferencia Total</Text><Text>${money(cierre.diferenciaTotal)}</Text>
             </View>
           </View>
         </View>

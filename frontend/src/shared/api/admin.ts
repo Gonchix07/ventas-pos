@@ -92,6 +92,13 @@ export interface ArticuloInput {
   activo: boolean;
   unidadMedida: number; // 0=Ninguna, 1=Kilogramo, 2=Litro
   contenidoNetoUnitario?: number | null;
+  /** Unidades por bulto del artículo (1 = no viene en bulto) — dato propio de la ficha, distinto
+   *  del unidadXBulto de cada Presentacion/código de barras. Lo usa la codificación de cantidades
+   *  de la interfase contable. */
+  unidadXBulto: number;
+  /** Se vende suelto por peso (etiqueta de balanza) — la interfase contable codifica la cantidad
+   *  distinto en ese caso (siempre 3 decimales: kilo entero + gramos). */
+  ventaPorPeso: boolean;
   presentaciones: Presentacion[];
 }
 

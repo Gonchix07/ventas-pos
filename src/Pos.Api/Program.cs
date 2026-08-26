@@ -77,7 +77,15 @@ builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
 // El filtro corre dentro del scope de cada request y se resuelve por DI (constructor con
 // IAuditLogger) vía TypeFilterAttribute — no hace falta registrarlo aparte en el contenedor.
-builder.Services.AddControllers(o => o.Filters.Add<Pos.Api.Common.AuditoriaActionFilter>());
+builder.Services.AddControllers(o => o.Filters.Add<Pos.Api.Common.AuditoriaActionFilter>())
+    .AddJsonOptions(o =>
+    {
+        // Ver UtcDateTimeConverter.cs: sin esto, las fechas salían sin sufijo "Z" (EF Core devuelve
+        // Kind=Unspecified desde SQL Server aunque el valor sea UTC) y el frontend las interpretaba
+        // como hora local, desfasando todos los timestamps por el offset de Argentina (UTC-3).
+        o.JsonSerializerOptions.Converters.Add(new Pos.Api.Common.UtcDateTimeConverter());
+        o.JsonSerializerOptions.Converters.Add(new Pos.Api.Common.UtcNullableDateTimeConverter());
+    });
 
 // ----- JWT -----
 const string ClavePlaceholder = "CAMBIAR-ESTA-CLAVE-EN-PRODUCCION-MIN-32-CARACTERES-1234";

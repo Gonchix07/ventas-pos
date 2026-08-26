@@ -26,12 +26,14 @@ public record ArticuloDetail(
     int IdArticulo, string CodigoInterno, string Descripcion,
     int IdSector, int IdLinea, int IdFamilia, int IdModoIva,
     bool Activo, string ImagenUrl, int UnidadMedida, decimal? ContenidoNetoUnitario,
+    decimal UnidadXBulto, bool VentaPorPeso,
     List<PresentacionDto> Presentaciones);
 
 public record ArticuloInput(
     string CodigoInterno, string Descripcion,
     int IdSector, int IdLinea, int IdFamilia, int IdModoIva,
     bool Activo, int UnidadMedida, decimal? ContenidoNetoUnitario,
+    decimal UnidadXBulto, bool VentaPorPeso,
     List<PresentacionInput> Presentaciones);
 
 public interface IArticuloService

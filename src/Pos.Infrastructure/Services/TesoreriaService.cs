@@ -138,6 +138,31 @@ public class TesoreriaService : ITesoreriaService
         return true;
     }
 
+    public async Task<bool> ReabrirCierreAsync(int idSucursal, int idLote, CancellationToken ct = default)
+    {
+        _currentUser.AsegurarSucursal(idSucursal);
+        var filas = await _db.CierresLotesCaja
+            .Where(c => c.IdSucursal == idSucursal && c.IdLote == idLote).ToListAsync(ct);
+
+        if (filas.Count == 0)
+        {
+            // Mismo caso especial que ValidarCierreAsync: lote sin movimientos, el visto bueno vive
+            // en el lote mismo (VerificadoTesoreriaVacio), no hay filas de CierresLotesCaja.
+            var lote = await _db.LotesCaja
+                .FirstOrDefaultAsync(l => l.IdSucursal == idSucursal && l.IdLote == idLote, ct);
+            if (lote is null || !lote.VerificadoTesoreriaVacio) return false;
+
+            lote.VerificadoTesoreriaVacio = false;
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        if (!filas.All(f => f.VerificaTesoreria)) return false; // no estaba validado del todo
+        foreach (var f in filas) f.VerificaTesoreria = false;
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
     // ---------- Lotes pendientes de días anteriores ----------
 
     public async Task<IReadOnlyList<MotivoDto>> GetMotivosDiferenciaAsync(CancellationToken ct = default) =>

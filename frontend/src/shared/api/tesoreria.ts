@@ -92,6 +92,9 @@ export const tesoreria = {
 
   validar: (idSucursal: number, idLote: number, idMotivoCierre: number | null, observacionTesoreria: string | null) =>
     unwrap<boolean>(api.post(`/tesoreria/cierres/${idLote}/validar`, { idMotivoCierre, observacionTesoreria }, { params: { idSucursal } })),
+  /** Deshace la validación (vuelve el lote a "Pendiente") — no reabre el turno de caja en sí. */
+  reabrir: (idSucursal: number, idLote: number) =>
+    unwrap<boolean>(api.post(`/tesoreria/cierres/${idLote}/reabrir`, null, { params: { idSucursal } })),
   cerrarLotePendiente: (idSucursal: number, idLote: number, declaraciones: DeclaracionPago[],
     idMotivoDiferencia: number | null, idMotivoCierre: number, observacionTesoreria: string | null) =>
     unwrap<CierreTurnoResultado>(api.post(`/tesoreria/lotes-pendientes/${idLote}/cerrar`,

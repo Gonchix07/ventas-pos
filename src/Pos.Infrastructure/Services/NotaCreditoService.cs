@@ -472,17 +472,26 @@ public class NotaCreditoService : INotaCreditoService
             // confirmado con el usuario (2026-08-21): la NC referencia la misma operación que la
             // factura que acredita.
             var idsPresNc = lineasNc.Select(l => l.IdPresentacion).Distinct().ToList();
-            var codigosArticuloNc = await (
+            var infoPresentacionesNc = await (
                 from pr in _db.Presentaciones.AsNoTracking().Where(p => idsPresNc.Contains(p.IdPresentacion))
                 join a in _db.Articulos.AsNoTracking() on pr.IdArticulo equals a.IdArticulo
-                select new { pr.IdPresentacion, a.CodigoInterno }
-            ).ToDictionaryAsync(x => x.IdPresentacion, x => x.CodigoInterno, ct);
+                select new { pr.IdPresentacion, a.CodigoInterno, PresentacionUnidadXBulto = pr.UnidadXBulto,
+                    ArticuloUnidadXBulto = a.UnidadXBulto, a.VentaPorPeso }
+            ).ToDictionaryAsync(x => x.IdPresentacion, ct);
             var modoFactNc = InterfaseContableReglas.ModoFact(esNcDeCuentaCorriente);
             var repartoNc = InterfaseContableReglas.Reparto(origen.IdOperacion ?? idComprobante);
-            var filasMovStockNc = lineasNc.Select(l => new MovStockInterfase(
+            // Misma codificación de cantidades que en la Factura (ver FacturacionService) —
+            // confirmado con el usuario, 2026-08-25.
+            var filasMovStockNc = lineasNc.Select(l =>
+            {
+                infoPresentacionesNc.TryGetValue(l.IdPresentacion, out var infoNc);
+                var totalUnidadesNc = l.Cantidad * (infoNc?.PresentacionUnidadXBulto ?? 1m);
+                var salidaCodificadaNc = InterfaseContableReglas.CodificarCantidadMovStock(
+                    totalUnidadesNc, infoNc?.ArticuloUnidadXBulto ?? 1m, infoNc?.VentaPorPeso ?? false);
+                return new MovStockInterfase(
                 Fecha: cabecera.Fecha,
-                Articulo: InterfaseContableReglas.Articulo(codigosArticuloNc.GetValueOrDefault(l.IdPresentacion, "")),
-                Salida: l.Cantidad, Descto: 0m, Unitario: l.PrecioUnitario, Pesos: l.Importe,
+                Articulo: InterfaseContableReglas.Articulo(infoNc?.CodigoInterno ?? ""),
+                Salida: salidaCodificadaNc, Descto: 0m, Unitario: l.PrecioUnitario, Pesos: l.Importe,
                 DeDeposito: InterfaseContableReglas.DepositoFijo,
                 Cliente: Truncar(datosClienteNc?.CodigoInt, 5), Nombre: Truncar(datosClienteNc?.Descripcion, 30),
                 Tipo: InterfaseContableReglas.TipoComprobante(tipoNc.Signo, letra),
@@ -490,7 +499,8 @@ public class NotaCreditoService : INotaCreditoService
                 Vendedor: null, Lista: InterfaseContableReglas.ListaFija, ImpInt: 0m,
                 Reparto: repartoNc, ModoFact: modoFactNc, CodConv: null,
                 Prov: InterfaseContableReglas.ProvFijo, Empresa: codigoEmpresaNc,
-                IdVentaSalon: idComprobante, Iva: l.Alicuota * 100m, Periva: 0m)).ToList();
+                    IdVentaSalon: idComprobante, Iva: l.Alicuota * 100m, Periva: 0m);
+            }).ToList();
             await _interfase.RegistrarMovStockAsync(filasMovStockNc, ct);
 
             // ctacte: solo si esta NC descargó una cuenta corriente (misma condición que el asiento

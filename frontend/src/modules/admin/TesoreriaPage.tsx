@@ -66,6 +66,7 @@ export function TesoreriaPage() {
   const [validando, setValidando] = useState(false);
 
   const [aviso, setAviso] = useState<string | null>(null);
+  const [reabriendo, setReabriendo] = useState<string | null>(null); // clave del lote en curso
 
   // Popups.
   const [entregaValores, setEntregaValores] = useState<LoteResumen | null>(null);
@@ -139,6 +140,20 @@ export function TesoreriaPage() {
       await refrescarTodo(l);
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
     finally { setCerrando(false); }
+  };
+
+  const reabrirLote = async (l: LoteResumen) => {
+    if (!window.confirm(
+      `¿Reabrir el lote ${l.idLote}? Vuelve a quedar "Pendiente" de validación — no reabre el turno de caja en sí, el cajero no puede volver a operarlo.`,
+    )) return;
+    setError(null); setAviso(null);
+    setReabriendo(clave(l));
+    try {
+      await tesoreria.reabrir(l.idSucursal, l.idLote);
+      setAviso(`Lote ${l.idLote} reabierto: vuelve a "Pendiente" de validación.`);
+      await refrescarTodo(l);
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+    finally { setReabriendo(null); }
   };
 
   const validarLote = async (l: LoteResumen) => {
@@ -233,7 +248,13 @@ export function TesoreriaPage() {
                     <td className="mono">{formatearMoneda(l.saldoEsperado)}</td>
                     <td className="mono">{l.saldo != null ? formatearMoneda(l.saldo) : "—"}</td>
                     <td className="row-actions" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => setEntregaValores(l)}>Entrega de valores</button>
+                      {l.estadoCierre === "CierreTesoreria" ? (
+                        <button onClick={() => reabrirLote(l)} disabled={reabriendo === k}>
+                          {reabriendo === k ? "Reabriendo…" : "Reabrir lote"}
+                        </button>
+                      ) : (
+                        <button onClick={() => setEntregaValores(l)}>Entrega de valores</button>
+                      )}
                     </td>
                   </tr>
                   {expandidoAca && (

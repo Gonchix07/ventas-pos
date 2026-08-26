@@ -226,7 +226,9 @@ public class FacturacionService : IFacturacionService
         var infoPresentaciones = await (
             from pr in _db.Presentaciones.AsNoTracking().Where(p => idsPres.Contains(p.IdPresentacion))
             join a in _db.Articulos.AsNoTracking() on pr.IdArticulo equals a.IdArticulo
-            select new { pr.IdPresentacion, DescripcionTicket = pr.DescripcionTicket ?? a.Descripcion, a.CodigoInterno }
+            select new { pr.IdPresentacion, DescripcionTicket = pr.DescripcionTicket ?? a.Descripcion,
+                a.CodigoInterno, PresentacionUnidadXBulto = pr.UnidadXBulto,
+                ArticuloUnidadXBulto = a.UnidadXBulto, a.VentaPorPeso }
         ).ToDictionaryAsync(x => x.IdPresentacion, ct);
 
         decimal totalNeto = 0, totalIva = 0;
@@ -788,10 +790,20 @@ public class FacturacionService : IFacturacionService
                     var codigoArticulo = infoPresentaciones.TryGetValue(origen.IdPresentacion, out var info)
                         ? info.CodigoInterno : "";
                     var impInt = percepcionResultado.ImpuestoInternoPorLinea?[idx] ?? 0m;
+                    // Codificación de cantidades (confirmado con el usuario, 2026-08-25): "salida"
+                    // no es la cantidad real, es bultos.unidadesSueltas — ver
+                    // InterfaseContableReglas.CodificarCantidadMovStock. La cantidad real en
+                    // unidades se obtiene multiplicando por el UnidadXBulto de la PRESENTACIÓN
+                    // vendida (Cantidad de la línea es "cuántas de esa presentación", no unidades
+                    // sueltas); la descomposición en bultos usa el UnidadXBulto de la FICHA del
+                    // artículo, que puede no coincidir con el de la presentación.
+                    var totalUnidades = origen.Cantidad * (info?.PresentacionUnidadXBulto ?? 1m);
+                    var salidaCodificada = InterfaseContableReglas.CodificarCantidadMovStock(
+                        totalUnidades, info?.ArticuloUnidadXBulto ?? 1m, info?.VentaPorPeso ?? false);
                     filasMovStock.Add(new MovStockInterfase(
                         Fecha: cabecera.Fecha,
                         Articulo: InterfaseContableReglas.Articulo(codigoArticulo),
-                        Salida: origen.Cantidad, Descto: origen.Descuento,
+                        Salida: salidaCodificada, Descto: origen.Descuento,
                         Unitario: origen.Precio, Pesos: importe,
                         DeDeposito: InterfaseContableReglas.DepositoFijo,
                         Cliente: Truncar(datosCliente?.CodigoInt, 5),

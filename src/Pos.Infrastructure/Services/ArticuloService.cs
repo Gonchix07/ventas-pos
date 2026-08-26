@@ -78,7 +78,7 @@ public class ArticuloService : IArticuloService
         return new ArticuloDetail(a.IdArticulo, a.CodigoInterno, a.Descripcion,
             a.IdSector, a.IdLinea, a.IdFamilia, a.IdModoIva, a.Activo,
             _images.BuildImageUrl(a.CodigoInterno).ToString(),
-            (int)a.UnidadMedida, a.ContenidoNetoUnitario, presentaciones);
+            (int)a.UnidadMedida, a.ContenidoNetoUnitario, a.UnidadXBulto, a.VentaPorPeso, presentaciones);
     }
 
     public async Task<int> CreateAsync(ArticuloInput input, CancellationToken ct = default)
@@ -98,6 +98,8 @@ public class ArticuloService : IArticuloService
             Activo = input.Activo,
             UnidadMedida = MapUnidadMedida(input.UnidadMedida),
             ContenidoNetoUnitario = input.ContenidoNetoUnitario,
+            UnidadXBulto = input.UnidadXBulto <= 0 ? 1m : input.UnidadXBulto,
+            VentaPorPeso = input.VentaPorPeso,
             Presentaciones = MapPresentaciones(input.Presentaciones)
         };
         _db.Articulos.Add(articulo);
@@ -123,6 +125,8 @@ public class ArticuloService : IArticuloService
         articulo.Activo = input.Activo;
         articulo.UnidadMedida = MapUnidadMedida(input.UnidadMedida);
         articulo.ContenidoNetoUnitario = input.ContenidoNetoUnitario;
+        articulo.UnidadXBulto = input.UnidadXBulto <= 0 ? 1m : input.UnidadXBulto;
+        articulo.VentaPorPeso = input.VentaPorPeso;
         await _db.SaveChangesAsync(ct);
         return true;
     }

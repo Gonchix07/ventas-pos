@@ -124,4 +124,37 @@ public static class InterfaseContableReglas
         var texto = $"Entrega Tesorería {CajaCodigo(idCaja)}-{nombreUsuario}";
         return texto.Length <= 40 ? texto : texto[..40];
     }
+
+    /// <summary>
+    /// Codifica la cantidad de <c>movstock.salida</c> según la regla confirmada con el usuario
+    /// (2026-08-25): el número es decimal, pero NO es la cantidad real — la parte entera son
+    /// bultos y la parte decimal son unidades sueltas.
+    /// <list type="bullet">
+    /// <item>Venta normal: se descompone <paramref name="totalUnidades"/> (cantidad × UnidadXBulto
+    /// de la PRESENTACIÓN vendida, ver FacturacionService) usando el <c>UnidadXBulto</c> de la
+    /// FICHA del artículo (no el de la presentación: ese puede no estar cargado). Ej. UnidadXBulto
+    /// del artículo=12, se vendieron 15 unidades → 1 bulto + 3 sueltas → "1.03". Los decimales son
+    /// 2 si UnidadXBulto ≤ 99, o 3 si lo supera (para que quepan las unidades sueltas, que van de 0
+    /// a UnidadXBulto-1).</item>
+    /// <item>Venta por peso (<see cref="Pos.Domain.Entities.Articulo.VentaPorPeso"/>): siempre 3
+    /// decimales, con el kilo entero como parte entera y los gramos como parte decimal — que es
+    /// exactamente cómo ya viene <paramref name="totalUnidades"/> en ese caso (el peso en Kg), así
+    /// que solo se redondea a 3 decimales, sin aplicar la descomposición en bultos.</item>
+    /// </list>
+    /// </summary>
+    public static decimal CodificarCantidadMovStock(decimal totalUnidades, decimal unidadXBultoArticulo, bool ventaPorPeso)
+    {
+        if (ventaPorPeso)
+            return Math.Round(totalUnidades, 3, MidpointRounding.AwayFromZero);
+
+        var bulto = unidadXBultoArticulo <= 0 ? 1m : unidadXBultoArticulo;
+        var decimales = bulto > 99m ? 3 : 2;
+        var factor = decimales == 2 ? 100m : 1000m;
+
+        var bultos = Math.Floor(totalUnidades / bulto);
+        // Sueltas siempre entera (no tiene sentido "media unidad suelta"): se redondea antes de
+        // convertirla en la parte decimal, por si totalUnidades trajera algún resto no entero.
+        var sueltas = Math.Round(totalUnidades - bultos * bulto, 0, MidpointRounding.AwayFromZero);
+        return bultos + sueltas / factor;
+    }
 }

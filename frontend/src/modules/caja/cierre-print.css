@@ -75,6 +75,10 @@
 .rendicion__resumen h2 { margin: 0 0 2mm; font-size: 10.5pt; }
 .rendicion__resumen-grid { display: flex; flex-direction: column; gap: 1mm; font-size: 9.5pt; }
 .rendicion__resumen-grid > div { display: flex; justify-content: space-between; }
+/* "Efectivo Real (contado)" y "Otros Medios (contado)": destacados en negrita — son los dos
+   números que Tesorería realmente concilia contra lo contado, a diferencia de las líneas
+   informativas (Efectivo bruto, Retiros, Créditos, Vueltos) que solo explican cómo se llega a ellos. */
+.rendicion__resumen-bold { font-weight: 700; }
 .rendicion__resumen-total {
   border-top: 1px solid #999; margin-top: 1.5mm; padding-top: 1.5mm; font-size: 11pt;
 }

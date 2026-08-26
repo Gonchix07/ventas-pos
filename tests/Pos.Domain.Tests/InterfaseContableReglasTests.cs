@@ -128,4 +128,60 @@ public class InterfaseContableReglasTests
         var texto = InterfaseContableReglas.DetalleRetiro(1, new string('X', 60));
         Assert.Equal(40, texto.Length);
     }
+
+    // --- CodificarCantidadMovStock ---
+
+    [Fact]
+    public void CodificarCantidadMovStock_BultoCompleto_SueltasEnCero()
+    {
+        // 24 unidades, bulto de 12 → 2 bultos, 0 sueltas → "2.00".
+        var codificado = InterfaseContableReglas.CodificarCantidadMovStock(24m, 12m, ventaPorPeso: false);
+        Assert.Equal(2.00m, codificado);
+    }
+
+    [Fact]
+    public void CodificarCantidadMovStock_ConSueltas_UsaDosDecimalesSiElBultoNoSupera99()
+    {
+        // 15 unidades, bulto de 12 → 1 bulto + 3 sueltas → "1.03".
+        var codificado = InterfaseContableReglas.CodificarCantidadMovStock(15m, 12m, ventaPorPeso: false);
+        Assert.Equal(1.03m, codificado);
+    }
+
+    [Fact]
+    public void CodificarCantidadMovStock_BultoMayorA99_UsaTresDecimales()
+    {
+        // 250 unidades, bulto de 144 → 1 bulto + 106 sueltas → "1.106" (3 decimales porque 144 > 99).
+        var codificado = InterfaseContableReglas.CodificarCantidadMovStock(250m, 144m, ventaPorPeso: false);
+        Assert.Equal(1.106m, codificado);
+    }
+
+    [Fact]
+    public void CodificarCantidadMovStock_BultoDe99Justo_UsaDosDecimales()
+    {
+        var codificado = InterfaseContableReglas.CodificarCantidadMovStock(100m, 99m, ventaPorPeso: false);
+        Assert.Equal(1.01m, codificado);
+    }
+
+    [Fact]
+    public void CodificarCantidadMovStock_SinBulto_EsLaCantidadTalCual()
+    {
+        // UnidadXBulto=1 (no viene en bulto): todo queda como "bultos" sueltos, sin parte decimal.
+        var codificado = InterfaseContableReglas.CodificarCantidadMovStock(5m, 1m, ventaPorPeso: false);
+        Assert.Equal(5.00m, codificado);
+    }
+
+    [Fact]
+    public void CodificarCantidadMovStock_VentaPorPeso_KiloEnteroYGramosA3Decimales()
+    {
+        // Venta por peso: el UnidadXBulto del artículo NO se usa, siempre 3 decimales (kilo.gramos).
+        var codificado = InterfaseContableReglas.CodificarCantidadMovStock(3.920m, 12m, ventaPorPeso: true);
+        Assert.Equal(3.920m, codificado);
+    }
+
+    [Fact]
+    public void CodificarCantidadMovStock_VentaPorPeso_RedondeaA3Decimales()
+    {
+        var codificado = InterfaseContableReglas.CodificarCantidadMovStock(2.12345m, 1m, ventaPorPeso: true);
+        Assert.Equal(2.123m, codificado);
+    }
 }

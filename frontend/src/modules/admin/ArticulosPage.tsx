@@ -7,7 +7,8 @@ import {
 const VACIO: ArticuloInput = {
   codigoInterno: "", descripcion: "",
   idSector: 0, idLinea: 0, idFamilia: 0, idModoIva: 0,
-  activo: true, unidadMedida: 0, contenidoNetoUnitario: null, presentaciones: [],
+  activo: true, unidadMedida: 0, contenidoNetoUnitario: null, unidadXBulto: 1, ventaPorPeso: false,
+  presentaciones: [],
 };
 
 const UNIDADES_MEDIDA = [
@@ -124,6 +125,7 @@ export function ArticulosPage() {
         codigoInterno: a.codigoInterno, descripcion: a.descripcion,
         idSector: a.idSector, idLinea: a.idLinea, idFamilia: a.idFamilia, idModoIva: a.idModoIva,
         activo: a.activo, unidadMedida: a.unidadMedida, contenidoNetoUnitario: a.contenidoNetoUnitario,
+        unidadXBulto: a.unidadXBulto, ventaPorPeso: a.ventaPorPeso,
         presentaciones: a.presentaciones.length ? a.presentaciones : [nuevaPresentacion()],
       });
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
@@ -202,6 +204,15 @@ export function ArticulosPage() {
                   onChange={(e) => set({ contenidoNetoUnitario: e.target.value === "" ? null : Number(e.target.value) })} />
               </label>
             )}
+            <label>Unidad × bulto (ej. viene en cajas de 12)
+              <input type="number" min={1} step="1" value={form.unidadXBulto}
+                onChange={(e) => set({ unidadXBulto: Number(e.target.value) || 1 })} />
+            </label>
+            <label className="check-box">
+              <input type="checkbox" checked={form.ventaPorPeso}
+                onChange={(e) => set({ ventaPorPeso: e.target.checked })} />
+              Venta por peso (balanza)
+            </label>
             </div>
           </div>
 

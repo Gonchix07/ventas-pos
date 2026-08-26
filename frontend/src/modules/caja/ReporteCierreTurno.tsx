@@ -61,6 +61,21 @@ export function ReporteCierreTurno({
   const totalDeclarado = cierre.detalle.reduce((acc, d) => acc + d.declarado, 0);
   const hayDiferencia = Math.abs(cierre.diferenciaTotal) >= 0.01;
 
+  // "Efectivo Real (contado)" y "Otros Medios (contado)" — el detalle por medio de pago
+  // (cierre.detalle) ya viene con el saldo inicial sumado y retiros/vueltos/notas de crédito
+  // restados del medio Efectivo (ver ArmarDetalleAsync/AcumularAsync en el backend). La línea
+  // "Efectivo" de acá arriba deshace esos descuentos para mostrar la venta BRUTA en efectivo del
+  // turno, antes de que salieran los retiros/vueltos/créditos — el cajero la usa para ver de un
+  // vistazo cuánto vendió en efectivo, no solo cuánto quedó al final.
+  const efectivo = cierre.detalle.find((d) => d.descripcion === "Efectivo");
+  const efectivoReal = efectivo?.declarado ?? 0;
+  const saldoInicial = arqueo.ingresoInicial?.monto ?? 0;
+  // efectivoReal ya trae el saldo inicial sumado (no solo ventas) — se resta acá para no
+  // contarlo dos veces al deshacer el resto de los descuentos.
+  const efectivoBruto = efectivoReal - saldoInicial + arqueo.totalRetiros + arqueo.totalVueltos + cierre.totalAnulaciones;
+  const otrosMedios = cierre.detalle.filter((d) => d.descripcion !== "Efectivo")
+    .reduce((acc, d) => acc + d.declarado, 0);
+
   return (
     <>
       <div className="rendicion">
@@ -189,21 +204,14 @@ export function ReporteCierreTurno({
         {arqueo.vueltos.length > 0 && (
           <section className="rendicion__bloque">
             <h2>Vueltos entregados</h2>
+            {/* Un solo ítem con el total del turno — no uno por comprobante (a diferencia de
+                Retiros/Notas de crédito, que sí se justifican caso por caso, el vuelto es un
+                goteo constante de casi todas las ventas en efectivo y detallarlo uno por uno
+                no aporta nada a la rendición). */}
             <table className="rendicion__tabla">
-              <thead><tr><th>Hora</th><th>Concepto</th><th>Cajero</th><th className="num">Importe</th></tr></thead>
               <tbody>
-                {arqueo.vueltos.map((v) => (
-                  <tr key={v.idMovCaja}>
-                    <td className="mono">{fechaHora(v.fecha)}</td>
-                    <td>{v.concepto ?? "—"}</td>
-                    <td>{v.usuario ?? "—"}</td>
-                    <td className="num mono">−${money(v.monto)}</td>
-                  </tr>
-                ))}
+                <tr><td>Total de vueltos entregados en el turno</td><td className="num mono">−${money(arqueo.totalVueltos)}</td></tr>
               </tbody>
-              <tfoot>
-                <tr><td colSpan={3}>Total vueltos</td><td className="num mono">−${money(arqueo.totalVueltos)}</td></tr>
-              </tfoot>
             </table>
           </section>
         )}
@@ -211,22 +219,16 @@ export function ReporteCierreTurno({
         <section className="rendicion__resumen">
           <h2>Resumen del turno</h2>
           <div className="rendicion__resumen-grid">
-            {arqueo.ingresoInicial && (
-              <div><span>Saldo inicial</span><strong>${money(arqueo.ingresoInicial.monto)}</strong></div>
-            )}
+            <div><span>Saldo Inicial</span><strong>${money(saldoInicial)}</strong></div>
+            <div><span>Efectivo</span><strong>${money(efectivoBruto)}</strong></div>
+            <div><span>Retiros</span><strong>−${money(arqueo.totalRetiros)}</strong></div>
+            <div><span>Créditos</span><strong>−${money(cierre.totalAnulaciones)}</strong></div>
+            <div><span>Vueltos</span><strong>−${money(arqueo.totalVueltos)}</strong></div>
+            <div className="rendicion__resumen-bold"><span>Efectivo Real (contado)</span><strong>${money(efectivoReal)}</strong></div>
+            <div className="rendicion__resumen-bold"><span>Otros Medios (contado)</span><strong>${money(otrosMedios)}</strong></div>
             <div><span>Total esperado (sistema)</span><strong>${money(totalEsperado)}</strong></div>
-            <div><span>Total declarado (contado)</span><strong>${money(totalDeclarado)}</strong></div>
-            {cierre.anulaciones.length > 0 && (
-              <div><span>Notas de crédito</span><strong>−${money(cierre.totalAnulaciones)}</strong></div>
-            )}
-            {arqueo.retiros.length > 0 && (
-              <div><span>Retiros de efectivo</span><strong>−${money(arqueo.totalRetiros)}</strong></div>
-            )}
-            {arqueo.vueltos.length > 0 && (
-              <div><span>Vueltos entregados</span><strong>−${money(arqueo.totalVueltos)}</strong></div>
-            )}
             <div className={`rendicion__resumen-total${hayDiferencia ? " rendicion__diferencia" : ""}`}>
-              <span>Diferencia total</span><strong>${money(cierre.diferenciaTotal)}</strong>
+              <span>Diferencia Total</span><strong>${money(cierre.diferenciaTotal)}</strong>
             </div>
           </div>
         </section>

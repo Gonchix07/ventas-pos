@@ -102,6 +102,14 @@ public interface ITesoreriaService
     Task<DashboardResponse> GetDashboardAsync(int? idSucursal, CancellationToken ct = default);
     Task<IReadOnlyList<CierreListItemDto>> GetCierresAsync(int? idSucursal, string? cajero, CancellationToken ct = default);
     Task<bool> ValidarCierreAsync(int idSucursal, int idLote, ValidarCierreRequest req, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deshace la validación de Tesorería sobre un lote ya validado (vuelve a "Pendiente" —
+    /// <c>CierreCajero</c>). No reabre el turno de caja en sí (el lote sigue Cerrado, el cajero no
+    /// puede volver a operarlo): solo permite corregir/revalidar desde Tesorería sin tener que pasar
+    /// por soporte. Devuelve false si el lote no existe o no está actualmente validado.
+    /// </summary>
+    Task<bool> ReabrirCierreAsync(int idSucursal, int idLote, CancellationToken ct = default);
     Task<IReadOnlyList<MotivoCierreDto>> GetMotivosCierreAsync(CancellationToken ct = default);
 
     /// <summary>

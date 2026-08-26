@@ -91,4 +91,11 @@ public class TesoreriaController : ControllerBase
         await _service.ValidarCierreAsync(idSucursal, idLote, req, ct)
             ? Ok(ApiResult<bool>.Success(true))
             : NotFound(ApiResult<bool>.Fail("NO_ENCONTRADO", "No existe el cierre para ese lote."));
+
+    /// <summary>Deshace la validación de Tesorería (vuelve el lote a "Pendiente") — ver ReabrirCierreAsync.</summary>
+    [HttpPost("cierres/{idLote:int}/reabrir")]
+    public async Task<IActionResult> Reabrir(int idLote, [FromQuery] int idSucursal, CancellationToken ct) =>
+        await _service.ReabrirCierreAsync(idSucursal, idLote, ct)
+            ? Ok(ApiResult<bool>.Success(true))
+            : NotFound(ApiResult<bool>.Fail("NO_ENCONTRADO", "El lote no existe o no está validado."));
 }
