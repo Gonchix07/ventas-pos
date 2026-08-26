@@ -18,7 +18,10 @@ public record CuponDto(
     /// 100% de la venta, lote todavía abierto — ver NotaCreditoService.EmitirAsync). Ya no
     /// corresponde rendirlo contra el operador de tarjeta.
     /// </summary>
-    bool Anulado, DateTime? FechaAnulacion);
+    bool Anulado, DateTime? FechaAnulacion,
+    /// <summary>Descripción del tipo de comprobante ("Factura A/B", etc.) — null si el pago quedó
+    /// sin comprobante asociado (no debería pasar en la práctica, ver el left join en GetAsync).</summary>
+    string? TipoComprobante);
 
 /// <summary>Motivo obligatorio: es una corrección retroactiva sobre el cobro de otra persona.</summary>
 public record CorregirCuponInput(string? NumeroCupon, string? NumeroLote, int? IdPlanCuota, string Motivo);

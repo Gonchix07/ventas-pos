@@ -30,6 +30,7 @@ import { CajaPage } from "./modules/caja/CajaPage";
 import { ClientesPage as ClientesModuloPage } from "./modules/clientes/ClientesPage";
 import { TesoreriaPage } from "./modules/admin/TesoreriaPage";
 import { CuponesPage } from "./modules/admin/CuponesPage";
+import { EfectividadPage } from "./modules/admin/EfectividadPage";
 import { EtiquetasPage } from "./modules/etiquetas/EtiquetasPage";
 import { ReimpresionPage } from "./modules/reimpresion/ReimpresionPage";
 import { VentasPage } from "./modules/ventas/VentasPage";
@@ -60,15 +61,20 @@ function RequireAuth({ children, roles, modulo }: { children: ReactNode; roles?:
 
 /**
  * Envuelve <Routes> para animar la ENTRADA a un módulo (desplazamiento lateral + desvanecimiento,
- * ver .page-transition en App.css). La key es solo el primer segmento del path ("caja", "admin",
+ * ver .page-transition en App.css). La key es el primer segmento del path ("caja", "admin",
  * "tesoreria", ...) — así remonta (y por lo tanto anima) al cambiar de módulo desde el menú
  * principal o entre módulos entre sí, pero NO en cada navegación interna dentro de un mismo módulo
  * (ej. moverse entre secciones del ABM de Administración no debe repetir la animación ni perder el
  * estado del layout).
+ *
+ * Excepción: Tesorería y sus pantallas propias (Cupones, Efectividad) SÍ quieren el desplazamiento
+ * entre ellas — a diferencia de Admin, son pantallas separadas con su propio header, no secciones
+ * de un mismo layout — por eso ahí la key usa el path completo en vez de solo el primer segmento.
  */
 function AnimatedRoutes() {
   const { pathname } = useLocation();
-  const modulo = pathname.split("/")[1] || "home";
+  const partes = pathname.split("/").filter(Boolean);
+  const modulo = partes[0] === "tesoreria" ? partes.join("/") : (partes[0] || "home");
   return (
     <div key={modulo} className="page-transition">
       <Routes>
@@ -86,6 +92,9 @@ function AnimatedRoutes() {
         {/* Cupones también lo puede corregir Supervisor (no tiene acceso al resto de Tesorería) */}
         <Route path="/tesoreria/cupones" element={
           <RequireAuth roles={["Tesorero", "Supervisor", "Administrador"]} modulo="Tesoreria"><CuponesPage /></RequireAuth>
+        } />
+        <Route path="/tesoreria/efectividad" element={
+          <RequireAuth roles={["Tesorero", "Supervisor", "Administrador"]} modulo="Tesoreria"><EfectividadPage /></RequireAuth>
         } />
         <Route path="/etiquetas" element={
           <RequireAuth roles={["Repositor", "Tesorero", "Cajero", "Supervisor", "Administrador"]} modulo="Etiquetas"><EtiquetasPage /></RequireAuth>

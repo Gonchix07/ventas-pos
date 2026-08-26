@@ -4,7 +4,7 @@ import {
 } from "../../shared/api/tesoreria";
 import { referencias, type Lookup } from "../../shared/api/admin";
 import { useAuth } from "../../shared/auth/auth";
-import { formatearMoneda } from "../../shared/ui/moneda";
+import { formatearMoneda, MonedaInput } from "../../shared/ui/moneda";
 import { EntregaValoresModal } from "./EntregaValoresModal";
 import { ComprobantesLoteModal } from "./ComprobantesLoteModal";
 import { useNavigate } from "react-router-dom";
@@ -12,13 +12,18 @@ import { useNavigate } from "react-router-dom";
 const hoy = () => new Date();
 const fechaISO = (d: Date) => d.toISOString().slice(0, 10);
 
+// Campos de los formularios de Cerrar Caja / Validar cierre (Motivo, Observación): mismo estilo
+// "etiqueta arriba" que Sucursal/Desde/Hasta/Tipo, para que las filas queden con la etiqueta y el
+// campo alineados entre sí — antes el Motivo usaba `.inline-label` (etiqueta al costado) mientras
+// Observación ya tenía etiqueta arriba, y quedaban despareja la fila entera.
+const campoLabelStyle = { display: "flex", flexDirection: "column", gap: 5, fontSize: 12, color: "var(--muted)" } as const;
+const campoInputStyle = { padding: "8px 10px", border: "1px solid var(--line)", borderRadius: 8, fontSize: 14, lineHeight: 1.25 } as const;
+
 const ESTADOS_TESORERIA = [
   { v: "Abierto", l: "Cerrar caja" },
   { v: "CierreCajero", l: "Pendiente" },
   { v: "CierreTesoreria", l: "Validado" },
 ];
-const esMismoDia = (isoA: string, b: Date) => new Date(isoA).toDateString() === b.toDateString();
-
 // Columna "Tesorería": no es el estado del lote (Abierto/Cerrado, esa es otra columna), es en qué
 // paso está de cara a Tesorería — de ahí que "Abierto" se lea acá como "hay que cerrar la caja".
 const claseEstadoCierre = (e: string) =>
@@ -54,7 +59,7 @@ export function TesoreriaPage() {
   const [detalleError, setDetalleError] = useState<string | null>(null);
 
   // Cierre administrativo de un lote pendiente (Abierto, de un día anterior).
-  const [declarado, setDeclarado] = useState<Record<number, string>>({});
+  const [declarado, setDeclarado] = useState<Record<number, number | null>>({});
   const [idMotivoDif, setIdMotivoDif] = useState<number | 0>(0);
   const [idMotivoCierrePend, setIdMotivoCierrePend] = useState<number | 0>(0);
   const [obsPend, setObsPend] = useState("");
@@ -104,7 +109,7 @@ export function TesoreriaPage() {
       setDetalle(d);
       // Se arranca declarando lo esperado: el caso habitual es confirmar los números del sistema,
       // así que una diferencia queda siempre como resultado de un cambio explícito de Tesorería.
-      setDeclarado(Object.fromEntries(d.acumulados.map((a) => [a.idMedioPago, a.total.toFixed(2)])));
+      setDeclarado(Object.fromEntries(d.acumulados.map((a) => [a.idMedioPago, a.total])));
     } catch (e) { setDetalleError(e instanceof Error ? e.message : "Error"); }
   };
 
@@ -123,14 +128,14 @@ export function TesoreriaPage() {
   };
 
   const totalDeclarado = () =>
-    Object.values(declarado).reduce((s, v) => s + (Number(v) || 0), 0);
+    Object.values(declarado).reduce((s: number, v) => s + (v ?? 0), 0);
 
   const cerrarPendiente = async (l: LoteResumen) => {
     if (!detalle) return;
     setError(null); setAviso(null);
     if (!idMotivoCierrePend) { setError("Elegí un motivo de cierre para regularizar el lote."); return; }
     const declaraciones = detalle.acumulados.map((a) => ({
-      idMedioPago: a.idMedioPago, montoDeclarado: Number(declarado[a.idMedioPago] ?? "0") || 0,
+      idMedioPago: a.idMedioPago, montoDeclarado: declarado[a.idMedioPago] ?? 0,
     }));
     setCerrando(true);
     try {
@@ -184,7 +189,8 @@ export function TesoreriaPage() {
       <div className="page-shell">
       <div className="page-head">
         <h1>Tesorería</h1>
-        <button onClick={() => navigate("/tesoreria/cupones")}>Cupones de tarjeta</button>
+        <button onClick={() => navigate("/tesoreria/efectividad")}>Efectividad</button>
+        <button className="success-solid" onClick={() => navigate("/tesoreria/cupones")}>Cupones de tarjeta</button>
       </div>
 
       <div className="filter-bar">
@@ -222,15 +228,18 @@ export function TesoreriaPage() {
             <tr>
               <th></th><th>Lote</th><th>Usuario</th>
               <th>Apertura</th><th>Cierre</th><th>Estado</th><th>Tesorería</th>
-              <th>Saldo inicial</th><th>Rendición</th><th>Cambio</th>
-              <th>Saldo esperado</th><th>Saldo</th><th></th>
+              <th>Saldo inicial</th><th>Saldo Sistema</th><th>Saldo Declarado</th>
+              <th>Diferencia</th><th></th>
             </tr>
           </thead>
           <tbody>
             {lotesFiltrados.map((l) => {
               const k = clave(l);
               const expandidoAca = expandido === k;
-              const esPendiente = l.estadoLote === "Abierto" && !esMismoDia(l.fechaApertura, hoy());
+              // Cualquier lote Abierto se puede cerrar manualmente desde Tesorería (no solo los
+              // "pendientes" de un día anterior) — pedido explícito: reemplaza a "Entrega de
+              // valores" en la fila por un botón "Cerrar Caja" en rojo.
+              const esAbierto = l.estadoLote === "Abierto";
               return (
                 <Fragment key={k}>
                   <tr className={expandidoAca ? "lote-sel" : ""} style={{ cursor: "pointer" }}
@@ -240,15 +249,34 @@ export function TesoreriaPage() {
                     <td>{l.usuario ?? "—"}</td>
                     <td>{new Date(l.fechaApertura).toLocaleString()}</td>
                     <td>{l.fechaCierre ? new Date(l.fechaCierre).toLocaleString() : "—"}</td>
-                    <td><span className={`badge ${l.estadoLote === "Abierto" ? "on" : "off"}`}>{l.estadoLote}</span></td>
+                    {/* Abierto = rojo (llama la atención, caja sin cerrar todavía), Cerrado = verde
+                        (ya quedó resuelto) — al revés del uso habitual de badge.on/off en el resto
+                        de la app, a propósito para esta columna. */}
+                    <td><span className={`badge ${l.estadoLote === "Abierto" ? "off" : "on"}`}>{l.estadoLote}</span></td>
                     <td><span className={claseEstadoCierre(l.estadoCierre)}>{textoEstadoCierre(l.estadoCierre)}</span></td>
                     <td className="mono">{formatearMoneda(l.saldoInicial)}</td>
-                    <td className="mono">{formatearMoneda(l.rendicionTotal)}</td>
-                    <td className="mono">{formatearMoneda(l.cambioAcumulado)}</td>
                     <td className="mono">{formatearMoneda(l.saldoEsperado)}</td>
                     <td className="mono">{l.saldo != null ? formatearMoneda(l.saldo) : "—"}</td>
+                    <td className="mono">
+                      {l.saldo != null ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          {formatearMoneda(l.saldo - l.saldoEsperado)}
+                          {/* Sobrante (diferencia > 0): mismo ícono de aviso que el límite de
+                              efectivo en Caja — llama la atención sobre plata de más sin declarar. */}
+                          {l.saldo - l.saldoEsperado > 0.01 && (
+                            <img src="/icons/aviso-limite.png" alt="Diferencia positiva" title="Diferencia positiva"
+                              style={{ width: 18, height: 18 }} />
+                          )}
+                        </span>
+                      ) : "—"}
+                    </td>
                     <td className="row-actions" onClick={(e) => e.stopPropagation()}>
-                      {l.estadoCierre === "CierreTesoreria" ? (
+                      {esAbierto ? (
+                        <button className="danger-solid"
+                          onClick={() => { if (!expandidoAca) toggleExpandir(l); }}>
+                          Cerrar Caja
+                        </button>
+                      ) : l.estadoCierre === "CierreTesoreria" ? (
                         <button onClick={() => reabrirLote(l)} disabled={reabriendo === k}>
                           {reabriendo === k ? "Reabriendo…" : "Reabrir lote"}
                         </button>
@@ -259,7 +287,7 @@ export function TesoreriaPage() {
                   </tr>
                   {expandidoAca && (
                     <tr>
-                      <td colSpan={13} style={{ background: "#fafbfa" }}>
+                      <td colSpan={12} style={{ background: "#fafbfa" }}>
                         {detalleError && <p className="error">{detalleError}</p>}
                         {!detalle && !detalleError && <p className="muted">Cargando…</p>}
                         {detalle && (
@@ -371,27 +399,28 @@ export function TesoreriaPage() {
                               </p>
                             )}
 
-                            {esPendiente && (
+                            {esAbierto && (
                               <div>
-                                <h4 style={{ margin: "0 0 4px" }}>Cerrar lote pendiente</h4>
+                                <h4 style={{ margin: "0 0 4px" }}>Cerrar Caja</h4>
                                 <p className="muted" style={{ margin: "0 0 6px" }}>
-                                  Quedó abierto sin cierre Z. El cajero ya no puede cerrarlo desde Caja: se
-                                  regulariza acá. No se imprime Z fiscal (la impresora está en la caja física).
+                                  Cierre manual desde Tesorería: una vez confirmado, el cajero ya no puede
+                                  volver a operar este lote. No se imprime Z fiscal (la impresora está en la
+                                  caja física). Queda "Pendiente" de validación, igual que un cierre normal.
                                 </p>
                                 <table className="grid">
                                   <thead><tr><th>Medio</th><th>Esperado</th><th>Declarar</th><th>Diferencia</th></tr></thead>
                                   <tbody>
                                     {detalle.acumulados.map((a) => {
-                                      const dec = Number(declarado[a.idMedioPago] ?? "0") || 0;
+                                      const dec = declarado[a.idMedioPago] ?? 0;
                                       const dif = dec - a.total;
                                       return (
                                         <tr key={a.idMedioPago}>
                                           <td>{a.descripcion}</td>
                                           <td className="mono">{formatearMoneda(a.total)}</td>
                                           <td>
-                                            <input type="number" step="0.01" style={{ width: 110 }}
-                                              value={declarado[a.idMedioPago] ?? ""}
-                                              onChange={(e) => setDeclarado({ ...declarado, [a.idMedioPago]: e.target.value })} />
+                                            <MonedaInput style={{ width: 158 }}
+                                              value={declarado[a.idMedioPago] ?? null}
+                                              onChange={(v) => setDeclarado({ ...declarado, [a.idMedioPago]: v })} />
                                           </td>
                                           <td className={Math.abs(dif) > 0.01 ? "error" : "mono"}>{formatearMoneda(dif)}</td>
                                         </tr>
@@ -399,23 +428,27 @@ export function TesoreriaPage() {
                                     })}
                                   </tbody>
                                 </table>
-                                <div className="row-actions" style={{ marginTop: 8 }}>
-                                  <label className="inline-label">Motivo de cierre *
+                                <div className="row-actions" style={{ marginTop: 8, alignItems: "flex-end" }}>
+                                  <label style={campoLabelStyle}>Motivo de cierre *
                                     <select value={idMotivoCierrePend} onChange={(e) => setIdMotivoCierrePend(Number(e.target.value))}>
                                       <option value={0}>(elegir)</option>
                                       {motivos.map((m) => <option key={m.id} value={m.id}>{m.descripcion}</option>)}
                                     </select>
                                   </label>
                                   {Math.abs(totalDeclarado() - detalle.acumulados.reduce((s, a) => s + a.total, 0)) > 0.01 && (
-                                    <label className="inline-label">Motivo de diferencia *
+                                    <label style={campoLabelStyle}>Motivo de diferencia *
                                       <select value={idMotivoDif} onChange={(e) => setIdMotivoDif(Number(e.target.value))}>
                                         <option value={0}>(elegir)</option>
                                         {motivosDif.map((m) => <option key={m.id} value={m.id}>{m.descripcion}</option>)}
                                       </select>
                                     </label>
                                   )}
-                                  <input placeholder="Observación" value={obsPend}
-                                    onChange={(e) => setObsPend(e.target.value)} style={{ width: 200 }} />
+                                  {/* Sin asterisco: a diferencia del motivo, la observación nunca fue obligatoria. */}
+                                  <label style={campoLabelStyle}>Observación
+                                    <input placeholder="Observación (opcional)" value={obsPend}
+                                      onChange={(e) => setObsPend(e.target.value)}
+                                      style={{ ...campoInputStyle, width: 200 }} />
+                                  </label>
                                   <button className="primary" disabled={cerrando} onClick={() => cerrarPendiente(l)}>
                                     {cerrando ? "Cerrando…" : "Confirmar cierre"}
                                   </button>
@@ -427,13 +460,18 @@ export function TesoreriaPage() {
                             {l.estadoCierre === "CierreCajero" && (
                               <div>
                                 <h4 style={{ margin: "0 0 4px" }}>Validar cierre</h4>
-                                <div className="row-actions">
-                                  <select value={idMotivoCierreValidar} onChange={(e) => setIdMotivoCierreValidar(Number(e.target.value))}>
-                                    <option value={0}>(motivo de cierre, opcional)</option>
-                                    {motivos.map((m) => <option key={m.id} value={m.id}>{m.descripcion}</option>)}
-                                  </select>
-                                  <input placeholder="Observación" value={obsValidar}
-                                    onChange={(e) => setObsValidar(e.target.value)} style={{ width: 200 }} />
+                                <div className="row-actions" style={{ alignItems: "flex-end" }}>
+                                  <label style={campoLabelStyle}>Motivo de cierre
+                                    <select value={idMotivoCierreValidar} onChange={(e) => setIdMotivoCierreValidar(Number(e.target.value))}>
+                                      <option value={0}>(opcional)</option>
+                                      {motivos.map((m) => <option key={m.id} value={m.id}>{m.descripcion}</option>)}
+                                    </select>
+                                  </label>
+                                  <label style={campoLabelStyle}>Observación
+                                    <input placeholder="Observación (opcional)" value={obsValidar}
+                                      onChange={(e) => setObsValidar(e.target.value)}
+                                      style={{ ...campoInputStyle, width: 200 }} />
+                                  </label>
                                   <button className="primary" disabled={validando} onClick={() => validarLote(l)}>
                                     {validando ? "Validando…" : "Confirmar validación"}
                                   </button>
@@ -449,7 +487,7 @@ export function TesoreriaPage() {
               );
             })}
             {lotesFiltrados.length === 0 && !cargando && (
-              <tr><td colSpan={13} className="muted">Sin lotes en la vigencia elegida.</td></tr>
+              <tr><td colSpan={12} className="muted">Sin lotes en la vigencia elegida.</td></tr>
             )}
           </tbody>
         </table>

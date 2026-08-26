@@ -417,6 +417,69 @@ public class TesoreriaService : ITesoreriaService
         await _db.MotivosCierre.AsNoTracking().OrderBy(m => m.Descripcion)
             .Select(m => new MotivoCierreDto(m.IdMotivoCierre, m.Descripcion)).ToListAsync(ct);
 
+    public async Task<EfectividadResponse> GetEfectividadAsync(int? idSucursal, DateTime desde, DateTime hasta,
+        string? cajero, CancellationToken ct = default)
+    {
+        idSucursal = _currentUser.AplicarAlcanceSucursal(idSucursal);
+
+        // Solo lotes CERRADOS: la efectividad mide qué tan bien coincidió lo declarado con lo
+        // esperado al cerrar, así que un lote todavía Abierto no tiene nada que aportar todavía.
+        var query = _db.LotesCaja.AsNoTracking()
+            .Where(l => l.Estado == EstadoLote.Cerrado && l.FechaCierre != null
+                && l.FechaCierre.Value.Date >= desde.Date && l.FechaCierre.Value.Date <= hasta.Date);
+        if (idSucursal.HasValue) query = query.Where(l => l.IdSucursal == idSucursal.Value);
+
+        var lotes = await query.OrderBy(l => l.FechaCierre).ToListAsync(ct);
+        var usuarios = await _db.Usuarios.AsNoTracking().ToDictionaryAsync(u => u.IdUsuario, u => u.NombreUsuario, ct);
+
+        if (!string.IsNullOrWhiteSpace(cajero))
+            lotes = lotes.Where(l => usuarios.GetValueOrDefault(l.IdUsuarioApertura) == cajero).ToList();
+
+        if (lotes.Count == 0)
+            return new EfectividadResponse(new List<EfectividadPuntoDto>(), new List<EfectividadCajeroDto>(), 0, 0, 100m);
+
+        // Un punto por lote: fecha de cierre, cajero y si hubo diferencia (declarado vs esperado) —
+        // se agrupa después en memoria para armar tanto la evolución diaria como el ranking por
+        // cajero, sin repetir la consulta a CierresLotesCaja/acumulados dos veces.
+        var puntos = new List<(DateTime Fecha, string? Cajero, bool ConDiferencia, decimal DiferenciaAbs)>();
+        foreach (var l in lotes)
+        {
+            var acumulados = await _ejecutor.AcumularAsync(l.IdSucursal, l.IdLote, ct);
+            // AcumularAsync ya incluye el fondo inicial (ver comentario en GetLotesAsync): esto ES
+            // el saldo esperado total, sin tener que sumarle el ingreso aparte.
+            var saldoEsperado = acumulados.Sum(a => a.Total);
+
+            var filasCierre = await _db.CierresLotesCaja.AsNoTracking()
+                .Where(c => c.IdSucursal == l.IdSucursal && c.IdLote == l.IdLote).ToListAsync(ct);
+            var saldo = filasCierre.Sum(f => f.Total);
+            var diferencia = Math.Abs(saldo - saldoEsperado);
+
+            puntos.Add((l.FechaCierre!.Value.Date, usuarios.GetValueOrDefault(l.IdUsuarioApertura),
+                diferencia > 0.01m, diferencia));
+        }
+
+        var evolucion = puntos.GroupBy(p => p.Fecha).OrderBy(g => g.Key)
+            .Select(g => new EfectividadPuntoDto(
+                g.Key.ToString("dd/MM"),
+                Math.Round(100m * g.Count(x => !x.ConDiferencia) / g.Count(), 1)))
+            .ToList();
+
+        // Ranking ordenado por PEOR primero (más lotes con diferencia, después más monto acumulado):
+        // es "el top que tiene diferencias" que pidió Tesorería, no un ranking de mejores.
+        var ranking = puntos.Where(p => p.Cajero != null).GroupBy(p => p.Cajero!)
+            .Select(g => new EfectividadCajeroDto(
+                g.Key, g.Count(), g.Count(x => x.ConDiferencia),
+                Math.Round(100m * g.Count(x => !x.ConDiferencia) / g.Count(), 1),
+                g.Sum(x => x.DiferenciaAbs)))
+            .OrderByDescending(c => c.LotesConDiferencia).ThenByDescending(c => c.SumaDiferenciasAbs)
+            .ToList();
+
+        var totalConDiferencia = puntos.Count(p => p.ConDiferencia);
+        var efectividadGeneral = Math.Round(100m * (puntos.Count - totalConDiferencia) / puntos.Count, 1);
+
+        return new EfectividadResponse(evolucion, ranking, puntos.Count, totalConDiferencia, efectividadGeneral);
+    }
+
     private async Task<decimal> SumarMovimientosAsync(int idSucursal, int idLote, CancellationToken ct) =>
         (await ObtenerMovimientosAsync(idSucursal, idLote, ct)).Sum(m => m.Total);
 

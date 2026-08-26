@@ -6,6 +6,7 @@ import { type PlanCuotaResumen } from "../../shared/api/caja";
 import { referencias, type Lookup } from "../../shared/api/admin";
 import { useAuth } from "../../shared/auth/auth";
 import { formatearMoneda } from "../../shared/ui/moneda";
+import { abreviarTipoComprobante } from "../../shared/ui/tipoComprobante";
 import { useNavigate } from "react-router-dom";
 
 const hoyMenosUno = () => { const d = new Date(); d.setDate(d.getDate() - 1); return d; };
@@ -45,15 +46,22 @@ export function CuponesPage() {
   useEffect(() => { void cargar(); /* eslint-disable-next-line */ }, [idSucursal, desde, hasta]);
 
   return (
-    <div className="page-shell">
-      <div className="page-head">
-        <h1>Cupones de tarjeta</h1>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <button onClick={() => navigate("/tesoreria")}>Volver a Tesorería</button>
-          <span className="muted">{usuario} · {rol}</span>
+    <>
+      <header className="app-header">
+        <div className="brand">
+          <span className="brand-mark">POS</span>
+          <span className="brand-sub">Cupones</span>
+        </div>
+        <div className="user-box">
+          <span>{usuario} · <strong>{rol}</strong></span>
           <span className="mono ip-badge">IP {ip ?? "—"}</span>
+          <button onClick={() => navigate("/tesoreria")}>Volver a Tesorería</button>
           <button onClick={logout}>Salir</button>
         </div>
+      </header>
+      <div className="page-shell">
+      <div className="page-head">
+        <h1>Cupones de tarjeta</h1>
       </div>
 
       <div className="filter-bar">
@@ -86,7 +94,7 @@ export function CuponesPage() {
           <thead>
             <tr>
               <th>Fecha</th><th>Lote</th><th>Cajero</th><th>Medio</th><th>Monto</th>
-              <th>N° cupón</th><th>N° lote tarjeta</th><th>Plan</th><th>Comprobante</th><th>Estado</th><th></th>
+              <th>N° cupón</th><th>N° lote tarjeta</th><th>Plan</th><th>Tipo</th><th>Comprobante</th><th>Estado</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -100,6 +108,7 @@ export function CuponesPage() {
                 <td className="mono">{c.numeroCupon ?? "—"}</td>
                 <td className="mono">{c.numeroLote ?? "—"}</td>
                 <td>{c.planDescripcion ?? "—"}</td>
+                <td className="mono">{c.tipoComprobante ? abreviarTipoComprobante(c.tipoComprobante) : "—"}</td>
                 <td className="mono">{c.numeroComprobante ?? "—"}</td>
                 <td>
                   {c.anulado
@@ -114,7 +123,7 @@ export function CuponesPage() {
               </tr>
             ))}
             {items.length === 0 && !cargando && (
-              <tr><td colSpan={11} className="muted">Sin cupones en la vigencia elegida.</td></tr>
+              <tr><td colSpan={12} className="muted">Sin cupones en la vigencia elegida.</td></tr>
             )}
           </tbody>
         </table>
@@ -127,7 +136,8 @@ export function CuponesPage() {
       {historialDe && (
         <HistorialCuponModal cupon={historialDe} onCerrar={() => setHistorialDe(null)} />
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

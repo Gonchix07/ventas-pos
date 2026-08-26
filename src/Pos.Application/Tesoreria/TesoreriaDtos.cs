@@ -143,4 +143,27 @@ public interface ITesoreriaService
     /// </summary>
     Task<IReadOnlyList<Pos.Application.Cierres.ComprobanteLoteDto>> GetComprobantesLoteAsync(
         int idSucursal, int idLote, int? idMedioPago, CancellationToken ct = default);
+
+    /// <summary>
+    /// Efectividad de cierre de caja en el período: qué proporción de los lotes cerrados coincidió
+    /// el saldo declarado con el esperado por el sistema (sin diferencia), evolución día a día y
+    /// ranking de cajeros por cantidad/monto de diferencias — para detectar quién necesita repaso.
+    /// </summary>
+    Task<EfectividadResponse> GetEfectividadAsync(int? idSucursal, DateTime desde, DateTime hasta,
+        string? cajero, CancellationToken ct = default);
 }
+
+/// <summary>Efectividad (% de lotes sin diferencia) de un día del período elegido.</summary>
+public record EfectividadPuntoDto(string Etiqueta, decimal Efectividad);
+
+/// <summary>
+/// Efectividad de UN cajero en el período: cuántos lotes cerró, en cuántos hubo diferencia (sea a
+/// favor o en contra) y la suma de esas diferencias en valor absoluto — para ordenar el ranking por
+/// quién acumula más diferencias, no solo por porcentaje (un cajero con 2 lotes y 1 con diferencia
+/// pesa distinto que uno con 200 lotes y 1 con diferencia, aunque el % les dé parecido).
+/// </summary>
+public record EfectividadCajeroDto(string Cajero, int TotalLotes, int LotesConDiferencia,
+    decimal Efectividad, decimal SumaDiferenciasAbs);
+
+public record EfectividadResponse(List<EfectividadPuntoDto> Evolucion, List<EfectividadCajeroDto> RankingCajeros,
+    int TotalLotes, int TotalConDiferencia, decimal EfectividadGeneral);

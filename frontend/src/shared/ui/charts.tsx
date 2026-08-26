@@ -9,8 +9,12 @@ import { formatearMoneda } from "./moneda";
 
 interface PuntoSerie { etiqueta: string; total: number; }
 
-/** Línea de evolución de ventas en el tiempo (por hora/día/mes según el período elegido). */
-export function GraficoLinea({ datos, alto = 220 }: { datos: PuntoSerie[]; alto?: number }) {
+/** Línea de evolución en el tiempo (por hora/día/mes según el período elegido). `formatear` deja
+ * usarlo para series que no son plata (ej. Efectividad de cajeros, en %) — por defecto sigue
+ * formateando como moneda, que es el uso original (Ventas). */
+export function GraficoLinea({ datos, alto = 220, formatear = formatearMoneda, ariaLabel = "Evolución en el período" }: {
+  datos: PuntoSerie[]; alto?: number; formatear?: (n: number) => string; ariaLabel?: string;
+}) {
   const ancho = 720;
   const padIzq = 60, padDer = 16, padSup = 16, padInf = 34;
   const areaAncho = ancho - padIzq - padDer;
@@ -34,14 +38,14 @@ export function GraficoLinea({ datos, alto = 220 }: { datos: PuntoSerie[]; alto?
 
   return (
     <svg viewBox={`0 0 ${ancho} ${alto}`} className="chart-svg" role="img"
-      aria-label="Evolución de ventas en el período">
+      aria-label={ariaLabel}>
       {[0, 0.5, 1].map((f) => {
         const y = padSup + areaAlto * (1 - f);
         return (
           <g key={f}>
             <line x1={padIzq} y1={y} x2={ancho - padDer} y2={y} className="chart-grid" />
             <text x={padIzq - 8} y={y + 4} className="chart-eje-y" textAnchor="end">
-              {formatearMoneda(max * f)}
+              {formatear(max * f)}
             </text>
           </g>
         );
@@ -51,7 +55,7 @@ export function GraficoLinea({ datos, alto = 220 }: { datos: PuntoSerie[]; alto?
       {puntos.map((p, i) => (
         <g key={i}>
           <circle cx={p.x} cy={p.y} r={3} className="chart-punto">
-            <title>{`${p.etiqueta}: ${formatearMoneda(p.total)}`}</title>
+            <title>{`${p.etiqueta}: ${formatear(p.total)}`}</title>
           </circle>
           {i % saltoEtiquetas === 0 && (
             <text x={p.x} y={alto - 10} className="chart-eje-x" textAnchor="middle">{p.etiqueta}</text>

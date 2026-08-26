@@ -98,4 +98,16 @@ public class TesoreriaController : ControllerBase
         await _service.ReabrirCierreAsync(idSucursal, idLote, ct)
             ? Ok(ApiResult<bool>.Success(true))
             : NotFound(ApiResult<bool>.Fail("NO_ENCONTRADO", "El lote no existe o no está validado."));
+
+    /// <summary>Efectividad de cierre de caja (% de lotes sin diferencia), evolución diaria y ranking
+    /// de cajeros con más diferencias en el período. Sin fechas, default a los últimos 30 días.</summary>
+    [HttpGet("efectividad")]
+    public async Task<IActionResult> Efectividad([FromQuery] int? idSucursal, [FromQuery] DateTime? desde,
+        [FromQuery] DateTime? hasta, [FromQuery] string? cajero, CancellationToken ct)
+    {
+        var hastaReal = hasta?.Date ?? DateTime.UtcNow.Date;
+        var desdeReal = desde?.Date ?? hastaReal.AddDays(-29);
+        return Ok(ApiResult<EfectividadResponse>.Success(
+            await _service.GetEfectividadAsync(idSucursal, desdeReal, hastaReal, cajero, ct)));
+    }
 }

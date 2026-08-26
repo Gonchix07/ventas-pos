@@ -75,6 +75,21 @@ export interface CorreccionManualInput { idMedioPago: number; monto: number; con
  *  medios (Administrador) ni a /caja/medios-pago (Cajero). */
 export interface MedioPagoLookup { id: number; descripcion: string; }
 
+/** Efectividad (% de lotes sin diferencia) de un día del período elegido. */
+export interface EfectividadPunto { etiqueta: string; efectividad: number; }
+
+/** Efectividad de UN cajero en el período — ordenado por el backend de peor a mejor (más lotes con
+ * diferencia primero, después más monto acumulado). */
+export interface EfectividadCajero {
+  cajero: string; totalLotes: number; lotesConDiferencia: number;
+  efectividad: number; sumaDiferenciasAbs: number;
+}
+
+export interface Efectividad {
+  evolucion: EfectividadPunto[]; rankingCajeros: EfectividadCajero[];
+  totalLotes: number; totalConDiferencia: number; efectividadGeneral: number;
+}
+
 export const tesoreria = {
   motivosCierre: () => unwrap<MotivoCierre[]>(api.get(`/tesoreria/motivos-cierre`)),
   motivosDiferencia: () => unwrap<MotivoCierre[]>(api.get(`/tesoreria/motivos-diferencia`)),
@@ -99,6 +114,10 @@ export const tesoreria = {
     idMotivoDiferencia: number | null, idMotivoCierre: number, observacionTesoreria: string | null) =>
     unwrap<CierreTurnoResultado>(api.post(`/tesoreria/lotes-pendientes/${idLote}/cerrar`,
       { declaraciones, idMotivoDiferencia, idMotivoCierre, observacionTesoreria }, { params: { idSucursal } })),
+
+  /** Sin fechas, el backend por default trae los últimos 30 días. */
+  efectividad: (idSucursal?: number, desde?: string, hasta?: string, cajero?: string) =>
+    unwrap<Efectividad>(api.get(`/tesoreria/efectividad`, { params: { idSucursal, desde, hasta, cajero } })),
 };
 
 // ---- Cupones de tarjeta ----
@@ -113,6 +132,7 @@ export interface Cupon {
   /** true si una nota de crédito de reversión completa anuló este pago (ya no se rinde). */
   anulado: boolean;
   fechaAnulacion?: string | null;
+  tipoComprobante?: string | null;
 }
 
 export interface CorregirCuponInput {

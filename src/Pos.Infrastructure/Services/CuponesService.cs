@@ -44,7 +44,14 @@ public class CuponesService : ICuponesService
                 on new { mc.IdSucursal, IdComprobante = (int?)mc.IdComprobante }
                 equals new { c.IdSucursal, IdComprobante = (int?)c.IdComprobante } into cj
             from c in cj.DefaultIfEmpty()
-            select new { mp, mc, m, PlanId = mp.IdPlanCuota, Cajero = u != null ? u.NombreUsuario : null, c };
+            // Tipo de comprobante (Factura A/B, etc.) para la columna abreviada de la tabla —
+            // mismo left join encadenado que el de arriba, por si c vino null.
+            join tc in _db.TiposComprobante.AsNoTracking() on c.IdTipoComprobante equals tc.IdTipoComprobante into tcj
+            from tc in tcj.DefaultIfEmpty()
+            select new {
+                mp, mc, m, PlanId = mp.IdPlanCuota, Cajero = u != null ? u.NombreUsuario : null, c,
+                TipoDescripcion = tc != null ? tc.Descripcion : null,
+            };
 
         if (idSucursal.HasValue) query = query.Where(x => x.mc.IdSucursal == idSucursal.Value);
         if (!string.IsNullOrWhiteSpace(cajero)) query = query.Where(x => x.Cajero == cajero);
@@ -69,7 +76,8 @@ public class CuponesService : ICuponesService
             f.mp.IdPlanCuota, f.PlanId != null ? planes.GetValueOrDefault(f.PlanId.Value) : null, f.mp.CantidadCuotas,
             f.Cajero, f.mc.IdComprobante, f.c != null ? f.c.NumeroCompleto : null,
             corregidos.Contains(f.mp.IdMovPagos),
-            f.mp.Anulado, f.mp.FechaAnulacion
+            f.mp.Anulado, f.mp.FechaAnulacion,
+            f.TipoDescripcion
         )).ToList();
     }
 

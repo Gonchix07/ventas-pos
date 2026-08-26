@@ -9,15 +9,7 @@ import { type ComprobanteImpresion } from "../../shared/api/facturacion";
 import { ComprobanteImpresionView } from "../caja/ComprobanteImpresion";
 import { abrirPestañaParaRendicion, generarYAbrirRendicionPdf } from "../caja/RendicionPdf";
 import { formatearMoneda } from "../../shared/ui/moneda";
-
-// Abreviatura para la columna Tipo de la tabla de resultados — mismas descripciones fijas del
-// seed de TiposComprobante (ver DbSeeder.cs): "Factura A/B", "Nota de Crédito A/B", "Presupuesto".
-const ABREV_TIPO: Record<string, string> = {
-  "Factura A": "FA", "Factura B": "FB",
-  "Nota de Crédito A": "NCA", "Nota de Crédito B": "NCB",
-  "Presupuesto": "P",
-};
-const abreviarTipo = (t: string) => ABREV_TIPO[t] ?? t;
+import { abreviarTipoComprobante } from "../../shared/ui/tipoComprobante";
 
 const TIPOS: { v: TipoReimpresion; l: string }[] = [
   { v: "", l: "(todos)" },
@@ -179,7 +171,7 @@ export function ReimpresionPage() {
             <tbody>
               {resultados.map((c) => (
                 <tr key={c.idComprobante}>
-                  <td className="mono">{abreviarTipo(c.tipoComprobante)}</td>
+                  <td className="mono">{abreviarTipoComprobante(c.tipoComprobante)}</td>
                   <td className="mono">{c.numeroCompleto} {c.letra}</td>
                   <td>{new Date(c.fecha).toLocaleDateString()}</td>
                   <td>{c.clienteDescripcion ?? "Consumidor final"}</td>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { tesoreria, type ComprobanteLote } from "../../shared/api/tesoreria";
 import { formatearMoneda } from "../../shared/ui/moneda";
+import { abreviarTipoComprobante } from "../../shared/ui/tipoComprobante";
 
 interface Props {
   idSucursal: number;
@@ -37,23 +38,21 @@ export function ComprobantesLoteModal({ idSucursal, idLote, idMedioPago, medioDe
           <table className="grid">
             <thead>
               <tr>
-                <th>Comprobante</th><th>Tipo</th><th>Fecha</th><th>Cliente</th>
-                <th>Total</th>{idMedioPago && <th>En este medio</th>}
+                <th>Tipo</th><th>Comprobante</th><th>Fecha</th><th>Cliente</th><th>Total</th>
               </tr>
             </thead>
             <tbody>
               {items.map((c) => (
                 <tr key={c.idComprobante}>
+                  <td className="mono">{abreviarTipoComprobante(c.tipoDescripcion)}</td>
                   <td className="mono">{c.letra ? `${c.letra} ` : ""}{c.numeroCompleto ?? "—"}</td>
-                  <td>{c.tipoDescripcion}</td>
                   <td>{new Date(c.fecha).toLocaleString()}</td>
                   <td>{c.clienteDescripcion ? `${c.clienteCodigo} · ${c.clienteDescripcion}` : "Consumidor final"}</td>
                   <td className="mono">{formatearMoneda(c.total)}</td>
-                  {idMedioPago && <td className="mono">{formatearMoneda(c.montoEnMedio)}</td>}
                 </tr>
               ))}
               {items.length === 0 && (
-                <tr><td colSpan={idMedioPago ? 6 : 5} className="muted">Sin comprobantes.</td></tr>
+                <tr><td colSpan={5} className="muted">Sin comprobantes.</td></tr>
               )}
             </tbody>
           </table>
