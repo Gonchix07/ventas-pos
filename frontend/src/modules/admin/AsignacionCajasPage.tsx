@@ -29,8 +29,10 @@ export function AsignacionCajasPage() {
 
   // inputs — Puestos (PC)
   const [puNombre, setPuNombre] = useState("");
-  const [puIp, setPuIp] = useState("");
   const [puEditId, setPuEditId] = useState<number | null>(null);
+  // Ip ya no se edita a mano (ver tabla: se muestra el GUID del equipo vinculado en su lugar) —
+  // se preserva tal cual estaba al guardar, para no pisarla con null al editar solo el nombre.
+  const [puEditIpActual, setPuEditIpActual] = useState<string | null>(null);
 
   // inputs — Cajas
   const [cDesc, setCDesc] = useState(""); const [cPv, setCPv] = useState(0); const [cPuesto, setCPuesto] = useState<number | 0>(0);
@@ -57,7 +59,7 @@ export function AsignacionCajasPage() {
   };
   useEffect(() => { void cargar(suc); /* eslint-disable-next-line */ }, [suc]);
 
-  const cancelarPuesto = () => { setPuEditId(null); setPuNombre(""); setPuIp(""); };
+  const cancelarPuesto = () => { setPuEditId(null); setPuNombre(""); setPuEditIpActual(null); };
 
   const editarCaja = (c: CajaFisica) => {
     setCEditId(c.idCaja); setCDesc(c.descripcion); setCPv(c.idPuntoVenta);
@@ -91,42 +93,38 @@ export function AsignacionCajasPage() {
           <p className="muted" style={{ marginTop: -8 }}>
             El nombre es solo una etiqueta. La caja se resuelve al loguear por el <strong>equipo vinculado</strong>:
             parate frente a la PC real de ese puesto (con la app abierta ahí) y tocá "Vincular este equipo" en su
-            fila — no se puede vincular a distancia. La IP queda solo como dato informativo.
+            fila — no se puede vincular a distancia. No se asigna a mano: lo genera solo el navegador de esa PC.
           </p>
           <div className="toolbar">
             <input placeholder="Nombre (etiqueta)" value={puNombre} onChange={(e) => setPuNombre(e.target.value)} />
-            <input placeholder="IP (ej. 192.168.4.101)" value={puIp} onChange={(e) => setPuIp(e.target.value)} />
             <button className="primary" disabled={!puNombre.trim()}
               onClick={() => run(async () => {
-                if (puEditId != null) await cajaEstructura.updatePuesto(suc, puEditId, puNombre.trim(), puIp.trim() || null);
-                else await cajaEstructura.createPuesto(suc, puNombre.trim(), puIp.trim() || null);
+                if (puEditId != null) await cajaEstructura.updatePuesto(suc, puEditId, puNombre.trim(), puEditIpActual);
+                else await cajaEstructura.createPuesto(suc, puNombre.trim(), null);
                 cancelarPuesto();
               })}>{puEditId != null ? "Guardar" : "Agregar"}</button>
             {puEditId != null && <button onClick={cancelarPuesto}>Cancelar</button>}
           </div>
           <table className="grid">
-            <thead><tr><th>ID</th><th>Nombre</th><th>Equipo</th><th>IP</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>Nombre</th><th>Equipo (GUID)</th><th></th></tr></thead>
             <tbody>
               {puestos.map((p) => (
                 <tr key={p.idPuestoAsignado}>
                   <td className="mono">{p.idPuestoAsignado}</td><td>{p.nombrePc}</td>
-                  <td>
-                    {p.identificadorEquipo
-                      ? <span className="badge on">Vinculado</span>
-                      : <span className="badge off">Sin vincular</span>}
+                  <td className="mono">
+                    {p.identificadorEquipo ?? <span className="muted">Sin vincular</span>}
                   </td>
-                  <td className="mono">{p.ip ?? <span className="muted">sin IP</span>}</td>
                   <td>
                     <button title="Vincula este puesto a la PC desde la que estás usando la app AHORA"
                       onClick={() => run(() => cajaEstructura.vincularEquipo(suc, p.idPuestoAsignado))}>
                       Vincular este equipo
                     </button>
-                    <button onClick={() => { setPuEditId(p.idPuestoAsignado); setPuNombre(p.nombrePc); setPuIp(p.ip ?? ""); }}>✎</button>
+                    <button onClick={() => { setPuEditId(p.idPuestoAsignado); setPuNombre(p.nombrePc); setPuEditIpActual(p.ip ?? null); }}>✎</button>
                     <button className="danger" onClick={() => run(() => cajaEstructura.removePuesto(suc, p.idPuestoAsignado))}>×</button>
                   </td>
                 </tr>
               ))}
-              {puestos.length === 0 && <tr><td colSpan={5} className="muted">Sin puestos.</td></tr>}
+              {puestos.length === 0 && <tr><td colSpan={4} className="muted">Sin puestos.</td></tr>}
             </tbody>
           </table>
         </div>
