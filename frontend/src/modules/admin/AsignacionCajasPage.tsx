@@ -106,7 +106,7 @@ export function AsignacionCajasPage() {
             {puEditId != null && <button onClick={cancelarPuesto}>Cancelar</button>}
           </div>
           <table className="grid">
-            <thead><tr><th>ID</th><th>Nombre</th><th>Equipo (GUID)</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>Nombre</th><th>Equipo (GUID)</th><th></th><th></th></tr></thead>
             <tbody>
               {puestos.map((p) => (
                 <tr key={p.idPuestoAsignado}>
@@ -115,16 +115,25 @@ export function AsignacionCajasPage() {
                     {p.identificadorEquipo ?? <span className="muted">Sin vincular</span>}
                   </td>
                   <td>
-                    <button title="Vincula este puesto a la PC desde la que estás usando la app AHORA"
-                      onClick={() => run(() => cajaEstructura.vincularEquipo(suc, p.idPuestoAsignado))}>
+                    <button className="success-solid"
+                      title="Vincula este puesto a la PC desde la que estás usando la app AHORA"
+                      onClick={() => {
+                        if (!confirm(
+                          `¿Vincular el puesto "${p.nombrePc}" a ESTA PC? Se reemplaza el equipo que ` +
+                          "tuviera vinculado antes.",
+                        )) return;
+                        run(() => cajaEstructura.vincularEquipo(suc, p.idPuestoAsignado));
+                      }}>
                       Vincular este equipo
                     </button>
+                  </td>
+                  <td className="row-actions">
                     <button onClick={() => { setPuEditId(p.idPuestoAsignado); setPuNombre(p.nombrePc); setPuEditIpActual(p.ip ?? null); }}>✎</button>
                     <button className="danger" onClick={() => run(() => cajaEstructura.removePuesto(suc, p.idPuestoAsignado))}>×</button>
                   </td>
                 </tr>
               ))}
-              {puestos.length === 0 && <tr><td colSpan={4} className="muted">Sin puestos.</td></tr>}
+              {puestos.length === 0 && <tr><td colSpan={5} className="muted">Sin puestos.</td></tr>}
             </tbody>
           </table>
         </div>
