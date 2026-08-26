@@ -9,10 +9,32 @@
 // Chrome "normal" que se use en esa misma máquina para otra cosa.
 const PUESTO_ID_KEY = "pos.puestoId";
 
+// crypto.randomUUID() exige "contexto seguro" (HTTPS o localhost) — las cajas reales entran por
+// http://192.168.4.x:5173 (IP de LAN, HTTP plano, ver client.ts), así que ahí esa función ni
+// existe (TypeError: crypto.randomUUID is not a function). crypto.getRandomValues() sí funciona
+// sin HTTPS: se arma el UUID v4 a mano con eso. No hace falta que sea criptográficamente
+// perfecto — solo tiene que no repetirse entre PCs, así que ni el detalle de versión/variant
+// importa demasiado, pero se respeta el formato para que se vea como un GUID normal en el ABM.
+function generarUuid(): string {
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    b[6] = (b[6] & 0x0f) | 0x40; // versión 4
+    b[8] = (b[8] & 0x3f) | 0x80; // variante RFC 4122
+    const hex = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  // Último recurso (navegador sin Web Crypto en absoluto): Math.random no es criptográfico, pero
+  // alcanza para este uso — un identificador de PC, no una credencial.
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 export function getPuestoId(): string {
   let id = localStorage.getItem(PUESTO_ID_KEY);
   if (!id) {
-    id = crypto.randomUUID();
+    id = generarUuid();
     localStorage.setItem(PUESTO_ID_KEY, id);
   }
   return id;
