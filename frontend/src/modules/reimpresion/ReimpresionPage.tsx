@@ -31,7 +31,7 @@ const TIPOS: { v: TipoReimpresion; l: string }[] = [
  * (CopiarComprobante) pero no está implementado todavía.
  */
 export function ReimpresionPage() {
-  const { usuario, logout, ip, idSucursal: idSucursalAuth } = useAuth();
+  const { usuario, logout, idSucursal: idSucursalAuth } = useAuth();
   const navigate = useNavigate();
 
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
@@ -109,7 +109,7 @@ export function ReimpresionPage() {
       <div className="caja-shell">
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Reimpresión</span></span>
-          <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={logout}>Salir</button></div>
+          <div className="user-box"><span>{usuario}</span><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-center">
           <ComprobanteImpresionView c={impresion} onCerrar={() => setImpresion(null)}
@@ -124,7 +124,7 @@ export function ReimpresionPage() {
       <header className="app-header">
         <div className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Mayorista</span></div>
         <div className="user-box">
-          <span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span>
+          <span>{usuario}</span>
           <button onClick={() => navigate("/")}>Módulos</button>
           <button onClick={logout}>Salir</button>
         </div>

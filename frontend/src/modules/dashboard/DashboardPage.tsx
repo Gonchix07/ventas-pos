@@ -16,7 +16,7 @@ const MODULOS = [
 ];
 
 export function DashboardPage() {
-  const { usuario, rol, modulos, logout, ip } = useAuth();
+  const { usuario, rol, modulos, logout } = useAuth();
   const navigate = useNavigate();
   const habilitados = new Set(modulos);
 
@@ -29,7 +29,6 @@ export function DashboardPage() {
         </div>
         <div className="user-box">
           <span>{usuario} · <strong>{rol}</strong></span>
-          <span className="mono ip-badge">IP {ip ?? "—"}</span>
           <button onClick={logout}>Salir</button>
         </div>
       </header>

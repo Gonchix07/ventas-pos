@@ -126,8 +126,6 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
   margin-bottom: 4px; border-bottom: 1px solid var(--line); }
 .admin-user-nombre { font-size: 13px; }
 .admin-user-usuario { color: var(--petrol-ink); font-weight: 600; }
-.admin-user-ip { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px;
-  background: #eef1ef; font-size: 12px; color: var(--muted); }
 .admin-user-salir { width: 100%; border: 1px solid var(--line); background: transparent;
   border-radius: 8px; padding: 8px 10px; cursor: pointer; color: var(--ink); font-weight: 600; }
 .admin-user-salir:hover { background: #eef1ef; }
@@ -369,7 +367,6 @@ td.row-actions { vertical-align: middle; }
 .link-btn { border: none; background: none; padding: 0; color: var(--petrol); font-weight: 600;
   text-decoration: underline; cursor: pointer; font-size: inherit; }
 .link-btn:hover { color: var(--ink); }
-.ip-badge { padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; }
 /* Lista de "chips" removibles (ej. terminales de tarjeta asignadas a una caja): cada chip lleva su
    propia × para desasignar sin abrir un formulario aparte. */
 .chip-list { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }

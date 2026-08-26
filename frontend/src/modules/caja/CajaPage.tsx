@@ -98,7 +98,7 @@ function PantallaBloqueada({ mensaje }: { mensaje: string }) {
 }
 
 export function CajaPage() {
-  const { usuario, logout, idSucursal: idSucursalAuth, idCaja: idCajaAuth, ip } = useAuth();
+  const { usuario, logout, idSucursal: idSucursalAuth, idCaja: idCajaAuth } = useAuth();
   const { ejecutarConSupervisor, modal: modalSupervisor } = useSupervisorGate();
   const navigate = useNavigate();
 
@@ -804,7 +804,7 @@ export function CajaPage() {
       <div className="caja-shell">
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
-          <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
+          <div className="user-box"><span>{usuario}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-center">
           <div className="card form" style={{ maxWidth: 560 }}>
@@ -824,7 +824,7 @@ export function CajaPage() {
       <div className="caja-shell">
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
-          <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
+          <div className="user-box"><span>{usuario}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-center">
           <div className="card form" style={{ maxWidth: 560 }}>
@@ -931,7 +931,7 @@ export function CajaPage() {
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
           <div className="lote-badge">Lote #{arqueo.idLote} · {arqueo.descripcionCaja}</div>
           <div className="modo-badge">{arqueo.modoFacturacion}</div>
-          <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
+          <div className="user-box"><span>{usuario}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-body">
           <h1>Arqueo X</h1>
@@ -1048,7 +1048,7 @@ export function CajaPage() {
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
           <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
           <div className="modo-badge">{lote.modoFacturacion}</div>
-          <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
+          <div className="user-box"><span>{usuario}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-body">
           {cierreResultado && arqueo ? (
@@ -1126,7 +1126,7 @@ export function CajaPage() {
       <div className="caja-shell">
         <header className="caja-header">
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
-          <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
+          <div className="user-box"><span>{usuario}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-center">
           {/* El comprobante se muestra en su formato real (A o B) y se imprime desde el navegador,
@@ -1176,7 +1176,7 @@ export function CajaPage() {
           <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
           <div className="modo-badge">{lote.modoFacturacion}</div>
           <div className="user-box">
-            <span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span>
+            <span>{usuario}</span>
             <button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button>
           </div>
         </header>
@@ -1235,7 +1235,7 @@ export function CajaPage() {
           <button onClick={() => setRetiroAbierto(true)}>Retiro de efectivo</button>
             <button onClick={abrirArqueo}>Arqueo X</button>
             <button onClick={abrirCierre}>Cerrar turno</button>
-            <span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span>
+            <span>{usuario}</span>
             <button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button>
           </div>
         </header>
@@ -1363,7 +1363,7 @@ export function CajaPage() {
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
           <div className="lote-badge">Lote #{lote.idLote} · {lote.descripcionCaja}</div>
           <div className="modo-badge">{lote.modoFacturacion}</div>
-          <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
+          <div className="user-box"><span>{usuario}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
         </header>
         {bloqueando && <PantallaBloqueada mensaje={bloqueando} />}
         <div className="caja-body">
@@ -1548,7 +1548,7 @@ export function CajaPage() {
           <button onClick={() => setRetiroAbierto(true)}>Retiro de efectivo</button>
           <button onClick={abrirArqueo}>Arqueo X</button>
           <button onClick={abrirCierre}>Cerrar turno</button>
-          <span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span>
+          <span>{usuario}</span>
           <button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button>
         </div>
       </header>

@@ -9,7 +9,7 @@ import { abrirPestañaParaPdf, generarYAbrirPdf, type FormatoEtiqueta } from "./
 type Formato = FormatoEtiqueta;
 
 export function EtiquetasPage() {
-  const { usuario, rol, logout, ip } = useAuth();
+  const { usuario, rol, logout } = useAuth();
   const navigate = useNavigate();
   const [sucursales, setSucursales] = useState<LookupSimple[]>([]);
   const [idSucursal, setIdSucursal] = useState<number>(0);
@@ -99,7 +99,6 @@ export function EtiquetasPage() {
         </div>
         <div className="user-box">
           <span>{usuario} · <strong>{rol}</strong></span>
-          <span className="mono ip-badge">IP {ip ?? "—"}</span>
           <button onClick={() => navigate("/")}>Módulos</button>
           <button onClick={logout}>Salir</button>
         </div>

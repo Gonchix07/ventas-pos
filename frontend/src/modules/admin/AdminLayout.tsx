@@ -68,7 +68,7 @@ function grupoDeRuta(path: string): string | undefined {
 }
 
 export function AdminLayout() {
-  const { usuario, rol, logout, ip } = useAuth();
+  const { usuario, rol, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [abiertos, setAbiertos] = useState<string[]>(() => {
@@ -97,7 +97,6 @@ export function AdminLayout() {
             <span className="admin-user-usuario">{usuario}</span>
             <span className="muted"> · {rol}</span>
           </div>
-          <div className="admin-user-ip mono">IP {ip ?? "—"}</div>
           <button onClick={() => navigate("/")}>Módulos</button>
           <button className="admin-user-salir" onClick={logout}>Salir</button>
         </div>

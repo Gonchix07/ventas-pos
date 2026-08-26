@@ -19,7 +19,7 @@ const fechaHora = (iso: string) =>
  * el lote completo y, si sale bien, lo saca de esta lista.
  */
 export function FacturacionCaeaPage() {
-  const { usuario, logout, ip } = useAuth();
+  const { usuario, logout } = useAuth();
   const navigate = useNavigate();
 
   const [lotes, setLotes] = useState<LoteCaeaPendiente[] | null>(null);
@@ -82,7 +82,7 @@ export function FacturacionCaeaPage() {
       <header className="app-header">
         <div className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Mayorista</span></div>
         <div className="user-box">
-          <span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span>
+          <span>{usuario}</span>
           <button onClick={() => navigate("/")}>Módulos</button>
           <button onClick={logout}>Salir</button>
         </div>

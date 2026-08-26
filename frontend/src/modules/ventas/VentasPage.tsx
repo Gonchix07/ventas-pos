@@ -17,7 +17,7 @@ const INTERVALO_REFRESCO_MS = 30_000;
  * Caja/Tesorería/Etiquetas/Reimpresión, en vez de depender del layout de Admin.
  */
 export function VentasPage() {
-  const { usuario, rol, logout, ip } = useAuth();
+  const { usuario, rol, logout } = useAuth();
   const navigate = useNavigate();
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
   const [idSucursal, setIdSucursal] = useState<number | 0>(0);
@@ -62,7 +62,6 @@ export function VentasPage() {
         <div className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Mayorista</span></div>
         <div className="user-box">
           <span>{usuario} · <strong>{rol}</strong></span>
-          <span className="mono ip-badge">IP {ip ?? "—"}</span>
           <button onClick={() => navigate("/")}>Módulos</button>
           <button onClick={logout}>Salir</button>
         </div>

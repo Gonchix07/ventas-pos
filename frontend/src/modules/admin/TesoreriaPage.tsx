@@ -37,7 +37,7 @@ const textoEstadoCierre = (e: string) =>
  * anterior — todo eso ahora vive en esta única tabla + su subfila de detalle.
  */
 export function TesoreriaPage() {
-  const { usuario, rol, logout, ip } = useAuth();
+  const { usuario, rol, logout } = useAuth();
   const navigate = useNavigate();
 
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
@@ -181,7 +181,6 @@ export function TesoreriaPage() {
         </div>
         <div className="user-box">
           <span>{usuario} · <strong>{rol}</strong></span>
-          <span className="mono ip-badge">IP {ip ?? "—"}</span>
           <button onClick={() => navigate("/")}>Módulos</button>
           <button onClick={logout}>Salir</button>
         </div>

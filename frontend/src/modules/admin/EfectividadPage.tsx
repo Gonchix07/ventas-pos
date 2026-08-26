@@ -20,7 +20,7 @@ const pct = (n: number) => `${n.toFixed(1)}%`;
  * de depender del layout de Admin, ya que vive fuera del Outlet de Administración.
  */
 export function EfectividadPage() {
-  const { usuario, rol, logout, ip } = useAuth();
+  const { usuario, rol, logout } = useAuth();
   const navigate = useNavigate();
 
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
@@ -53,7 +53,6 @@ export function EfectividadPage() {
         </div>
         <div className="user-box">
           <span>{usuario} · <strong>{rol}</strong></span>
-          <span className="mono ip-badge">IP {ip ?? "—"}</span>
           <button onClick={() => navigate("/tesoreria")}>Volver a Tesorería</button>
           <button onClick={logout}>Salir</button>
         </div>

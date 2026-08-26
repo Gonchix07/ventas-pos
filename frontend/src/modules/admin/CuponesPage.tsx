@@ -18,7 +18,7 @@ const fechaISO = (d: Date) => d.toISOString().slice(0, 10);
  * cupón/lote/plan) cuando el cajero tipeó mal algo — con historial de auditoría.
  */
 export function CuponesPage() {
-  const { usuario, rol, logout, ip } = useAuth();
+  const { usuario, rol, logout } = useAuth();
   const navigate = useNavigate();
 
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
@@ -54,7 +54,6 @@ export function CuponesPage() {
         </div>
         <div className="user-box">
           <span>{usuario} · <strong>{rol}</strong></span>
-          <span className="mono ip-badge">IP {ip ?? "—"}</span>
           <button onClick={() => navigate("/tesoreria")}>Volver a Tesorería</button>
           <button onClick={logout}>Salir</button>
         </div>
