@@ -423,7 +423,13 @@ export interface PuntoVenta {
   idSucursal: number; idPuntoVenta: number; idTipoPuntoVenta: number; tipoDescripcion?: string | null;
   numeroPuntoVenta: number; /** Solo en los FISCAL: IP del controlador Hasar. */ ipControlador?: string | null;
 }
-export interface Puesto { idSucursal: number; idPuestoAsignado: number; nombrePc: string; ip?: string | null; }
+export interface Puesto {
+  idSucursal: number; idPuestoAsignado: number; nombrePc: string;
+  /** null = todavía no se vinculó ninguna PC a este puesto (ver cajaEstructura.vincularEquipo). */
+  identificadorEquipo?: string | null;
+  /** Ya no se usa para resolver la caja — solo dato informativo/auditoría. */
+  ip?: string | null;
+}
 export interface TerminalTarjeta {
   idSucursal: number; idTerminal: number; numeroTerminal: string; tipo: number; tipoDescripcion: string;
   /** Caja a la que está asignada (null = sin asignar). Una terminal cuelga de UNA sola caja. */
@@ -457,6 +463,10 @@ export const cajaEstructura = {
   updatePuesto: (suc: number, id: number, nombrePc: string, ip: string | null) =>
     unwrap<boolean>(api.put(`/admin/sucursales/${suc}/puestos/${id}`, { nombrePc, ip })),
   removePuesto: (suc: number, id: number) => unwrap<boolean>(api.delete(`/admin/sucursales/${suc}/puestos/${id}`)),
+  // Sin body: el identificador lo manda el interceptor de client.ts (header X-Puesto-Id) desde la
+  // PC en la que está parado quien hace el click — por eso hay que vincular desde esa misma PC.
+  vincularEquipo: (suc: number, id: number) =>
+    unwrap<boolean>(api.post(`/admin/sucursales/${suc}/puestos/${id}/vincular-equipo`)),
 
   cajas: (suc: number) => unwrap<CajaFisica[]>(api.get(`/admin/sucursales/${suc}/cajas`)),
   createCaja: (suc: number, idPuntoVenta: number, descripcion: string, idPuestoAsignado: number | null, admitePresupuesto: boolean) =>

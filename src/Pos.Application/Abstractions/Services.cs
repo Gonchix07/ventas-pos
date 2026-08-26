@@ -72,7 +72,7 @@ public interface ICurrentUser
     string? Puesto { get; }
 
     /// <summary>
-    /// Sucursal/caja resueltas al login a partir del nombre de PC (ver LoginCommand/ResolverCajaPorPc).
+    /// Sucursal/caja resueltas al login a partir del equipo vinculado (ver LoginCommand/ResolverCajaPorEquipoAsync).
     /// Nulas cuando la sesión no está atada a un puesto físico (típico de Administrador/Tesorero
     /// operando desde cualquier PC). Cuando tienen valor, la sesión SOLO puede operar sobre esa
     /// sucursal/caja — ver <see cref="CurrentUserAuthorizationExtensions"/>.

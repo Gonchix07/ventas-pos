@@ -81,12 +81,23 @@ public class PuestoCaja : AuditableEntity
     public int IdSucursal { get; set; }
     public int IdPuestoAsignado { get; set; }
     /// <summary>Etiqueta libre para identificar el puesto en el ABM (ej. "Caja 1 - Mostrador").
-    /// Ya NO se usa para resolver la caja al loguear — un navegador no puede leer el nombre real
-    /// de la PC del sistema operativo; ver <see cref="Ip"/>.</summary>
+    /// No se usa para resolver la caja al loguear.</summary>
     public string NombrePc { get; set; } = "";
-    /// <summary>IP de LAN de la PC de ese puesto. Todas las cajas acceden a la MISMA URL central,
-    /// así que la única forma confiable de identificar de qué PC física viene un login es la IP
-    /// de origen del request (la ve el servidor, no depende de lo que reporte el navegador).</summary>
+    /// <summary>
+    /// GUID persistido por el navegador (localStorage del perfil kiosco de esa PC, ver
+    /// docs/08-puesto-caja.md) y enviado en el header <c>X-Puesto-Id</c> de cada request. Es la
+    /// clave real con la que se resuelve <c>idCaja</c> al loguear (ver LoginCommand) — se eligió
+    /// en vez de la IP de origen porque la IP deja de ser confiable en cuanto hay NAT/VPN/proxy
+    /// entre la PC y el servidor (sucursales remotas, o incluso saltos entre VLANs en la propia
+    /// LAN). Null hasta que un Administrador "vincula" el puesto parado frente a esa PC (ABM
+    /// Estructura de caja &gt; Puestos, botón "Vincular este equipo").
+    /// </summary>
+    public string? IdentificadorEquipo { get; set; }
+    /// <summary>
+    /// IP de origen vista por el servidor la última vez que se resolvió este puesto. Ya NO se usa
+    /// para resolver la caja (ver <see cref="IdentificadorEquipo"/>) — queda solo como dato
+    /// informativo/auditoría en el ABM (ej. para detectar un puesto vinculado desde una IP rara).
+    /// </summary>
     public string? Ip { get; set; }
 }
 

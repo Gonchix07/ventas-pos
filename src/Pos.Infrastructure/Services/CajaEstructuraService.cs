@@ -128,7 +128,7 @@ public class CajaEstructuraService : ICajaEstructuraService
     public async Task<IReadOnlyList<PuestoDto>> GetPuestosAsync(int idSucursal, CancellationToken ct = default) =>
         (await _db.PuestosCaja.AsNoTracking().Where(p => p.IdSucursal == idSucursal)
             .OrderBy(p => p.IdPuestoAsignado).ToListAsync(ct))
-            .Select(p => new PuestoDto(p.IdSucursal, p.IdPuestoAsignado, p.NombrePc, p.Ip)).ToList();
+            .Select(p => new PuestoDto(p.IdSucursal, p.IdPuestoAsignado, p.NombrePc, p.IdentificadorEquipo, p.Ip)).ToList();
 
     public async Task<int> CreatePuestoAsync(int idSucursal, PuestoInput input, CancellationToken ct = default)
     {
@@ -157,6 +157,25 @@ public class CajaEstructuraService : ICajaEstructuraService
         var e = await _db.PuestosCaja.FirstOrDefaultAsync(p => p.IdSucursal == idSucursal && p.IdPuestoAsignado == id, ct);
         if (e is null) return false;
         _db.PuestosCaja.Remove(e); await _db.SaveChangesAsync(ct); return true;
+    }
+
+    public async Task<bool> VincularEquipoAsync(int idSucursal, int id, string identificadorEquipo, CancellationToken ct = default)
+    {
+        var p = await _db.PuestosCaja.FirstOrDefaultAsync(x => x.IdSucursal == idSucursal && x.IdPuestoAsignado == id, ct);
+        if (p is null) return false;
+
+        // El índice único de abajo (IsUnique en PosDbContext) es la garantía real; esto solo
+        // adelanta un mensaje de negocio legible en vez de dejar reventar la excepción de SQL.
+        var yaUsadoPorOtro = await _db.PuestosCaja.AsNoTracking().AnyAsync(x =>
+            x.IdentificadorEquipo == identificadorEquipo &&
+            (x.IdSucursal != idSucursal || x.IdPuestoAsignado != id), ct);
+        if (yaUsadoPorOtro)
+            throw new DomainException("EQUIPO_YA_VINCULADO",
+                "Este equipo ya está vinculado a otro puesto. Desvinculalo ahí primero si lo estás reemplazando.");
+
+        p.IdentificadorEquipo = identificadorEquipo;
+        await _db.SaveChangesAsync(ct);
+        return true;
     }
 
     // ---- Cajas ----

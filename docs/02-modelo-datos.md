@@ -125,10 +125,15 @@ Tablas de catálogo simples: `**id**` INT · `Descripcion`.
 `**idSucursal** + **idTipoPuntoVenta**` · `Descripcion` · `tipoARCA` NVARCHAR *(CAE electrónico, fiscal, etc.)*
 
 ### PuestosCaja
-`**idSucursal** + **idPuestoAsignado**` · `nombrePC` NVARCHAR(100) · `ip` NVARCHAR(45)
-> Identifica la **PC física** por su IP de LAN (el nombre es solo una etiqueta libre del ABM, ya no
-> se usa para resolver la caja: un navegador no puede leer el nombre real de la PC del so). Login
-> resuelve `idCaja` buscando el `PuestoCaja` cuya `ip` coincide con la IP de origen del request.
+`**idSucursal** + **idPuestoAsignado**` · `nombrePC` NVARCHAR(100) · `identificadorEquipo` NVARCHAR(450) *(único, nullable)* · `ip` NVARCHAR(45)
+> Identifica la **PC física** por un GUID que el navegador genera solo y persiste en el perfil
+> kiosco de esa PC (localStorage, ver `08-puesto-caja.md`) — no por su IP de LAN: la IP deja de ser
+> confiable en cuanto hay NAT/VPN/proxy entre la PC y el servidor (sucursales remotas, o saltos
+> entre VLANs en la propia LAN). `nombrePC` es solo una etiqueta libre del ABM. Login resuelve
+> `idCaja` buscando el `PuestoCaja` cuyo `identificadorEquipo` coincide con el header `X-Puesto-Id`
+> del request. `identificadorEquipo` queda `null` hasta que un Administrador, parado físicamente
+> frente a esa PC, lo vincula desde el ABM ("Vincular este equipo"). `ip` se sigue guardando pero
+> solo como dato informativo/auditoría.
 
 ### Cajas
 `**idSucursal** + **idCaja**` · `idPuntoVenta → PuntosVenta` · `Descripcion` · `idPuestoAsignado → PuestosCaja` (nullable) · `admitePresupuesto` BIT

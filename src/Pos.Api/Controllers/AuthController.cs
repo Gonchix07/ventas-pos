@@ -20,10 +20,13 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Autenticación. Devuelve JWT + contexto de caja resuelto por la IP de origen del request
-    /// (todas las cajas acceden a la misma URL central, así que un nombre de PC reportado por el
-    /// navegador — window.location.hostname — sería igual en todas; la IP la determina el
-    /// servidor y sí identifica la PC física real, ver ABM Estructura de caja > Puestos).
+    /// Autenticación. Devuelve JWT + contexto de caja resuelto por <c>X-Puesto-Id</c> — un GUID
+    /// que el navegador de cada PC de caja genera solo (primera carga) y persiste en su propio
+    /// perfil kiosco (ver docs/08-puesto-caja.md), vinculado a un puesto desde el ABM Estructura
+    /// de caja &gt; Puestos. Se dejó de resolver por la IP de origen del request: deja de ser
+    /// confiable en cuanto hay NAT/VPN/proxy entre la PC y el servidor (sucursales remotas, o
+    /// saltos entre VLANs en la propia LAN) — la IP se sigue guardando, pero solo como dato
+    /// informativo/auditoría.
     /// Limitado por IP (ver política "login" en Program.cs) para mitigar fuerza bruta, además
     /// del bloqueo de cuenta por intentos fallidos (LoginLockoutReglas).
     /// </summary>
@@ -32,13 +35,24 @@ public class AuthController : ControllerBase
     [EnableRateLimiting("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest req, CancellationToken ct)
     {
+        var idEquipo = ObtenerIdEquipo();
         var ip = ObtenerIpCliente();
-        var result = await _sender.Send(new LoginCommand(req.Usuario, req.Clave, ip), ct);
+        var result = await _sender.Send(new LoginCommand(req.Usuario, req.Clave, idEquipo, ip), ct);
         return result.Ok ? Ok(result) : Unauthorized(result);
     }
 
+    /// <summary>GUID mandado por el frontend en el header X-Puesto-Id (ver client.ts/device.ts).
+    /// Es un dato de cliente, no una credencial: solo decide qué caja se abre, no qué puede hacer
+    /// el usuario — eso lo sigue controlando el JWT + permisos por rol.</summary>
+    private string? ObtenerIdEquipo()
+    {
+        var valor = Request.Headers["X-Puesto-Id"].ToString();
+        return string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+    }
+
     /// <summary>Normaliza IPv4-mapeada-en-IPv6 (::ffff:192.168.x.x, típica en Kestrel sobre
-    /// dual-stack) a IPv4 simple, para que coincida con lo que se registra en el ABM de Puestos.
+    /// dual-stack) a IPv4 simple. Ya no se usa para resolver la caja (ver ObtenerIdEquipo), solo
+    /// para el dato informativo/auditoría que se guarda junto al login.
     /// Nota: si en el futuro se agrega un reverse proxy delante de la API, esto necesita leer
     /// X-Forwarded-For en su lugar — hoy el navegador de cada caja pega directo contra la API.</summary>
     private string? ObtenerIpCliente()

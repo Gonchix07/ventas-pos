@@ -10,7 +10,11 @@ public record LoginResult(string Token, DateTime ExpiraUtc, string Usuario, stri
                           int? IdSucursal, int? IdCaja, IReadOnlyList<string> Modulos,
                           string RefreshToken, DateTime RefreshExpiraUtc, string? Ip);
 
-public record LoginCommand(string Usuario, string Clave, string? Ip)
+/// <summary>
+/// IdEquipo: GUID del header X-Puesto-Id (identifica la PC física, ver PuestoCaja.IdentificadorEquipo).
+/// Ip: solo se guarda como dato informativo/auditoría, ya no se usa para resolver la caja.
+/// </summary>
+public record LoginCommand(string Usuario, string Clave, string? IdEquipo, string? Ip)
     : IRequest<ApiResult<LoginResult>>, IAuditableRequest
 {
     public string Modulo => "Auth";
@@ -70,8 +74,8 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResult<Login
         await _usuarios.RegistrarLoginExitosoAsync(usuario.IdUsuario, ct);
 
         ContextoCaja? caja = null;
-        if (!string.IsNullOrWhiteSpace(request.Ip))
-            caja = await _puestos.ResolverCajaPorIpAsync(request.Ip!, ct);
+        if (!string.IsNullOrWhiteSpace(request.IdEquipo))
+            caja = await _puestos.ResolverCajaPorEquipoAsync(request.IdEquipo!, ct);
 
         var auth = new UsuarioAutenticado(usuario.IdUsuario, usuario.NombreUsuario,
             usuario.IdRol, usuario.Rol?.Descripcion ?? "");

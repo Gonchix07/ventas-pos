@@ -112,9 +112,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (usuario: string, clave: string) => {
     // Vía unwrap: si el login falla con un status HTTP real (401 credenciales, 403/429
     // bloqueo por intentos), muestra el mensaje de negocio del backend en vez del genérico de
-    // axios ("Request failed with status code 401"). La caja/sucursal ya NO se resuelve por un
-    // "nombre de PC" mandado por el navegador (window.location.hostname sería igual en todas las
-    // cajas, que acceden a la misma URL) — el backend la resuelve por la IP de origen del request.
+    // axios ("Request failed with status code 401"). La caja/sucursal se resuelve por el
+    // identificador de esta PC (header X-Puesto-Id, ver client.ts/device.ts), no por la IP de
+    // origen ni por "window.location.hostname" (sería igual en todas las cajas, que acceden a la
+    // misma URL).
     const data = await unwrap(
       api.post<ApiResult<LoginResult>>("/auth/login", { usuario, clave }),
     );

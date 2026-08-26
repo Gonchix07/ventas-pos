@@ -213,8 +213,8 @@ public class TesoreriaService : ITesoreriaService
             ?? throw new DomainException("LOTE_INEXISTENTE", "No existe el lote indicado en esa sucursal.");
 
         // A propósito NO se llama a AsegurarCaja: el alcance de este endpoint es la sucursal, no la
-        // caja del puesto. La sesión queda atada a una caja física según la IP de la PC (ver
-        // LoginCommand/ResolverCajaPorIpAsync), así que exigir que coincida haría que un Tesorero
+        // caja del puesto. La sesión queda atada a una caja física según el equipo vinculado (ver
+        // LoginCommand/ResolverCajaPorEquipoAsync), así que exigir que coincida haría que un Tesorero
         // sentado en una caja no pudiera regularizar ninguna otra — que es justamente para lo que
         // existe esta vía. Además contradecía a GetLotesPendientesAsync, que lista los lotes de todas
         // las cajas de la sucursal: se ofrecía cerrar un lote que después se rechazaba.

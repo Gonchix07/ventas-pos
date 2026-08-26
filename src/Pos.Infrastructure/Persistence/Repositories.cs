@@ -89,10 +89,10 @@ public class PuestoRepository : IPuestoRepository
     private readonly PosDbContext _db;
     public PuestoRepository(PosDbContext db) => _db = db;
 
-    public async Task<ContextoCaja?> ResolverCajaPorIpAsync(string ip, CancellationToken ct)
+    public async Task<ContextoCaja?> ResolverCajaPorEquipoAsync(string identificadorEquipo, CancellationToken ct)
     {
         var puesto = await _db.PuestosCaja
-            .FirstOrDefaultAsync(p => p.Ip == ip, ct);
+            .FirstOrDefaultAsync(p => p.IdentificadorEquipo == identificadorEquipo, ct);
         if (puesto is null) return null;
 
         var caja = await _db.Cajas.FirstOrDefaultAsync(

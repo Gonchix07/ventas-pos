@@ -89,8 +89,9 @@ export function AsignacionCajasPage() {
         <div>
           <h3>Puestos (PC)</h3>
           <p className="muted" style={{ marginTop: -8 }}>
-            La caja se resuelve al loguear por la <strong>IP</strong> de la PC (todas acceden a la misma URL,
-            así que el navegador no puede reportar su propio nombre de máquina). El nombre es solo una etiqueta.
+            El nombre es solo una etiqueta. La caja se resuelve al loguear por el <strong>equipo vinculado</strong>:
+            parate frente a la PC real de ese puesto (con la app abierta ahí) y tocá "Vincular este equipo" en su
+            fila — no se puede vincular a distancia. La IP queda solo como dato informativo.
           </p>
           <div className="toolbar">
             <input placeholder="Nombre (etiqueta)" value={puNombre} onChange={(e) => setPuNombre(e.target.value)} />
@@ -104,19 +105,28 @@ export function AsignacionCajasPage() {
             {puEditId != null && <button onClick={cancelarPuesto}>Cancelar</button>}
           </div>
           <table className="grid">
-            <thead><tr><th>ID</th><th>Nombre</th><th>IP</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>Nombre</th><th>Equipo</th><th>IP</th><th></th></tr></thead>
             <tbody>
               {puestos.map((p) => (
                 <tr key={p.idPuestoAsignado}>
                   <td className="mono">{p.idPuestoAsignado}</td><td>{p.nombrePc}</td>
+                  <td>
+                    {p.identificadorEquipo
+                      ? <span className="badge on">Vinculado</span>
+                      : <span className="badge off">Sin vincular</span>}
+                  </td>
                   <td className="mono">{p.ip ?? <span className="muted">sin IP</span>}</td>
                   <td>
+                    <button title="Vincula este puesto a la PC desde la que estás usando la app AHORA"
+                      onClick={() => run(() => cajaEstructura.vincularEquipo(suc, p.idPuestoAsignado))}>
+                      Vincular este equipo
+                    </button>
                     <button onClick={() => { setPuEditId(p.idPuestoAsignado); setPuNombre(p.nombrePc); setPuIp(p.ip ?? ""); }}>✎</button>
                     <button className="danger" onClick={() => run(() => cajaEstructura.removePuesto(suc, p.idPuestoAsignado))}>×</button>
                   </td>
                 </tr>
               ))}
-              {puestos.length === 0 && <tr><td colSpan={4} className="muted">Sin puestos.</td></tr>}
+              {puestos.length === 0 && <tr><td colSpan={5} className="muted">Sin puestos.</td></tr>}
             </tbody>
           </table>
         </div>

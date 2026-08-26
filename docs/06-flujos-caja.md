@@ -5,7 +5,7 @@ Detalle de los flujos principales del SRS ("Operaciones de caja — operación i
 ## 1. Flujo ideal de caja
 
 ```
-1. Login cajero/supervisor  →  resuelve idCaja por IP de origen del request (PuestosCaja.ip)
+1. Login cajero/supervisor  →  resuelve idCaja por el equipo vinculado (PuestosCaja.identificadorEquipo, header X-Puesto-Id)
 2. Apertura de caja         →  nuevo lote (uno por día); si ya hay lote abierto, se retoma
 3. (opcional) Ingreso de efectivo / cambio
 4. Identificación de cliente

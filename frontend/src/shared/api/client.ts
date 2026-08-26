@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getPuestoId } from "./device";
 
 // Si no se fija VITE_API_URL, se usa el MISMO host desde el que se abrió el frontend (no un
 // "localhost" fijo) — así funciona igual si se entra por localhost, por la IP de LAN del
@@ -30,10 +31,12 @@ export function getRefreshToken(): string | null {
   return localStorage.getItem(REFRESH_KEY);
 }
 
-// Adjunta el JWT a cada request.
+// Adjunta el JWT y el identificador de esta PC (ver device.ts) a cada request. Este último es lo
+// que el login usa hoy para resolver la caja — reemplaza a la IP de origen.
 api.interceptors.request.use((config) => {
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers["X-Puesto-Id"] = getPuestoId();
   return config;
 });
 

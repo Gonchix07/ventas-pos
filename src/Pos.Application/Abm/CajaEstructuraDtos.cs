@@ -12,9 +12,11 @@ public record PuntoVentaDto(int IdSucursal, int IdPuntoVenta, int IdTipoPuntoVen
 /// <summary>IpControlador solo se guarda si el tipo es FISCAL; en los otros se ignora.</summary>
 public record PuntoVentaInput(int IdTipoPuntoVenta, int NumeroPuntoVenta, string? IpControlador);
 
-/// <summary>NombrePc es solo una etiqueta libre para el ABM (ej. "Caja 1 - Mostrador"); la caja
-/// se resuelve al loguear por Ip, no por este nombre — ver AuthController/LoginCommand.</summary>
-public record PuestoDto(int IdSucursal, int IdPuestoAsignado, string NombrePc, string? Ip);
+/// <summary>NombrePc es solo una etiqueta libre para el ABM (ej. "Caja 1 - Mostrador"). La caja se
+/// resuelve al loguear por IdentificadorEquipo (null hasta que se vincula, ver
+/// ICajaEstructuraService.VincularEquipoAsync) — Ip queda solo como dato informativo/auditoría,
+/// ver AuthController/LoginCommand.</summary>
+public record PuestoDto(int IdSucursal, int IdPuestoAsignado, string NombrePc, string? IdentificadorEquipo, string? Ip);
 public record PuestoInput(string NombrePc, string? Ip);
 
 public record CajaDto(int IdSucursal, int IdCaja, int IdPuntoVenta, string Descripcion, int? IdPuestoAsignado,
@@ -48,6 +50,12 @@ public interface ICajaEstructuraService
     Task<int> CreatePuestoAsync(int idSucursal, PuestoInput input, CancellationToken ct = default);
     Task<bool> UpdatePuestoAsync(int idSucursal, int id, PuestoInput input, CancellationToken ct = default);
     Task<bool> DeletePuestoAsync(int idSucursal, int id, CancellationToken ct = default);
+    /// <summary>
+    /// Vincula este puesto al equipo desde el que se llama AHORA (el Administrador tiene que estar
+    /// parado físicamente frente a esa PC) — toma <paramref name="identificadorEquipo"/> del header
+    /// X-Puesto-Id del propio request. Pisa el vínculo anterior si ya tenía uno (reemplazo de PC).
+    /// </summary>
+    Task<bool> VincularEquipoAsync(int idSucursal, int id, string identificadorEquipo, CancellationToken ct = default);
 
     Task<IReadOnlyList<CajaDto>> GetCajasAsync(int idSucursal, CancellationToken ct = default);
     Task<int> CreateCajaAsync(int idSucursal, CajaInput input, CancellationToken ct = default);

@@ -274,6 +274,9 @@ public class PosDbContext : DbContext
 
     private static void ConfigureIndexes(ModelBuilder b)
     {
+        // Igual que CodigoSupervisor: los puestos sin vincular (IdentificadorEquipo null) conviven
+        // sin problema, la unicidad solo se exige entre los que ya se vincularon a un equipo real.
+        b.Entity<PuestoCaja>().HasIndex(x => x.IdentificadorEquipo).IsUnique();
         b.Entity<Usuario>().HasIndex(x => x.NombreUsuario).IsUnique();
         // SQL Server no cuenta NULLs como duplicados en un índice único: los usuarios sin código
         // (la mayoría) conviven sin problema, y solo se exige unicidad entre los que sí tienen uno.

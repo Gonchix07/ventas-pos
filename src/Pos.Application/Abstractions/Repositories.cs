@@ -36,9 +36,10 @@ public record ContextoCaja(int IdSucursal, int IdCaja);
 
 public interface IPuestoRepository
 {
-    /// <summary>Resuelve la caja física a partir de la IP de origen del login. Null si no está
-    /// mapeada. La IP la determina el servidor (no el navegador) — ver AuthController.</summary>
-    Task<ContextoCaja?> ResolverCajaPorIpAsync(string ip, CancellationToken ct);
+    /// <summary>Resuelve la caja física a partir del identificador de equipo (GUID persistido en
+    /// el navegador de esa PC, header <c>X-Puesto-Id</c>) mandado en el login. Null si no está
+    /// vinculado a ningún puesto — ver AuthController/LoginCommand.</summary>
+    Task<ContextoCaja?> ResolverCajaPorEquipoAsync(string identificadorEquipo, CancellationToken ct);
 }
 
 public interface IPermisoRepository

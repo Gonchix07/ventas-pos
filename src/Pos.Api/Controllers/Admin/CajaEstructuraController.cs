@@ -60,6 +60,23 @@ public class CajaEstructuraController : ControllerBase
         await _service.DeletePuestoAsync(idSucursal, id, ct)
             ? Ok(ApiResult<bool>.Success(true)) : NotFound(ApiResult<bool>.Fail("NO_ENCONTRADO", "No existe."));
 
+    /// <summary>
+    /// Vincula el puesto a la PC desde la que se llama ESTE endpoint (toma X-Puesto-Id del propio
+    /// request) — el Administrador tiene que estar parado frente a esa PC. Sin body: el
+    /// identificador no lo tipea nadie, lo manda el navegador solo.
+    /// </summary>
+    [HttpPost("puestos/{id:int}/vincular-equipo")]
+    public async Task<IActionResult> VincularEquipo(int idSucursal, int id, CancellationToken ct)
+    {
+        var idEquipo = Request.Headers["X-Puesto-Id"].ToString();
+        if (string.IsNullOrWhiteSpace(idEquipo))
+            return BadRequest(ApiResult<bool>.Fail("SIN_ID_EQUIPO",
+                "Esta PC todavía no generó su identificador — recargá la página e intentá de nuevo."));
+
+        return await _service.VincularEquipoAsync(idSucursal, id, idEquipo.Trim(), ct)
+            ? Ok(ApiResult<bool>.Success(true)) : NotFound(ApiResult<bool>.Fail("NO_ENCONTRADO", "No existe."));
+    }
+
     // Cajas
     [HttpGet("cajas")]
     public async Task<IActionResult> GetCajas(int idSucursal, CancellationToken ct) =>
