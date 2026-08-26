@@ -106,12 +106,12 @@ export function CajaPage() {
   // default 1/1 es solo para roles sin puesto asignado (Administrador/Tesorero) — pendiente un
   // selector manual para ese caso; no confundir con la resolución automática por IP.
   const [idSucursal] = useState<number>(idSucursalAuth ?? 1);
-  // La caja puede cambiarse a mano: si la PC del cajero se rompe, se sienta en otra y retoma su
-  // turno (o abre uno) desde acá, aunque esta PC no tenga puesto configurado.
+  // La caja puede cambiarse a mano DESPUÉS de identificado el puesto (ver el corte más abajo si
+  // idCajaAuth es null): si la PC del cajero se rompe, se sienta en otra PC ya vinculada a un
+  // puesto y retoma su turno (o abre uno) desde ahí.
   const [idCaja, setIdCaja] = useState<number>(idCajaAuth ?? 1);
   const [turnos, setTurnos] = useState<TurnoAbierto[]>([]);
   const [cajas, setCajas] = useState<CajaDisponible[]>([]);
-  const cajaResueltaPorPc = idCajaAuth !== null && idCaja === idCajaAuth;
 
   const [lote, setLote] = useState<Lote | null>(null);
   const [descripcionCaja, setDescripcionCaja] = useState<string | null>(null);
@@ -795,6 +795,30 @@ export function CajaPage() {
 
   if (loadingLote) return <div className="caja-shell"><p className="muted">Cargando caja…</p></div>;
 
+  // Esta PC no está vinculada a ningún puesto (ver ABM Estructura de caja > Puestos): sin eso no
+  // hay una caja física real que abrir, así que no se ofrece "elegir una a mano" — eso permitía
+  // abrir turno y facturar sobre CUALQUIER caja de CUALQUIER sucursal desde una PC sin identificar
+  // (ver AsegurarCaja: sin idCaja en la sesión, el backend no restringe nada). Se corta acá.
+  if (idCajaAuth === null) {
+    return (
+      <div className="caja-shell">
+        <header className="caja-header">
+          <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
+          <div className="user-box"><span>{usuario}</span><span className="mono ip-badge">IP {ip ?? "—"}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
+        </header>
+        <div className="caja-center">
+          <div className="card form" style={{ maxWidth: 560 }}>
+            <h3>Puesto no autorizado para operar</h3>
+            <p className="muted">
+              Esta PC todavía no está vinculada a ningún puesto de caja. Andá a Administración &gt;
+              Asignación de cajas y usá "Vincular este equipo" parado frente a esta PC.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!lote) {
     return (
       <div className="caja-shell">
@@ -806,9 +830,7 @@ export function CajaPage() {
           <div className="card form" style={{ maxWidth: 560 }}>
             <h3>Apertura de caja</h3>
             <p className="muted">
-              Sucursal {idSucursal} · Caja {descripcionCaja ?? idCaja}
-              {cajaResueltaPorPc ? "" : " (elegida a mano: esta PC no tiene puesto configurado)"}. No hay un
-              lote abierto hoy en esta caja.
+              Sucursal {idSucursal} · Caja {descripcionCaja ?? idCaja}. No hay un lote abierto hoy en esta caja.
             </p>
             {error && <p className="error">{error}</p>}
 
