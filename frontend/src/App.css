@@ -716,9 +716,9 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 
 .vp-stickers { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 .vp-sticker {
-  display: inline-block; font-size: 18px; font-weight: 800; letter-spacing: .03em;
-  color: #fff; padding: 10px 22px; border-radius: 999px; box-shadow: 0 8px 18px rgba(0,0,0,.18);
-  transform: rotate(-3deg);
+  display: inline-block; font-size: 16px; font-weight: 800; letter-spacing: .02em;
+  color: #fff; padding: 10px 20px; border-radius: 999px; box-shadow: 0 8px 18px rgba(0,0,0,.18);
+  transform: rotate(-3deg); max-width: 320px; white-space: normal; text-align: center;
 }
 .vp-sticker--oferta { background: linear-gradient(135deg, #ff8a3d, #e0501c); }
 .vp-sticker--folder { background: linear-gradient(135deg, #ffd43d, #e0a41c); color: #4a3400; }

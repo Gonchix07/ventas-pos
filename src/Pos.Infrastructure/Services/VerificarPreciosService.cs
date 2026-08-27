@@ -51,13 +51,17 @@ public class VerificarPreciosService : IVerificarPreciosService
         // "LISTA FOLDER", independiente de si Azul/Roja también tienen precio.
         var esListaFolder = candidatos.Any(c => c.Tipo == TipoListaPrecio.Folder);
 
-        // Ofertas vigentes aplicables: se prueba con 1 unidad al primer precio de lista que haya
-        // (Azul si existe, si no el que sea) — alcanza para saber SI hay oferta, el motor necesita
-        // un precio unitario de referencia pero el descuento en sí no se usa acá.
+        // Ofertas vigentes aplicables: se prueba con una cantidad grande (no 1) al primer precio de
+        // lista que haya (Azul si existe, si no el que sea). No es un simulacro de venta real — acá
+        // solo interesa saber SI hay alguna oferta que alcance a este artículo, para el sticker. Con
+        // cantidad=1, MotorOfertas.CalcularDescuento da 0 en 2x1/Segunda unidad/Bonificación (piden
+        // al menos 2 unidades — Math.Floor(1/2)=0), así que ese tipo de oferta quedaba "invisible"
+        // aunque el producto sí estuviera alcanzado. 100 unidades cubre cualquier umbral realista sin
+        // tener que duplicar la lógica de alcance del motor acá.
         var precioRef = precios.FirstOrDefault(p => p.Precio is not null)?.Precio ?? 0m;
         var ofertasResp = await _pricing.AplicarOfertasAsync(
             new AplicarOfertasRequest(idSucursal, null,
-                new List<LineaOfertaRequest> { new(articulo.IdPresentacion, 1m, precioRef) }), ct);
+                new List<LineaOfertaRequest> { new(articulo.IdPresentacion, 100m, precioRef) }), ct);
         var ofertas = (ofertasResp.Lineas.FirstOrDefault()?.Ofertas ?? new List<OfertaAplicadaDto>())
             .Select(o => new OfertaResumen(o.IdOferta, o.Descripcion))
             .ToList();

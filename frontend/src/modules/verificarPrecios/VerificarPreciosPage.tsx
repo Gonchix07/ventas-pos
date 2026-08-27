@@ -151,7 +151,11 @@ export function VerificarPreciosPage() {
                 {(producto.esListaFolder || tieneOferta) && (
                   <div className="vp-stickers">
                     {producto.esListaFolder && <span className="vp-sticker vp-sticker--folder">LISTA FOLDER</span>}
-                    {tieneOferta && <span className="vp-sticker vp-sticker--oferta">OFERTA</span>}
+                    {/* Una por oferta: puede tener más de una vigente a la vez (ver AplicarOfertasAsync,
+                        Acumula) — cada una con su nombre real, no un genérico "OFERTA" sin identificar cuál. */}
+                    {producto.ofertas.map((o) => (
+                      <span key={o.idOferta} className="vp-sticker vp-sticker--oferta">OFERTA: {o.descripcion}</span>
+                    ))}
                   </div>
                 )}
               </>
