@@ -160,6 +160,26 @@ public static class DbSeeder
         }
         await db.SaveChangesAsync(ct);
 
+        // Módulo "Verificar Precios" (2026-08-27): kiosco de autoconsulta — escanear un producto y
+        // ver imagen + precios AZUL/ROJA + sticker de oferta/folder, sin identificar cliente. Mismo
+        // acceso que Clientes, más Repositor (necesita chequear precios vigentes al reponer góndola).
+        var moduloVerificarPrecios = await db.Modulos.FirstOrDefaultAsync(m => m.Descripcion == "VerificarPrecios", ct);
+        if (moduloVerificarPrecios is null)
+        {
+            moduloVerificarPrecios = new Modulo { Descripcion = "VerificarPrecios" };
+            db.Modulos.Add(moduloVerificarPrecios);
+            await db.SaveChangesAsync(ct);
+        }
+        foreach (var descripcionRol in new[] { "Administrador", "Cajero", "Supervisor", "Tesorero", "Repositor" })
+        {
+            var rol = await db.Roles.FirstOrDefaultAsync(r => r.Descripcion == descripcionRol, ct);
+            if (rol is null) continue;
+            if (!await db.Permisos.AnyAsync(p => p.IdRol == rol.IdRol && p.IdModulo == moduloVerificarPrecios.IdModulo, ct))
+                db.Permisos.Add(new Permiso { IdRol = rol.IdRol, IdModulo = moduloVerificarPrecios.IdModulo,
+                    PuedeVer = true, PuedeEditar = true });
+        }
+        await db.SaveChangesAsync(ct);
+
         // Cada medio Tarjeta necesita al menos un plan de cuotas (obligatorio elegir uno al cobrar,
         // ver FacturacionService): alta pedida después de que ya existían medios Tarjeta sin
         // ninguno cargado, por eso el backfill acá — PagoAdminService.AsegurarPlanPorDefectoAsync

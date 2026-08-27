@@ -28,6 +28,7 @@ import { CajaPage } from "./modules/caja/CajaPage";
 // Alias: ya existe un ClientesPage (ABM de Administración) importado abajo con el mismo nombre de
 // componente — este es la ficha/ticket de mostrador del módulo "Clientes" del menú principal.
 import { ClientesPage as ClientesModuloPage } from "./modules/clientes/ClientesPage";
+import { VerificarPreciosPage } from "./modules/verificarPrecios/VerificarPreciosPage";
 import { TesoreriaPage } from "./modules/admin/TesoreriaPage";
 import { CuponesPage } from "./modules/admin/CuponesPage";
 import { EfectividadPage } from "./modules/admin/EfectividadPage";
@@ -85,6 +86,11 @@ function AnimatedRoutes() {
         } />
         <Route path="/clientes" element={
           <RequireAuth roles={["Cajero", "Supervisor", "Tesorero", "Administrador"]} modulo="Clientes"><ClientesModuloPage /></RequireAuth>
+        } />
+        <Route path="/verificar-precios" element={
+          <RequireAuth roles={["Cajero", "Supervisor", "Tesorero", "Repositor", "Administrador"]} modulo="VerificarPrecios">
+            <VerificarPreciosPage />
+          </RequireAuth>
         } />
         <Route path="/tesoreria" element={
           <RequireAuth roles={["Tesorero", "Administrador"]} modulo="Tesoreria"><TesoreriaPage /></RequireAuth>

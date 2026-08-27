@@ -47,6 +47,7 @@ public static class DependencyInjection
         services.AddScoped<Pos.Application.Abm.IOfertaAdminService, Services.OfertaAdminService>();
         services.AddScoped<Pos.Application.Abm.IOfertaMedioPagoAdminService, Services.OfertaMedioPagoAdminService>();
         services.AddScoped<Pos.Application.Caja.ICajaService, Services.CajaService>();
+        services.AddScoped<Pos.Application.VerificarPrecios.IVerificarPreciosService, Services.VerificarPreciosService>();
         services.AddScoped<Pos.Application.Percepciones.IPercepcionesCalculoService, Services.PercepcionesCalculoService>();
         services.AddScoped<Pos.Application.Facturacion.IFacturacionService, Services.FacturacionService>();
         services.AddScoped<Pos.Application.Facturacion.INotaCreditoService, Services.NotaCreditoService>();

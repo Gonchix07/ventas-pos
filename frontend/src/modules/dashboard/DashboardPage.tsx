@@ -4,6 +4,7 @@ import { useAuth } from "../../shared/auth/auth";
 const MODULOS = [
   { key: "Caja", desc: "Operativa de cobros y armado de operación", to: "/caja" },
   { key: "Clientes", desc: "Buscar cliente por documento/tarjeta e imprimir su ficha por comandera", to: "/clientes" },
+  { key: "VerificarPrecios", label: "Verificar Precios", desc: "Kiosco de autoconsulta: escanear un producto y ver imagen, precios de lista y ofertas", to: "/verificar-precios" },
   { key: "Tesoreria", desc: "Cierres, validaciones y dashboard", to: "/tesoreria" },
   { key: "Etiquetas", desc: "Impresión de etiquetas de precios", to: "/etiquetas" },
   { key: "Reimpresion", desc: "Buscar y reimprimir facturas o notas de crédito ya emitidas", to: "/reimpresion" },
