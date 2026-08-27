@@ -48,6 +48,14 @@ Esta entrega es **solo diseño/arquitectura** (no incluye código todavía).
 - **Tesorero** — cierres, validaciones y reportes.
 - **Repositor** — impresión de etiquetas de precios.
 
+## Correr todo junto (desarrollo)
+
+`.\scripts\iniciar-dev.ps1` levanta el backend (`dotnet run`) y el frontend (`npm run dev`), cada
+uno en su propia ventana. Con `-Instalar` corre `npm install` antes si `frontend\node_modules` no
+existe todavía (primera vez que se clona el repo); con `-SinNavegador` no abre el navegador solo al
+final. Requiere los user-secrets ya configurados (ver debajo) — si el puerto de alguno ya está en
+uso, avisa y no lo relanza.
+
 ## Configuración de secretos (desarrollo)
 
 `appsettings.json`/`appsettings.Development.json` **no** contienen credenciales reales — se cargan vía [User Secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets) para no commitearlas. Para correr localmente contra la BD real:

@@ -1,0 +1,1 @@
+powershell -ExecutionPolicy Bypass -File iniciar-dev.ps1
