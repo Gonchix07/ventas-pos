@@ -332,6 +332,23 @@ table.grid tr.lote-sel > td { background: #eef5f2; }
 table.grid.picker-table {
   display: block; max-height: 340px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable;
 }
+
+/* Matriz de Permisos por rol (PermisosPage): una columna por módulo (hay nombres largos y sin
+   espacios, ej. "FacturacionCaea", que no rompen línea solos) — con el padding/tamaño normal de
+   `table.grid` no entraban las ~9 columnas en el ancho de `.admin-content` y forzaba scroll
+   horizontal. Padding y fuente más chicos + word-break en el encabezado para que entre entero. */
+table.grid.permisos-table th, table.grid.permisos-table td { padding: 8px 6px; }
+table.grid.permisos-table th { text-align: center; word-break: break-word; }
+table.grid.permisos-table th:first-child, table.grid.permisos-table td:first-child {
+  text-align: left; padding-left: 14px; white-space: nowrap;
+}
+table.grid.permisos-table td { text-align: center; }
+/* Checkbox más visible que el default del navegador, mismo verde que el resto de los toggles
+   de la app (ver .check-box más arriba). */
+table.grid.permisos-table input[type="checkbox"] {
+  accent-color: var(--petrol); width: 18px; height: 18px; cursor: pointer;
+}
+table.grid.permisos-table input[type="checkbox"]:disabled { cursor: not-allowed; opacity: .5; }
 .picker-table thead, .picker-table tbody { display: table; width: 100%; table-layout: fixed; }
 .picker-table thead th { position: sticky; top: 0; z-index: 1; background: #eef1ef; }
 .picker-table tbody tr:hover > td { background: #f4f7f5; }

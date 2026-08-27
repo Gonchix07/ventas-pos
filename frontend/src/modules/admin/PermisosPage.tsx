@@ -69,39 +69,37 @@ export function PermisosPage() {
       </p>
       {error && <p className="error">{error}</p>}
 
-      <div style={{ overflowX: "auto" }}>
-        <table className="grid">
-          <thead>
-            <tr>
-              <th>Rol</th>
-              {matriz.modulos.map((m) => <th key={m.idModulo}>{m.descripcion}</th>)}
+      <table className="grid permisos-table">
+        <thead>
+          <tr>
+            <th>Rol</th>
+            {matriz.modulos.map((m) => <th key={m.idModulo}>{m.descripcion}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {matriz.roles.map((r) => (
+            <tr key={r.idRol}>
+              <td><b>{r.rolDescripcion}</b></td>
+              {r.celdas.map((c) => {
+                const clave = `${r.idRol}-${c.idModulo}`;
+                const bloqueado = r.rolDescripcion === "Administrador"
+                  && matriz.modulos.find((m) => m.idModulo === c.idModulo)?.descripcion === "Administracion";
+                return (
+                  <td key={c.idModulo}>
+                    <input
+                      type="checkbox"
+                      checked={c.puedeVer}
+                      disabled={guardando === clave || bloqueado}
+                      title={bloqueado ? "El rol Administrador siempre mantiene acceso a Administración." : undefined}
+                      onChange={() => void toggle(r.idRol, c.idModulo, c.puedeVer)}
+                    />
+                  </td>
+                );
+              })}
             </tr>
-          </thead>
-          <tbody>
-            {matriz.roles.map((r) => (
-              <tr key={r.idRol}>
-                <td><b>{r.rolDescripcion}</b></td>
-                {r.celdas.map((c) => {
-                  const clave = `${r.idRol}-${c.idModulo}`;
-                  const bloqueado = r.rolDescripcion === "Administrador"
-                    && matriz.modulos.find((m) => m.idModulo === c.idModulo)?.descripcion === "Administracion";
-                  return (
-                    <td key={c.idModulo} style={{ textAlign: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={c.puedeVer}
-                        disabled={guardando === clave || bloqueado}
-                        title={bloqueado ? "El rol Administrador siempre mantiene acceso a Administración." : undefined}
-                        onChange={() => void toggle(r.idRol, c.idModulo, c.puedeVer)}
-                      />
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
