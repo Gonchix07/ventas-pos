@@ -93,6 +93,7 @@ public class PosDbContext : DbContext
     public DbSet<PadronExcepcionPercepcionIva> PadronExcepcionPercepcionesIva => Set<PadronExcepcionPercepcionIva>();
     public DbSet<Configuracion> Configuraciones => Set<Configuracion>();
     public DbSet<ConexionExternaMySql> ConexionesExternasMySql => Set<ConexionExternaMySql>();
+    public DbSet<ConexionPuntosApp> ConexionesPuntosApp => Set<ConexionPuntosApp>();
     public DbSet<CaeaCargado> CaeaCargados => Set<CaeaCargado>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -170,6 +171,7 @@ public class PosDbContext : DbContext
         b.Entity<Configuracion>().HasKey(x => x.IdConfiguracion);
         b.Entity<CaeaCargado>().HasKey(x => x.IdCaea);
         b.Entity<ConexionExternaMySql>().HasKey(x => x.IdConexionExterna);
+        b.Entity<ConexionPuntosApp>().HasKey(x => x.IdConexionPuntosApp);
         b.Entity<PadronIngresosBrutos>().HasKey(x => x.Cuit);
         b.Entity<PadronExcepcionPercepcionIva>().HasKey(x => x.Cuit);
 

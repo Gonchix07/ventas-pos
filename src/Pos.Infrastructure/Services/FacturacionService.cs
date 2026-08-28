@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Pos.Application.Abstractions;
+using Pos.Application.Abstractions.Fidelizacion;
 using Pos.Application.Abstractions.Fiscal;
 using Pos.Application.Abstractions.Interfase;
 using Pos.Application.Abstractions.Payments;
@@ -44,13 +45,15 @@ public class FacturacionService : IFacturacionService
     private readonly ICurrentUser _currentUser;
     private readonly IPercepcionesCalculoService _percepciones;
     private readonly IInterfaseContableService _interfase;
+    private readonly IPuntosFidelizacionService _fidelizacion;
 
     // IFiscalService (CAE/CAEA) vuelve a inyectarse acá: convive con el controlador fiscal, pero
     // cada punto de venta usa uno solo de los dos caminos (ver ModalidadPuntoVenta) — Fiscal sigue
     // yendo por IFiscalPrinter (Hasar), Electrónica ahora va por acá. Ver EmitirAsync.
     public FacturacionService(PosDbContext db, IPaymentProviderFactory pagos,
         IFiscalPrinter impresora, IFiscalService fiscal, ICaeaCargadoService caeaCargado, ICurrentUser currentUser,
-        IPercepcionesCalculoService percepciones, IInterfaseContableService interfase)
+        IPercepcionesCalculoService percepciones, IInterfaseContableService interfase,
+        IPuntosFidelizacionService fidelizacion)
     {
         _db = db;
         _pagos = pagos;
@@ -60,6 +63,7 @@ public class FacturacionService : IFacturacionService
         _currentUser = currentUser;
         _percepciones = percepciones;
         _interfase = interfase;
+        _fidelizacion = fidelizacion;
     }
 
     public async Task<EmitirComprobanteResponse> EmitirAsync(EmitirComprobanteRequest req, CancellationToken ct = default)
@@ -741,6 +745,10 @@ public class FacturacionService : IFacturacionService
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
+            // Null si el cliente no tenía DNI cargado (no se intentó) o si es Presupuesto (no entra
+            // al bloque de abajo) — ver FidelizacionResultDto.
+            FidelizacionResultDto? fidelizacionResultado = null;
+
             // Interfase contable (best-effort, ver IInterfaseContableService): solo Facturas/NC con
             // valor fiscal, nunca Presupuesto. Se manda DESPUÉS del commit — si esto falla, la venta
             // ya quedó persistida e impresa igual, nunca se revierte por esto.
@@ -851,13 +859,29 @@ public class FacturacionService : IFacturacionService
                 // cupones: una fila por cada pago con tarjeta, recolectadas en el paso 4 (arriba).
                 foreach (var filaCupon in filasCupon)
                     await _interfase.RegistrarCuponAsync(filaCupon, ct);
+
+                // Puntos de fidelización (best-effort, ver IPuntosFidelizacionService): solo si el
+                // cliente está identificado con DNI — sin eso, puntos-app no tiene forma de ubicar
+                // su tarjeta. Mismo criterio que la interfase contable: nunca bloquea ni revierte la
+                // venta. El número de factura se prefija con la sucursal porque puntos-app exige
+                // unicidad global de factura_numero y NumeroCompleto solo, por sí solo, puede
+                // repetirse entre sucursales con la misma numeración de comprobante. El resultado
+                // (a diferencia de la interfase contable) SÍ viaja en la respuesta — Caja lo usa
+                // para el popup de confirmación al cajero.
+                if (!string.IsNullOrWhiteSpace(datosCliente?.Documento))
+                {
+                    var r = await _fidelizacion.CargarPuntosAsync(new CargaPuntosFidelizacion(
+                        Dni: datosCliente.Documento!, FacturaPesos: cabecera.Total,
+                        FacturaNumero: $"{req.IdSucursal}-{cabecera.NumeroCompleto}"), ct);
+                    fidelizacionResultado = new FidelizacionResultDto(r.Ok, r.Cliente, r.PuntosOtorgados, r.PuntosTotales, r.Error);
+                }
             }
 
             return new EmitirComprobanteResponse(req.IdSucursal, idComprobante, cabecera.NumeroCompleto!,
                 letra, null, null, false, cabecera.Estado.ToString(), totalNeto, totalIva,
                 cabecera.Total, resultadosPago, impresion.Ok, impresion.Ok ? null : impresion.Error,
                 cabecera.PercepcionIva21, cabecera.PercepcionIva105, cabecera.PercepcionIibb, vuelto,
-                cabecera.AlicuotaIibb);
+                cabecera.AlicuotaIibb, fidelizacionResultado);
         }
         catch
         {

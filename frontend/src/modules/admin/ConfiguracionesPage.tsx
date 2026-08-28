@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { configuraciones, conexionExterna, type Configuracion, type ConexionExternaMySql } from "../../shared/api/admin";
+import { configuraciones, conexionExterna, conexionPuntosApp, type Configuracion, type ConexionExternaMySql, type ConexionPuntosApp } from "../../shared/api/admin";
 
 export function ConfiguracionesPage() {
   const [items, setItems] = useState<Configuracion[]>([]);
@@ -74,6 +74,7 @@ export function ConfiguracionesPage() {
       </table>
 
       <ConexionExternaSection />
+      <ConexionPuntosAppSection />
     </div>
   );
 }
@@ -169,6 +170,103 @@ function ConexionExternaSection() {
           Guardar
         </button>
         <button className="success-solid" disabled={probando || !host.trim() || !baseDatos.trim() || !usuario.trim()}
+          onClick={() => void probar()}>
+          {probando ? "Probando…" : "Probar conexión"}
+        </button>
+      </div>
+      {resultadoPrueba && (
+        resultadoPrueba.ok
+          ? <p className="muted">✔ Conexión exitosa.</p>
+          : <p className="error">✘ No se pudo conectar: {resultadoPrueba.error}</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Integración con puntos-app (programa de fidelización externo, otro proyecto): cada Factura de
+ * venta con cliente identificado (DNI cargado en el ABM de Clientes) suma puntos allá. Es una fila
+ * única y el token nunca vuelve del backend en texto plano — dejar el campo vacío al guardar
+ * conserva el que ya está guardado. Best-effort: si esto falla o está deshabilitado, la venta se
+ * factura igual, solo no suma puntos.
+ */
+function ConexionPuntosAppSection() {
+  const [datos, setDatos] = useState<ConexionPuntosApp | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+  const [probando, setProbando] = useState(false);
+  const [resultadoPrueba, setResultadoPrueba] = useState<{ ok: boolean; error?: string | null } | null>(null);
+
+  const [urlBase, setUrlBase] = useState("");
+  const [comercio, setComercio] = useState("");
+  const [token, setToken] = useState("");
+  const [habilitada, setHabilitada] = useState(false);
+
+  const cargar = async () => {
+    setError(null);
+    try {
+      const d = await conexionPuntosApp.get();
+      setDatos(d);
+      setUrlBase(d.urlBase); setComercio(d.comercio); setHabilitada(d.habilitada); setToken("");
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+  };
+  useEffect(() => { void cargar(); }, []);
+
+  const guardar = async () => {
+    setError(null); setOk(false); setResultadoPrueba(null);
+    try {
+      await conexionPuntosApp.update({ urlBase: urlBase.trim(), comercio: comercio.trim(), token: token || null, habilitada });
+      await cargar();
+      setOk(true);
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+  };
+
+  // Prueba real contra puntos-app con los datos tal como están en el formulario ahora mismo — no
+  // hace falta guardar primero. Token vacío = usar el ya guardado (mismo criterio que "Guardar").
+  const probar = async () => {
+    setError(null); setOk(false); setResultadoPrueba(null); setProbando(true);
+    try {
+      const r = await conexionPuntosApp.probar({
+        urlBase: urlBase.trim(), comercio: comercio.trim(), token: token || null, habilitada,
+      });
+      setResultadoPrueba(r);
+    } catch (e) {
+      setResultadoPrueba({ ok: false, error: e instanceof Error ? e.message : "Error" });
+    } finally {
+      setProbando(false);
+    }
+  };
+
+  return (
+    <div className="card form">
+      <h3>Puntos de fidelización (puntos-app)</h3>
+      <p className="muted">
+        Cada Factura de venta con cliente identificado (DNI cargado en el ABM de Clientes) suma
+        puntos en puntos-app. El comercio se manda igual en todas las cargas — tiene que existir
+        con ese nombre en el ABM de Comercios de puntos-app. Las Notas de Crédito todavía no restan
+        puntos. La API key es el valor de <code>API_INTEGRATION_KEY</code> configurado en el
+        Vercel de puntos-app (no un usuario/contraseña ni un token de sesión).
+      </p>
+      {error && <p className="error">{error}</p>}
+      {ok && !error && <p className="muted">Guardado.</p>}
+      <div className="field-row">
+        <label>URL base<input value={urlBase} onChange={(e) => setUrlBase(e.target.value)} placeholder="https://puntos-app.vercel.app" /></label>
+        <label>Comercio<input value={comercio} onChange={(e) => setComercio(e.target.value)} /></label>
+        <label>
+          API key de integración
+          <input type="password" value={token} onChange={(e) => setToken(e.target.value)}
+            placeholder={datos?.tieneToken ? "•••••••• (dejar vacío para no cambiarla)" : "Sin configurar"} />
+        </label>
+        <label className="check-box">
+          <input type="checkbox" checked={habilitada} onChange={(e) => setHabilitada(e.target.checked)} />
+          Habilitada
+        </label>
+      </div>
+      <div className="row-actions">
+        <button className="primary" disabled={!urlBase.trim() || !comercio.trim()} onClick={() => void guardar()}>
+          Guardar
+        </button>
+        <button className="success-solid" disabled={probando || !urlBase.trim()}
           onClick={() => void probar()}>
           {probando ? "Probando…" : "Probar conexión"}
         </button>

@@ -26,6 +26,14 @@ public record EmitirComprobanteRequest(
 
 public record PagoResultadoDto(int IdMedioPago, decimal Monto, bool Aprobado, string? IdTransaccion, string? Error);
 
+/// <summary>Resultado de sumar puntos en puntos-app para esta factura (ver
+/// IPuntosFidelizacionService) — null en EmitirComprobanteResponse si el cliente no tenía DNI
+/// cargado (ni se intentó). Con Ok=false, Error puede venir null (integración deshabilitada, caso
+/// silencioso) o con un motivo (tarjeta no encontrada, comercio inexistente, etc.) — la venta ya se
+/// facturó en cualquier caso, esto es solo para el popup de confirmación en caja.</summary>
+public record FidelizacionResultDto(bool Ok, string? Cliente, decimal? PuntosOtorgados,
+    decimal? PuntosTotales, string? Error);
+
 /// <param name="Total">Neto + Iva + PercepcionIva21 + PercepcionIva105 + PercepcionIibb — lo que
 /// efectivamente se cobró.</param>
 public record EmitirComprobanteResponse(
@@ -38,7 +46,10 @@ public record EmitirComprobanteResponse(
     /// de caja — ver FacturacionService.EmitirAsync — así que se resta sola de la rendición.</summary>
     decimal Vuelto = 0,
     /// <summary>Alícuota (%) con la que se calculó PercepcionIibb (0 si no corresponde).</summary>
-    decimal AlicuotaIibb = 0);
+    decimal AlicuotaIibb = 0,
+    /// <summary>Null si el cliente no tenía DNI cargado (no se intentó sumar puntos) — ver
+    /// FidelizacionResultDto.</summary>
+    FidelizacionResultDto? Fidelizacion = null);
 
 public record DetalleComprobanteDto(int IdPresentacion, string DescripcionTicket,
     decimal Cantidad, decimal PrecioUnit, decimal Descuento, decimal AlicuotaIva, decimal Importe);

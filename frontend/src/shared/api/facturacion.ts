@@ -19,6 +19,15 @@ export interface PagoResultado {
   idMedioPago: number; monto: number; aprobado: boolean; idTransaccion?: string | null; error?: string | null;
 }
 
+/** Resultado de sumar puntos en puntos-app para esta factura (ver IPuntosFidelizacionService).
+ *  ok=false cubre tanto "no se intentó" (integración deshabilitada) como "se intentó y falló"
+ *  (tarjeta inexistente, comercio mal configurado, etc.) — en ambos casos la venta ya se facturó
+ *  antes de llegar a esto; el popup de Caja solo se muestra cuando ok=true. */
+export interface FidelizacionResult {
+  ok: boolean; cliente?: string | null; puntosOtorgados?: number | null; puntosTotales?: number | null;
+  error?: string | null;
+}
+
 export interface EmitirComprobanteResponse {
   idSucursal: number; idComprobante: number; numeroCompleto: string; letra: string;
   cae?: string | null; caeVencimiento?: string | null; esCaea: boolean; estado: string;
@@ -28,6 +37,8 @@ export interface EmitirComprobanteResponse {
   alicuotaIibb: number;
   /** Sobrante devuelto en efectivo (0 si no hubo). Ya quedó registrado aparte como salida de caja. */
   vuelto: number;
+  /** Null si el cliente no tenía DNI cargado (no se intentó sumar puntos) o es Presupuesto. */
+  fidelizacion?: FidelizacionResult | null;
 }
 
 // ---- Comprobante para imprimir (formatos A y B) ----

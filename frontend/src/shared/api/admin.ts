@@ -413,6 +413,24 @@ export const conexionExterna = {
     unwrap<ProbarConexionResultado>(api.post(`/admin/conexion-externa/probar`, i)),
 };
 
+// ---- Conexión al API de puntos-app (fidelización) ----
+// Fila única: cada Factura de venta con cliente identificado (DNI) suma puntos allá.
+// tieneToken reemplaza al valor real (nunca viaja descifrado); en el Input, token null/vacío = no
+// tocar el ya guardado. comercio es el nombre tal como está dado de alta en puntos-app.
+export interface ConexionPuntosApp {
+  urlBase: string; comercio: string; tieneToken: boolean; habilitada: boolean;
+}
+export interface ConexionPuntosAppInput {
+  urlBase: string; comercio: string; token?: string | null; habilitada: boolean;
+}
+
+export const conexionPuntosApp = {
+  get: () => unwrap<ConexionPuntosApp>(api.get(`/admin/conexion-puntos-app`)),
+  update: (i: ConexionPuntosAppInput) => unwrap<boolean>(api.put(`/admin/conexion-puntos-app`, i)),
+  probar: (i: ConexionPuntosAppInput) =>
+    unwrap<ProbarConexionResultado>(api.post(`/admin/conexion-puntos-app/probar`, i)),
+};
+
 // ---- Estructura de caja (por sucursal) ----
 /** Catálogo FIJO: ELECTRONICA / FISCAL / PRESUPUESTO. No se dan de alta ni se borran. */
 export interface TipoPuntoVenta {

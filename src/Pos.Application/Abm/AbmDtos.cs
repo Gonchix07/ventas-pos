@@ -134,3 +134,25 @@ public interface IConexionExternaAdminService
     /// un resultado (Ok=false), no una excepción.</summary>
     Task<ProbarConexionResultado> ProbarConexionAsync(ConexionExternaMySqlInput input, CancellationToken ct = default);
 }
+
+// ---- Conexión al API de puntos-app (fidelización) ----
+// Fila única (singleton), mismo criterio que ConexionExternaMySql. TieneToken reemplaza al valor
+// real en la lectura (nunca se devuelve descifrado); en el Input, Token null/vacío = conservar el
+// ya guardado. Comercio es el nombre tal como está dado de alta en el ABM de Comercios de puntos-app.
+// "Token" es en realidad una API key fija (X-Api-Key = API_INTEGRATION_KEY en puntos-app), no un
+// access_token de sesión de Supabase Auth (esos expiran a la hora y no sirven acá) — se mantiene el
+// nombre "Token" en el DTO/Input por compatibilidad con el resto de la nomenclatura del ABM.
+public record ConexionPuntosAppDto(string UrlBase, string Comercio, bool TieneToken, bool Habilitada);
+public record ConexionPuntosAppInput(string UrlBase, string Comercio, string? Token, bool Habilitada);
+
+public interface IConexionPuntosAppAdminService
+{
+    Task<ConexionPuntosAppDto> GetAsync(CancellationToken ct = default);
+    Task UpdateAsync(ConexionPuntosAppInput input, CancellationToken ct = default);
+    /// <summary>Prueba real: pega contra <c>{UrlBase}/api/cargar-puntos</c> con un cuerpo inválido a
+    /// propósito (sin dni/numero) — una API key válida responde 400 "Indicá..."; una inválida
+    /// responde 403. Nunca lanza por un fallo de red: eso es un resultado (Ok=false), no una
+    /// excepción. Si <paramref name="input"/>.Token viene vacío, usa la ya guardada (mismo criterio
+    /// que UpdateAsync).</summary>
+    Task<ProbarConexionResultado> ProbarConexionAsync(ConexionPuntosAppInput input, CancellationToken ct = default);
+}

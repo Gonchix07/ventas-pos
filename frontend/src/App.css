@@ -484,6 +484,11 @@ td.money, th.money { text-align: right; font-family: ui-monospace, Consolas, mon
    que se distinga de un vistazo qué camino de emisión usa esa caja. */
 .modo-badge { font-family: ui-monospace, Consolas, monospace; font-size: 12px; font-weight: 600;
   color: #9a4b00; background: #ffe4c2; padding: 5px 12px; border-radius: 100px; }
+/* Usuario logueado en el header de Caja: mismo lenguaje visual que lote-badge/modo-badge (pill
+   redondeada) en vez de texto suelto en medio de la fila de botones — antes quedaba flotando sin
+   ningún fondo, se perdía entre "Cerrar turno" y "Módulos". */
+.usuario-badge { font-size: 12px; font-weight: 600; color: var(--muted); background: #eef1ef;
+  padding: 5px 12px; border-radius: 100px; }
 .caja-center { flex: 1; display: grid; place-items: center; padding: 24px; }
 .caja-body { max-width: 1200px; margin: 0 auto; padding: 24px; width: 100%; }
 /* Pantalla a todo el ancho con márgenes estrechos: la usa la identificación de cliente, donde la
@@ -581,6 +586,39 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
   .modal-caja, .modal-caja.nc-modal { width: auto; max-width: none; padding: 0; margin: 0;
     border: none; border-radius: 0; box-shadow: none; background: none; }
 }
+
+/* ---- Popup de puntos cargados (ver modules/caja/PuntosCargadosPopup.tsx) ----
+   Identidad visual de puntos-app (degradado violeta + estrella animada), no la del propio POS —
+   a propósito, para que se note de un vistazo que es sobre el programa de fidelización externo. */
+.puntos-popup-fondo { position: fixed; inset: 0; background: rgba(15, 10, 30, .55); z-index: 60;
+  display: flex; align-items: center; justify-content: center; padding: 16px; }
+.puntos-popup-card {
+  width: min(420px, 100%); border-radius: 20px; padding: 36px 28px 28px; text-align: center;
+  color: #fff; background: linear-gradient(155deg, #2e1065 0%, #5b21b6 55%, #7c3aed 100%);
+  box-shadow: 0 24px 60px rgba(46, 16, 101, .45);
+}
+.puntos-popup-star { display: block; font-size: 52px; margin-bottom: 6px; }
+.puntos-popup-card h2 { margin: 0 0 4px; font-size: 22px; }
+.puntos-popup-cliente { margin: 0 0 22px; font-size: 15px; color: #e9d8fd; }
+.puntos-popup-stats { display: flex; justify-content: center; gap: 28px; margin-bottom: 26px; }
+.puntos-popup-stats > div { display: flex; flex-direction: column; align-items: center; }
+.puntos-popup-valor { font-size: 28px; font-weight: 800; }
+.puntos-popup-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #cbb6ee; margin-top: 2px; }
+.puntos-popup-cerrar { width: 100%; padding: 12px; border-radius: 10px; border: none;
+  background: #fff; color: #5b21b6; font-weight: 700; font-size: 15px; cursor: pointer; }
+.puntos-popup-cerrar:hover { background: #f3e8ff; }
+
+/* Estrella del popup de puntos: brilla/pulsa suavemente, mismo criterio visual que en puntos-app
+   (ver src/index.css de ese proyecto — no se reutiliza el archivo, se replica la animación acá). */
+@keyframes star-shine {
+  0%   { transform: scale(1)    rotate(0deg);   filter: drop-shadow(0 0 0 rgba(233,216,253,0)); }
+  4%   { transform: scale(1.25) rotate(-8deg);  filter: drop-shadow(0 0 12px rgba(233,216,253,.8)); }
+  8%   { transform: scale(1.15) rotate(8deg);   filter: drop-shadow(0 0 9px rgba(233,216,253,.6)); }
+  12%  { transform: scale(1)    rotate(0deg);   filter: drop-shadow(0 0 0 rgba(233,216,253,0)); }
+  100% { transform: scale(1)    rotate(0deg);   filter: drop-shadow(0 0 0 rgba(233,216,253,0)); }
+}
+.star-anim { display: inline-block; transform-origin: 50% 50%; animation: star-shine 2.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .star-anim { animation: none; } }
 
 /* ---- Popup de código de supervisor (ver shared/ui/SupervisorGate.tsx) ---- */
 /* Angosto a propósito: es un solo campo, no un formulario — que no ocupe toda la pantalla. */

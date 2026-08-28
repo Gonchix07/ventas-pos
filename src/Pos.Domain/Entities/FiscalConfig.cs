@@ -64,3 +64,22 @@ public class ConexionExternaMySql : AuditableEntity
     public string? PasswordProtegida { get; set; }
     public bool Habilitada { get; set; }
 }
+
+/// <summary>
+/// Conexión al API de puntos-app (programa de fidelización externo, otro proyecto): cada Factura de
+/// venta con cliente identificado (DNI) suma puntos allá — ver <see cref="Pos.Application.Abstractions.Fidelizacion.IPuntosFidelizacionService"/>.
+/// Tabla singleton (una sola fila), mismo criterio que <see cref="ConexionExternaMySql"/>.
+/// <see cref="Comercio"/> es el nombre del comercio ya dado de alta en puntos-app (ABM de Comercios
+/// de ese sistema) — se manda igual en todas las cargas, no varía por sucursal.
+/// </summary>
+public class ConexionPuntosApp : AuditableEntity
+{
+    public int IdConexionPuntosApp { get; set; }
+    public string UrlBase { get; set; } = "";
+    public string Comercio { get; set; } = "";
+    /// <summary>API key fija de integración (X-Api-Key, = API_INTEGRATION_KEY en puntos-app), NO un
+    /// access_token de sesión (esos expiran a la hora). Cifrada en reposo con Data Protection
+    /// (purpose propio "Pos.ConexionPuntosApp") — nunca se expone descifrada al frontend.</summary>
+    public string? TokenProtegido { get; set; }
+    public bool Habilitada { get; set; }
+}

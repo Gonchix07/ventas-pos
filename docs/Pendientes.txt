@@ -10,7 +10,6 @@ Integracion ERP Nuevo >  Ventas POS
 	- Cta Cte
 	- Precios
 
-
 *******************************************************************************************************************
 
 LIMITANTES SIN CORREGIR: 

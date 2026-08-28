@@ -748,3 +748,88 @@ public class ConexionExternaAdminService : IConexionExternaAdminService
         }
     }
 }
+
+/// <summary>
+/// ABM de la conexión al API de puntos-app (fidelización externa) — ver <see cref="ConexionPuntosApp"/>.
+/// Es singleton (una sola fila, sin alta/baja), mismo criterio que <see cref="ConexionExternaAdminService"/>.
+/// </summary>
+public class ConexionPuntosAppAdminService : IConexionPuntosAppAdminService
+{
+    // Purpose propio y fijo — cambiarlo invalida cualquier token ya cifrado con el valor anterior.
+    private const string DataProtectionPurpose = "Pos.ConexionPuntosApp";
+
+    private readonly PosDbContext _db;
+    private readonly IDataProtector _protector;
+    private readonly HttpClient _http;
+
+    public ConexionPuntosAppAdminService(PosDbContext db, IDataProtectionProvider dataProtection, HttpClient http)
+    {
+        _db = db;
+        _protector = dataProtection.CreateProtector(DataProtectionPurpose);
+        _http = http;
+    }
+
+    public async Task<ConexionPuntosAppDto> GetAsync(CancellationToken ct = default)
+    {
+        var c = await _db.ConexionesPuntosApp.AsNoTracking().FirstOrDefaultAsync(ct);
+        if (c is null) return new ConexionPuntosAppDto("", "", false, false);
+        return new ConexionPuntosAppDto(c.UrlBase, c.Comercio, !string.IsNullOrEmpty(c.TokenProtegido), c.Habilitada);
+    }
+
+    public async Task UpdateAsync(ConexionPuntosAppInput input, CancellationToken ct = default)
+    {
+        var c = await _db.ConexionesPuntosApp.FirstOrDefaultAsync(ct);
+        if (c is null)
+        {
+            c = new ConexionPuntosApp();
+            _db.ConexionesPuntosApp.Add(c);
+        }
+        c.UrlBase = input.UrlBase.Trim().TrimEnd('/');
+        c.Comercio = input.Comercio.Trim();
+        // Vacío/null = conservar el token ya guardado, para no obligar a retipearlo cada vez que se
+        // edita la URL o el comercio.
+        if (!string.IsNullOrEmpty(input.Token))
+            c.TokenProtegido = _protector.Protect(input.Token);
+        c.Habilitada = input.Habilitada;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<ProbarConexionResultado> ProbarConexionAsync(ConexionPuntosAppInput input, CancellationToken ct = default)
+    {
+        // Vacío = usar la API key ya guardada (mismo criterio que UpdateAsync), así se puede probar
+        // sin retipearla si no cambió.
+        var apiKey = input.Token;
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            var guardada = await _db.ConexionesPuntosApp.AsNoTracking().FirstOrDefaultAsync(ct);
+            if (string.IsNullOrEmpty(guardada?.TokenProtegido))
+                return new ProbarConexionResultado(false, "No hay API key guardada ni se ingresó una nueva.");
+            apiKey = _protector.Unprotect(guardada.TokenProtegido);
+        }
+
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                input.UrlBase.Trim().TrimEnd('/') + "/api/cargar-puntos");
+            // X-Api-Key (secreto fijo, API_INTEGRATION_KEY en puntos-app) — ver PuntosFidelizacionService.
+            req.Headers.Add("X-Api-Key", apiKey);
+            req.Content = System.Net.Http.Json.JsonContent.Create(new { }); // sin dni/numero a propósito: solo probamos auth
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(8));
+            using var resp = await _http.SendAsync(req, cts.Token);
+
+            // El endpoint valida la API key ANTES que el resto del body: 403 = key inválida;
+            // cualquier otra respuesta (400 "factura_pesos debe ser..." es la esperable) significa
+            // que la autenticación pasó y el servidor está vivo.
+            if (resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                return new ProbarConexionResultado(false, "API key inválida (no coincide con API_INTEGRATION_KEY en puntos-app).");
+            return new ProbarConexionResultado(true, null);
+        }
+        catch (Exception ex)
+        {
+            // No es un error del servidor: es el resultado esperable de "probar" con datos
+            // incorrectos (URL inalcanzable, DNS, timeout, etc.).
+            return new ProbarConexionResultado(false, ex.Message);
+        }
+    }
+}
