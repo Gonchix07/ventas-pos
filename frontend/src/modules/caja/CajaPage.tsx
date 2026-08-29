@@ -626,16 +626,16 @@ export function CajaPage() {
   };
 
   // El presupuesto se cobra siempre con un único pago en efectivo, sin combinar medios: al
-  // activarlo se fuerza ese único pago a Efectivo (el medio queda bloqueado, no elegible) pero el
-  // monto arranca vacío igual que en el cobro normal — el cajero carga a mano lo que recibió, con
-  // el mismo vuelto si entrega de más.
+  // activarlo se fuerza ese único pago a Efectivo (el medio queda bloqueado, no elegible). No hay
+  // cobro real (ver "Comprobante sin valor fiscal ni cobro" en pantalla) así que el monto arranca
+  // completado con el total — el cajero no tiene que tipearlo, solo confirmar.
   const toggleModoPresupuesto = (activo: boolean) => {
     setModoPresupuesto(activo);
     if (!operacion) return;
     if (activo) {
       const efectivo = mediosPago.find((m) => m.fuente === FUENTE_EFECTIVO);
       setPagos(efectivo
-        ? [{ idMedioPago: efectivo.idMedioPago, monto: null, numeroCupon: "", numeroLote: "", idPlan: null,
+        ? [{ idMedioPago: efectivo.idMedioPago, monto: operacion.neto, numeroCupon: "", numeroLote: "", idPlan: null,
             idBanco: null, numeroCheque: "", observacionesCheque: "", codigoGiftcard: "", transaccionIdGiftcard: "" }]
         : []);
     } else {
@@ -644,6 +644,25 @@ export function CajaPage() {
   };
 
   const totalPagos = pagos.reduce((acc, p) => acc + (p.monto ?? 0), 0);
+  // El Presupuesto nunca lleva percepciones (no tiene valor fiscal) aunque la vista previa del
+  // carrito las haya calculado para una venta fiscal normal — por eso acá se usa "neto" a secas en
+  // ese modo, y "totalACobrar" (neto + percepciones) en el resto.
+  const totalEsperado = operacion ? (modoPresupuesto ? operacion.neto : operacion.totalACobrar) : 0;
+  const diferencia = Math.round((totalEsperado - totalPagos) * 100) / 100;
+
+  // "Falta cubrir" se muestra congelado mientras se escribe un monto (se actualiza recién al salir
+  // del campo, ver MonedaInput.onBlur más abajo) — si refrescara en cada tecla, el número
+  // parpadearía sin parar mientras el cajero todavía está cargando la cifra. diferenciaRef siempre
+  // tiene el valor real y actualizado; diferenciaMostrada es la que se pinta en pantalla.
+  const diferenciaRef = useRef(diferencia);
+  diferenciaRef.current = diferencia;
+  const [diferenciaMostrada, setDiferenciaMostrada] = useState(diferencia);
+  useEffect(() => {
+    setDiferenciaMostrada(diferenciaRef.current);
+    // Estos SÍ deben reflejarse al toque (alta/baja de pagos, cambio de modo, percepciones): no son
+    // "el cajero todavía escribiendo", son cambios discretos de estructura, no de tecleo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagos.length, totalEsperado, modoPresupuesto]);
 
   const setPago = (i: number, patch: Partial<PagoForm>) =>
     setPagos((ps) => ps.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
@@ -1390,11 +1409,8 @@ export function CajaPage() {
   }
 
   if (cobroActivo && operacion) {
-    // El Presupuesto nunca lleva percepciones (no tiene valor fiscal) aunque la vista previa del
-    // carrito las haya calculado para una venta fiscal normal — por eso acá se usa "neto" a secas
-    // en ese modo, y "totalACobrar" (neto + percepciones) en el resto.
-    const totalEsperado = modoPresupuesto ? operacion.neto : operacion.totalACobrar;
-    const diferencia = Math.round((totalEsperado - totalPagos) * 100) / 100;
+    // totalEsperado/diferencia ya están hoisteados arriba (junto con diferenciaMostrada, que es la
+    // que se pinta congelada mientras se escribe un monto).
     // Vuelto: el sobrante solo es válido si viene de Efectivo (no se puede "dar vuelto" en una
     // tarjeta) — mismo criterio que ValidacionPagos en el backend, que es quien lo valida de verdad.
     const sumaEfectivo = pagos.filter((p) => esEfectivo(p.idMedioPago)).reduce((acc, p) => acc + (p.monto ?? 0), 0);
@@ -1456,7 +1472,7 @@ export function CajaPage() {
         )}
         <div className="caja-body">
           <h1>Cobro</h1>
-          <p className="muted">
+          <p className="muted cobro-destacado">
             Operación #{operacion.idOperacion} · Total a cobrar: <b>{formatearMoneda(totalEsperado)}</b>
             {(operacion.percepcionIva21 > 0 || operacion.percepcionIva105 > 0 || operacion.percepcionIibb > 0) && !modoPresupuesto && (
               <> (incluye {formatearMoneda(operacion.percepcionIva21 + operacion.percepcionIva105 + operacion.percepcionIibb)} de percepciones)</>
@@ -1464,7 +1480,7 @@ export function CajaPage() {
             {modoPresupuesto ? (
               <>
                 {" · Se emite "}
-                <b>PRESUPUESTO</b> (comprobante X, sin discriminar impuestos)
+                <b>PRESUPUESTO</b>
               </>
             ) : letraPrevista && (
               <>
@@ -1485,7 +1501,7 @@ export function CajaPage() {
             <label className="check-box">
               <input type="checkbox" checked={modoPresupuesto}
                 onChange={(e) => toggleModoPresupuesto(e.target.checked)} />
-              Vender como Presupuesto (comprobante X, sin factura — se cobra siempre en efectivo)
+              Emitir <b>Presupuesto</b> - No Facturar
             </label>
           )}
 
@@ -1493,8 +1509,7 @@ export function CajaPage() {
             <h3>Medios de pago</h3>
             {modoPresupuesto && (
               <p className="muted" style={{ marginTop: -8 }}>
-                El presupuesto se cobra siempre en efectivo, sin combinar medios — el medio queda
-                bloqueado, pero cargá igual la plata que recibiste (si es de más, se calcula el vuelto).
+                Comprobante sin valor fiscal ni cobro
               </p>
             )}
             {pagos.map((p, i) => {
@@ -1516,7 +1531,8 @@ export function CajaPage() {
                       (ver GiftcardValidacionModal) — no se puede "retocar" después sin volver a
                       canjear, así que el input queda deshabilitado. */}
                   <MonedaInput value={p.monto} onChange={(v) => setPago(i, { monto: v })}
-                    disabled={esGiftcard(p.idMedioPago) && !!p.transaccionIdGiftcard} />
+                    disabled={esGiftcard(p.idMedioPago) && !!p.transaccionIdGiftcard}
+                    onBlur={() => setDiferenciaMostrada(diferenciaRef.current)} />
                 </label>
                 {/* Cupón, lote y plan: solo para tarjetas. Se piden en el cobro porque es cuando el
                     cajero tiene el ticket del posnet en la mano; cupón/lote sirven después para
@@ -1621,8 +1637,8 @@ export function CajaPage() {
                 <button onClick={agregarPago}>+ Otro medio de pago</button>
               </div>
             )}
-            {diferencia > 0.005 ? (
-              <p className="error">Falta cubrir {formatearMoneda(diferencia)}</p>
+            {diferenciaMostrada > 0.005 ? (
+              <p className="error cobro-destacado">Falta cubrir <b>{formatearMoneda(diferenciaMostrada)}</b></p>
             ) : noEfectivoSuperaElTotal ? (
               <p className="error">
                 Lo cargado en medios distintos de Efectivo supera lo que corresponde: el vuelto solo se puede dar en efectivo.

@@ -78,6 +78,10 @@ interface Props {
   className?: string;
   style?: React.CSSProperties;
   onEnter?: () => void;
+  /** Se dispara al salir del campo, DESPUÉS de normalizar el texto y llamar a onChange — para
+   *  refrescar cálculos derivados que a propósito no siguen cada tecla (ver "Falta cubrir" en
+   *  CajaPage), sin que quede desactualizado una vez que el cajero terminó de escribir. */
+  onBlur?: () => void;
 }
 
 /**
@@ -85,7 +89,7 @@ interface Props {
  * muestra el `$` fijo adelante. Hacia afuera trabaja siempre con `number`, así que el que lo usa
  * no se entera del formateo.
  */
-export function MonedaInput({ value, onChange, placeholder, disabled, autoFocus, className, style, onEnter }: Props) {
+export function MonedaInput({ value, onChange, placeholder, disabled, autoFocus, className, style, onEnter, onBlur }: Props) {
   const [texto, setTexto] = useState(value === null ? "" : formatearNumero(value));
 
   // Último valor que emitimos hacia arriba. Sirve para distinguir "el padre me devolvió lo que yo
@@ -124,6 +128,7 @@ export function MonedaInput({ value, onChange, placeholder, disabled, autoFocus,
           ultimoEmitido.current = n;
           setTexto(n === null ? "" : formatearNumero(n));
           onChange(n);
+          onBlur?.();
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && onEnter) { onEnter(); return; }

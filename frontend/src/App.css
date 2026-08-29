@@ -396,6 +396,10 @@ td.row-actions { vertical-align: middle; }
 .chip button:hover { color: #a3372e; }
 .muted { color: var(--muted); }
 .error { color: #a3372e; font-size: 14px; }
+/* Textos destacados del cobro (total a cobrar, "Falta cubrir"): más grandes que el resto de la
+   pantalla, el importe en negrita — tienen que verse de un vistazo (ver CajaPage.tsx). */
+.cobro-destacado { font-size: 20px; }
+.cobro-destacado b { font-weight: 800; }
 /* Aviso de límite de efectivo en caja (ver CajaPage): ícono y texto en la misma línea, en vez del
    apilado default de .note (span + p bloque, cada uno en su propia línea). */
 .note-aviso-limite__fila { display: flex; align-items: center; gap: 10px; }
