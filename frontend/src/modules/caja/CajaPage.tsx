@@ -1503,7 +1503,10 @@ export function CajaPage() {
               <div key={i}>
               <div className="pago-row">
                 <label className="campo-medio">Medio
-                  <select value={p.idMedioPago} disabled={modoPresupuesto}
+                  {/* Gift card ya canjeada: cambiar de medio dejaría un canje ya descontado en
+                      giftcards-app sin ningún pago que lo represente — se bloquea, la única forma
+                      de "deshacerlo" es Quitar el pago entero (con su aviso de reversión manual). */}
+                  <select value={p.idMedioPago} disabled={modoPresupuesto || (esGiftcard(p.idMedioPago) && !!p.transaccionIdGiftcard)}
                     onChange={(e) => elegirMedioPago(i, Number(e.target.value))}>
                     {mediosPago.map((m) => <option key={m.idMedioPago} value={m.idMedioPago}>{m.descripcion}</option>)}
                   </select>
@@ -1575,7 +1578,7 @@ export function CajaPage() {
                       <p className="muted">✔ {p.codigoGiftcard} canjeada</p>
                     ) : (
                       <>
-                        <label className="campo-cupon">Código
+                        <label className="campo-giftcard">Código
                           <input value={p.codigoGiftcard} maxLength={8}
                             onChange={(e) => {
                               setPago(i, { codigoGiftcard: e.target.value });

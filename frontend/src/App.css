@@ -253,6 +253,9 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .pago-row .campo-monto { flex: 0 0 110px; }
 .pago-row .campo-monto .moneda-input { display: flex; width: 100%; }
 .pago-row .campo-cupon { flex: 0 0 90px; }
+/* Código de gift card: 8 caracteres alfanuméricos en mayúscula — más ancho que un cupón para que
+   entren cómodos sin que el input los recorte visualmente. */
+.pago-row .campo-giftcard { flex: 0 0 140px; }
 
 /* Los <select> quedaban con el aspecto default del navegador, que desentonaba al lado de los
    inputs (gris, esquinas rectas, alto distinto). Se estilan de forma global para que todos los
