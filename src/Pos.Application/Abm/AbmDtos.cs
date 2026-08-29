@@ -156,3 +156,19 @@ public interface IConexionPuntosAppAdminService
     /// que UpdateAsync).</summary>
     Task<ProbarConexionResultado> ProbarConexionAsync(ConexionPuntosAppInput input, CancellationToken ct = default);
 }
+
+// ---- Conexión al API de giftcards-app (gift card como medio de pago) ----
+// Fila única (singleton), mismo criterio que ConexionPuntosApp. "Token" es la API key fija de
+// giftcards-app (proyecto propio, no comparte valor con la de puntos-app).
+public record ConexionGiftcardsAppDto(string UrlBase, string Comercio, bool TieneToken, bool Habilitada);
+public record ConexionGiftcardsAppInput(string UrlBase, string Comercio, string? Token, bool Habilitada);
+
+public interface IConexionGiftcardsAppAdminService
+{
+    Task<ConexionGiftcardsAppDto> GetAsync(CancellationToken ct = default);
+    Task UpdateAsync(ConexionGiftcardsAppInput input, CancellationToken ct = default);
+    /// <summary>Prueba real contra <c>{UrlBase}/api/validar-giftcard</c> con un código inexistente a
+    /// propósito — una API key válida responde 404 "No se encontró..."; una inválida responde 403.
+    /// Nunca lanza por un fallo de red: eso es un resultado (Ok=false), no una excepción.</summary>
+    Task<ProbarConexionResultado> ProbarConexionAsync(ConexionGiftcardsAppInput input, CancellationToken ct = default);
+}

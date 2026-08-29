@@ -260,6 +260,7 @@ export interface PlanCuotaInput { denominacion: string; cantidadCuotas: number; 
 export const FUENTES_PAGO = [
   { v: 1, l: "Efectivo" }, { v: 2, l: "Tarjetas" }, { v: 3, l: "Billetera virtual" },
   { v: 4, l: "Transferencia" }, { v: 5, l: "Cuenta corriente" }, { v: 6, l: "Cheque" },
+  { v: 7, l: "Gift Card" },
 ];
 
 /** Por dónde se efectúa el cobro. Se configura en el tipo y lo heredan todos sus medios. */
@@ -429,6 +430,21 @@ export const conexionPuntosApp = {
   update: (i: ConexionPuntosAppInput) => unwrap<boolean>(api.put(`/admin/conexion-puntos-app`, i)),
   probar: (i: ConexionPuntosAppInput) =>
     unwrap<ProbarConexionResultado>(api.post(`/admin/conexion-puntos-app/probar`, i)),
+};
+
+// ---- Conexión al API de giftcards-app (gift card como medio de pago) ----
+export interface ConexionGiftcardsApp {
+  urlBase: string; comercio: string; tieneToken: boolean; habilitada: boolean;
+}
+export interface ConexionGiftcardsAppInput {
+  urlBase: string; comercio: string; token?: string | null; habilitada: boolean;
+}
+
+export const conexionGiftcardsApp = {
+  get: () => unwrap<ConexionGiftcardsApp>(api.get(`/admin/conexion-giftcards-app`)),
+  update: (i: ConexionGiftcardsAppInput) => unwrap<boolean>(api.put(`/admin/conexion-giftcards-app`, i)),
+  probar: (i: ConexionGiftcardsAppInput) =>
+    unwrap<ProbarConexionResultado>(api.post(`/admin/conexion-giftcards-app/probar`, i)),
 };
 
 // ---- Estructura de caja (por sucursal) ----

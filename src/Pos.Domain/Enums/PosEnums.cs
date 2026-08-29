@@ -39,7 +39,11 @@ public enum FuentePago
     BilleteraVirtual = 3,
     Transferencia = 4,
     CuentaCorriente = 5,
-    Cheque = 6
+    Cheque = 6,
+    /// <summary>Gift card de giftcards-app (proyecto externo) — como CuentaCorriente, no pasa por
+    /// ningún IPaymentProvider (no hay canal/adaptador real): es un control propio contra el API de
+    /// giftcards-app. Ver FacturacionService.AplicarGiftcardAsync.</summary>
+    GiftCard = 7
 }
 
 /// <summary>

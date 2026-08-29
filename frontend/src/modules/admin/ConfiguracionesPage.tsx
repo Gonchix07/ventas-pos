@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { configuraciones, conexionExterna, conexionPuntosApp, type Configuracion, type ConexionExternaMySql, type ConexionPuntosApp } from "../../shared/api/admin";
+import {
+  configuraciones, conexionExterna, conexionPuntosApp, conexionGiftcardsApp,
+  type Configuracion, type ConexionExternaMySql, type ConexionPuntosApp, type ConexionGiftcardsApp,
+} from "../../shared/api/admin";
 
 export function ConfiguracionesPage() {
   const [items, setItems] = useState<Configuracion[]>([]);
@@ -75,6 +78,7 @@ export function ConfiguracionesPage() {
 
       <ConexionExternaSection />
       <ConexionPuntosAppSection />
+      <ConexionGiftcardsAppSection />
     </div>
   );
 }
@@ -251,6 +255,99 @@ function ConexionPuntosAppSection() {
       {ok && !error && <p className="muted">Guardado.</p>}
       <div className="field-row">
         <label>URL base<input value={urlBase} onChange={(e) => setUrlBase(e.target.value)} placeholder="https://puntos-app.vercel.app" /></label>
+        <label>Comercio<input value={comercio} onChange={(e) => setComercio(e.target.value)} /></label>
+        <label>
+          API key de integración
+          <input type="password" value={token} onChange={(e) => setToken(e.target.value)}
+            placeholder={datos?.tieneToken ? "•••••••• (dejar vacío para no cambiarla)" : "Sin configurar"} />
+        </label>
+        <label className="check-box">
+          <input type="checkbox" checked={habilitada} onChange={(e) => setHabilitada(e.target.checked)} />
+          Habilitada
+        </label>
+      </div>
+      <div className="row-actions">
+        <button className="primary" disabled={!urlBase.trim() || !comercio.trim()} onClick={() => void guardar()}>
+          Guardar
+        </button>
+        <button className="success-solid" disabled={probando || !urlBase.trim()}
+          onClick={() => void probar()}>
+          {probando ? "Probando…" : "Probar conexión"}
+        </button>
+      </div>
+      {resultadoPrueba && (
+        resultadoPrueba.ok
+          ? <p className="muted">✔ Conexión exitosa.</p>
+          : <p className="error">✘ No se pudo conectar: {resultadoPrueba.error}</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Integración con giftcards-app (otro proyecto): permite usar una gift card como medio de pago en
+ * Caja. A diferencia de puntos-app, esto SÍ mueve plata real de la venta — el medio "Gift Card"
+ * se da de alta en Tipos/Medios de pago (fuente "Gift Card") como cualquier otro medio.
+ */
+function ConexionGiftcardsAppSection() {
+  const [datos, setDatos] = useState<ConexionGiftcardsApp | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+  const [probando, setProbando] = useState(false);
+  const [resultadoPrueba, setResultadoPrueba] = useState<{ ok: boolean; error?: string | null } | null>(null);
+
+  const [urlBase, setUrlBase] = useState("");
+  const [comercio, setComercio] = useState("");
+  const [token, setToken] = useState("");
+  const [habilitada, setHabilitada] = useState(false);
+
+  const cargar = async () => {
+    setError(null);
+    try {
+      const d = await conexionGiftcardsApp.get();
+      setDatos(d);
+      setUrlBase(d.urlBase); setComercio(d.comercio); setHabilitada(d.habilitada); setToken("");
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+  };
+  useEffect(() => { void cargar(); }, []);
+
+  const guardar = async () => {
+    setError(null); setOk(false); setResultadoPrueba(null);
+    try {
+      await conexionGiftcardsApp.update({ urlBase: urlBase.trim(), comercio: comercio.trim(), token: token || null, habilitada });
+      await cargar();
+      setOk(true);
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+  };
+
+  const probar = async () => {
+    setError(null); setOk(false); setResultadoPrueba(null); setProbando(true);
+    try {
+      const r = await conexionGiftcardsApp.probar({
+        urlBase: urlBase.trim(), comercio: comercio.trim(), token: token || null, habilitada,
+      });
+      setResultadoPrueba(r);
+    } catch (e) {
+      setResultadoPrueba({ ok: false, error: e instanceof Error ? e.message : "Error" });
+    } finally {
+      setProbando(false);
+    }
+  };
+
+  return (
+    <div className="card form">
+      <h3>Gift Card como medio de pago (giftcards-app)</h3>
+      <p className="muted">
+        Permite cobrar en caja con una gift card de giftcards-app. El comercio se manda igual en
+        todas las validaciones/cobros — tiene que coincidir con el de la campaña en giftcards-app.
+        La API key es el valor de <code>API_INTEGRATION_KEY</code> del Vercel de giftcards-app (no
+        es la misma que la de puntos-app). No hay reversión automática: si una venta se cae después
+        de cobrar la gift card, hay que revertirla a mano en giftcards-app.
+      </p>
+      {error && <p className="error">{error}</p>}
+      {ok && !error && <p className="muted">Guardado.</p>}
+      <div className="field-row">
+        <label>URL base<input value={urlBase} onChange={(e) => setUrlBase(e.target.value)} placeholder="https://giftcards-app.vercel.app" /></label>
         <label>Comercio<input value={comercio} onChange={(e) => setComercio(e.target.value)} /></label>
         <label>
           API key de integración

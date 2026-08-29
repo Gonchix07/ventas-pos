@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pos.Api.Common;
+using Pos.Application.Abstractions.Giftcards;
 using Pos.Application.Caja;
 using Pos.Application.Common;
 
@@ -14,7 +15,24 @@ namespace Pos.Api.Controllers;
 public class CajaController : ControllerBase
 {
     private readonly ICajaService _service;
-    public CajaController(ICajaService service) => _service = service;
+    private readonly IGiftcardsAppService _giftcards;
+    public CajaController(ICajaService service, IGiftcardsAppService giftcards)
+    {
+        _service = service;
+        _giftcards = giftcards;
+    }
+
+    /// <summary>Consulta saldo/cliente de una gift card en giftcards-app SIN cobrar — para que el
+    /// cajero vea qué está aplicando antes de confirmar el cobro. La API key de la integración
+    /// nunca llega al frontend: este endpoint hace de proxy.</summary>
+    [HttpGet("giftcard/validar")]
+    public async Task<IActionResult> ValidarGiftcard([FromQuery] string codigo, CancellationToken ct)
+    {
+        var r = await _giftcards.ValidarAsync(codigo ?? "", ct);
+        return r.Ok
+            ? Ok(ApiResult<GiftcardConsulta>.Success(r))
+            : NotFound(ApiResult<GiftcardConsulta>.Fail("GIFTCARD_NO_VALIDA", r.Error ?? "No se pudo validar la gift card."));
+    }
 
     [HttpPost("apertura")]
     public async Task<IActionResult> Abrir([FromBody] AperturaRequest req, CancellationToken ct) =>

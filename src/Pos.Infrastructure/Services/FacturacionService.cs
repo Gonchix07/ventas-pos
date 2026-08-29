@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Pos.Application.Abstractions;
 using Pos.Application.Abstractions.Fidelizacion;
 using Pos.Application.Abstractions.Fiscal;
+using Pos.Application.Abstractions.Giftcards;
 using Pos.Application.Abstractions.Interfase;
 using Pos.Application.Abstractions.Payments;
 using Pos.Application.Common;
@@ -46,6 +47,7 @@ public class FacturacionService : IFacturacionService
     private readonly IPercepcionesCalculoService _percepciones;
     private readonly IInterfaseContableService _interfase;
     private readonly IPuntosFidelizacionService _fidelizacion;
+    private readonly IGiftcardsAppService _giftcards;
 
     // IFiscalService (CAE/CAEA) vuelve a inyectarse acá: convive con el controlador fiscal, pero
     // cada punto de venta usa uno solo de los dos caminos (ver ModalidadPuntoVenta) — Fiscal sigue
@@ -53,7 +55,7 @@ public class FacturacionService : IFacturacionService
     public FacturacionService(PosDbContext db, IPaymentProviderFactory pagos,
         IFiscalPrinter impresora, IFiscalService fiscal, ICaeaCargadoService caeaCargado, ICurrentUser currentUser,
         IPercepcionesCalculoService percepciones, IInterfaseContableService interfase,
-        IPuntosFidelizacionService fidelizacion)
+        IPuntosFidelizacionService fidelizacion, IGiftcardsAppService giftcards)
     {
         _db = db;
         _pagos = pagos;
@@ -64,6 +66,7 @@ public class FacturacionService : IFacturacionService
         _percepciones = percepciones;
         _interfase = interfase;
         _fidelizacion = fidelizacion;
+        _giftcards = giftcards;
     }
 
     public async Task<EmitirComprobanteResponse> EmitirAsync(EmitirComprobanteRequest req, CancellationToken ct = default)
@@ -379,6 +382,19 @@ public class FacturacionService : IFacturacionService
                     var dto = await AprobarCuentaCorrienteAsync(req.IdSucursal, operacion.IdCliente, pago.IdMedioPago, montoACobrar, ct);
                     resultadosPago.Add(dto);
                     pagosCuentaCorriente.Add(dto);
+                    continue;
+                }
+
+                if (medio.TipoPago!.Fuente == FuentePago.GiftCard)
+                {
+                    // Gift card tampoco pasa por IPaymentProviderFactory: no hay un canal/adaptador
+                    // real, es un control propio contra el API de giftcards-app (ver
+                    // IGiftcardsAppService). A diferencia de cuenta corriente, esto SÍ es un
+                    // llamado a un sistema externo — con timeout+reintentos, mismo criterio que un
+                    // proveedor de pago real (idempotente por IdempotencyKey del lado de
+                    // giftcards-app, así un reintento por timeout no cobra dos veces).
+                    var dtoGc = await AplicarGiftcardAsync(pago.CodigoGiftcard, montoACobrar, medio.IdMedioPago, req.IdSucursal, req.IdOperacion, i, ct);
+                    resultadosPago.Add(dtoGc);
                     continue;
                 }
 
@@ -1370,5 +1386,40 @@ public class FacturacionService : IFacturacionService
                 $"límite ${cuenta.LimiteCredito:0.00}).");
 
         return new PagoResultadoDto(idMedioPago, monto, true, $"CC-{idc}", null);
+    }
+
+    /// <summary>
+    /// Cobra (descuenta saldo de) una gift card contra giftcards-app — ver IGiftcardsAppService.
+    /// A diferencia de cuenta corriente, esto SÍ es una llamada a un sistema externo real: con
+    /// timeout+reintentos (idempotente por IdempotencyKey del lado de giftcards-app) y SIN
+    /// reversión automática si la venta se cae después (decisión explícita: la reversión de una
+    /// gift card ya cobrada se hace a mano en giftcards-app, no hay endpoint de anulación todavía).
+    /// </summary>
+    private async Task<PagoResultadoDto> AplicarGiftcardAsync(
+        string? codigo, decimal monto, int idMedioPago, int idSucursal, int idOperacion, int indicePago, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(codigo))
+            throw new DomainException("GIFTCARD_CODIGO_REQUERIDO", "Indicá el código de la gift card.");
+
+        var cajeroLabel = $"pos-mayorista:sucursal{idSucursal}:{_currentUser.Usuario ?? "?"}";
+        var idempotencyKey = $"{idSucursal}-{idOperacion}-{indicePago}";
+
+        ResultadoUsoGiftcard resultado;
+        try
+        {
+            resultado = await ResilientCall.ConTimeoutYReintentosAsync(
+                ct2 => _giftcards.UsarAsync(codigo.Trim(), monto, cajeroLabel, idempotencyKey, ct2),
+                TimeoutPago, MaxIntentosPago, EsperaEntreIntentosPago, ct);
+        }
+        catch (Exception ex)
+        {
+            throw new DomainException("GIFTCARD_INDISPONIBLE",
+                $"No se pudo cobrar la gift card {codigo}: {ex.Message}");
+        }
+
+        if (!resultado.Ok)
+            throw new DomainException("GIFTCARD_RECHAZADA", resultado.Error ?? $"Gift card {codigo} rechazada.");
+
+        return new PagoResultadoDto(idMedioPago, monto, true, resultado.TransaccionId, null);
     }
 }

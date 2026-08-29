@@ -833,3 +833,79 @@ public class ConexionPuntosAppAdminService : IConexionPuntosAppAdminService
         }
     }
 }
+
+/// <summary>
+/// ABM de la conexión al API de giftcards-app (gift card como medio de pago) — ver
+/// <see cref="ConexionGiftcardsApp"/>. Singleton, mismo criterio que <see cref="ConexionPuntosAppAdminService"/>.
+/// </summary>
+public class ConexionGiftcardsAppAdminService : IConexionGiftcardsAppAdminService
+{
+    private const string DataProtectionPurpose = "Pos.ConexionGiftcardsApp";
+
+    private readonly PosDbContext _db;
+    private readonly IDataProtector _protector;
+    private readonly HttpClient _http;
+
+    public ConexionGiftcardsAppAdminService(PosDbContext db, IDataProtectionProvider dataProtection, HttpClient http)
+    {
+        _db = db;
+        _protector = dataProtection.CreateProtector(DataProtectionPurpose);
+        _http = http;
+    }
+
+    public async Task<ConexionGiftcardsAppDto> GetAsync(CancellationToken ct = default)
+    {
+        var c = await _db.ConexionesGiftcardsApp.AsNoTracking().FirstOrDefaultAsync(ct);
+        if (c is null) return new ConexionGiftcardsAppDto("", "", false, false);
+        return new ConexionGiftcardsAppDto(c.UrlBase, c.Comercio, !string.IsNullOrEmpty(c.TokenProtegido), c.Habilitada);
+    }
+
+    public async Task UpdateAsync(ConexionGiftcardsAppInput input, CancellationToken ct = default)
+    {
+        var c = await _db.ConexionesGiftcardsApp.FirstOrDefaultAsync(ct);
+        if (c is null)
+        {
+            c = new ConexionGiftcardsApp();
+            _db.ConexionesGiftcardsApp.Add(c);
+        }
+        c.UrlBase = input.UrlBase.Trim().TrimEnd('/');
+        c.Comercio = input.Comercio.Trim();
+        if (!string.IsNullOrEmpty(input.Token))
+            c.TokenProtegido = _protector.Protect(input.Token);
+        c.Habilitada = input.Habilitada;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<ProbarConexionResultado> ProbarConexionAsync(ConexionGiftcardsAppInput input, CancellationToken ct = default)
+    {
+        var apiKey = input.Token;
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            var guardada = await _db.ConexionesGiftcardsApp.AsNoTracking().FirstOrDefaultAsync(ct);
+            if (string.IsNullOrEmpty(guardada?.TokenProtegido))
+                return new ProbarConexionResultado(false, "No hay API key guardada ni se ingresó una nueva.");
+            apiKey = _protector.Unprotect(guardada.TokenProtegido);
+        }
+
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get,
+                input.UrlBase.Trim().TrimEnd('/') + "/api/validar-giftcard?codigo=00000000");
+            req.Headers.Add("X-Api-Key", apiKey);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(8));
+            using var resp = await _http.SendAsync(req, cts.Token);
+
+            // El endpoint valida la API key ANTES que el resto — 403 = key inválida; 404 "no
+            // encontrada" es la respuesta esperable con un código inexistente y significa que la
+            // autenticación pasó.
+            if (resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                return new ProbarConexionResultado(false, "API key inválida (no coincide con API_INTEGRATION_KEY en giftcards-app).");
+            return new ProbarConexionResultado(true, null);
+        }
+        catch (Exception ex)
+        {
+            return new ProbarConexionResultado(false, ex.Message);
+        }
+    }
+}

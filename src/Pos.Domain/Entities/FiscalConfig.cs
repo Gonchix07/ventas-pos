@@ -83,3 +83,23 @@ public class ConexionPuntosApp : AuditableEntity
     public string? TokenProtegido { get; set; }
     public bool Habilitada { get; set; }
 }
+
+/// <summary>
+/// Conexión al API de giftcards-app (proyecto externo): permite usar una gift card como medio de
+/// pago en Caja — ver <see cref="Pos.Application.Abstractions.Giftcards.IGiftcardsAppService"/>.
+/// Tabla singleton (una sola fila), mismo criterio que <see cref="ConexionPuntosApp"/>.
+/// <see cref="Comercio"/> es el nombre tal como está en <c>empresas.comercio</c> de giftcards-app —
+/// <c>usar_giftcard_api</c> rechaza cualquier gift card de una campaña con otro comercio.
+/// A diferencia de puntos-app, esto SÍ mueve plata real de la venta (no es best-effort).
+/// </summary>
+public class ConexionGiftcardsApp : AuditableEntity
+{
+    public int IdConexionGiftcardsApp { get; set; }
+    public string UrlBase { get; set; } = "";
+    public string Comercio { get; set; } = "";
+    /// <summary>API key fija (X-Api-Key, = API_INTEGRATION_KEY en giftcards-app — proyecto propio,
+    /// NO comparte valor con la de puntos-app). Cifrada en reposo con Data Protection (purpose
+    /// propio "Pos.ConexionGiftcardsApp").</summary>
+    public string? TokenProtegido { get; set; }
+    public bool Habilitada { get; set; }
+}

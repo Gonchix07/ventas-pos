@@ -8,12 +8,21 @@ export interface Lote {
   /** "FISCAL" o "ELECTRONICA" (nunca "PRESUPUESTO" — ver ModoFacturacion en el DTO backend). */
   modoFacturacion: string;
 }
-/** `fuente`: 2 = Tarjetas (pide cupón y lote), 5 = Cuenta corriente. `esPredeterminado`: el que
-    la caja propone al abrir el cobro (se configura en Medios de pago). `imprimeComprobante`: si al
-    cobrar con este medio hay que imprimir además un comprobante propio (ej. VALE) para la firma. */
+/** `fuente`: 2 = Tarjetas (pide cupón y lote), 5 = Cuenta corriente, 7 = Gift Card (pide código y
+    permite "Validar" antes de cobrar). `esPredeterminado`: el que la caja propone al abrir el cobro
+    (se configura en Medios de pago). `imprimeComprobante`: si al cobrar con este medio hay que
+    imprimir además un comprobante propio (ej. VALE) para la firma. */
 export interface MedioPagoResumen {
   idMedioPago: number; descripcion: string; fuente: number; esPredeterminado: boolean;
   imprimeComprobante: boolean;
+}
+
+/** Consulta de saldo/cliente de una gift card (giftcards-app) SIN cobrar — ver GET
+ *  /caja/giftcard/validar. Se usa para mostrarle al cajero qué está por aplicar antes de confirmar. */
+export interface GiftcardConsulta {
+  codigo: string; cliente?: string | null; comercio?: string | null; saldo?: number | null;
+  montoMax?: number | null; usoParcial?: boolean | null; estado?: string | null;
+  fechaVencimiento?: string | null;
 }
 /** Plan de cuotas de un medio Tarjeta, para elegir junto con el medio al cobrar. */
 export interface PlanCuotaResumen { idPlan: number; denominacion: string; cantidadCuotas: number; }
@@ -172,6 +181,9 @@ export const caja = {
   ofertasMedioPagoVigentes: (idSucursal: number) =>
     unwrap<OfertaMedioPagoVigente[]>(api.get(`/caja/ofertas-medio-pago`, { params: { idSucursal } })),
   bancos: () => unwrap<BancoResumen[]>(api.get(`/caja/bancos`)),
+  /** Consulta una gift card SIN cobrar (botón "Validar" del medio Gift Card en el cobro). */
+  giftcardValidar: (codigo: string) =>
+    unwrap<GiftcardConsulta>(api.get(`/caja/giftcard/validar`, { params: { codigo } })),
   // imprimir=false: solo trae los acumulados (ej. el preview de "Cerrar turno"), sin disparar la
   // impresión del reporte X en el controlador fiscal. El botón "Arqueo X" no manda el parámetro
   // (default true en el backend): ahí sí corresponde imprimir.

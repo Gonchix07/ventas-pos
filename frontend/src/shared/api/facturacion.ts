@@ -13,6 +13,8 @@ export interface PagoInput {
   numeroCheque?: string | null;
   /** Libre, solo Cheque — no se exige. */
   observacionesCheque?: string | null;
+  /** Obligatorio cuando el medio es de tipo Gift Card (código de 8 caracteres de giftcards-app). */
+  codigoGiftcard?: string | null;
 }
 
 export interface PagoResultado {

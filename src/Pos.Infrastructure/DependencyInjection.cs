@@ -37,6 +37,8 @@ public static class DependencyInjection
         services.AddScoped<Pos.Application.Abm.IConexionExternaAdminService, Services.ConexionExternaAdminService>();
         services.AddHttpClient<Pos.Application.Abm.IConexionPuntosAppAdminService, Services.ConexionPuntosAppAdminService>();
         services.AddHttpClient<Pos.Application.Abstractions.Fidelizacion.IPuntosFidelizacionService, Services.PuntosFidelizacionService>();
+        services.AddHttpClient<Pos.Application.Abm.IConexionGiftcardsAppAdminService, Services.ConexionGiftcardsAppAdminService>();
+        services.AddHttpClient<Pos.Application.Abstractions.Giftcards.IGiftcardsAppService, Services.GiftcardsAppService>();
         services.AddScoped<Pos.Application.Abm.ICajaEstructuraService, Services.CajaEstructuraService>();
         services.AddScoped<Pos.Application.Abm.IUsuarioAdminService, Services.UsuarioAdminService>();
         services.AddScoped<Pos.Application.Abm.IPermisoAdminService, Services.PermisoAdminService>();
