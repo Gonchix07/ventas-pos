@@ -18,11 +18,15 @@ export interface MedioPagoResumen {
 }
 
 /** Consulta de saldo/cliente de una gift card (giftcards-app) SIN cobrar — ver GET
- *  /caja/giftcard/validar. Se usa para mostrarle al cajero qué está por aplicar antes de confirmar. */
+ *  /caja/giftcard/validar. Se usa para armar el popup de confirmación (GiftcardValidacionModal). */
 export interface GiftcardConsulta {
-  codigo: string; cliente?: string | null; comercio?: string | null; saldo?: number | null;
-  montoMax?: number | null; usoParcial?: boolean | null; estado?: string | null;
-  fechaVencimiento?: string | null;
+  codigo: string; cliente?: string | null; dni?: string | null; campana?: string | null;
+  comercio?: string | null; saldo?: number | null; montoMax?: number | null;
+  usoParcial?: boolean | null; estado?: string | null; fechaVencimiento?: string | null;
+}
+/** Resultado de POST /caja/giftcard/usar (canje inmediato, ver GiftcardValidacionModal). */
+export interface ResultadoUsoGiftcard {
+  transaccionId?: string | null; saldoResultante?: number | null; estado?: string | null;
 }
 /** Plan de cuotas de un medio Tarjeta, para elegir junto con el medio al cobrar. */
 export interface PlanCuotaResumen { idPlan: number; denominacion: string; cantidadCuotas: number; }
@@ -184,6 +188,9 @@ export const caja = {
   /** Consulta una gift card SIN cobrar (botón "Validar" del medio Gift Card en el cobro). */
   giftcardValidar: (codigo: string) =>
     unwrap<GiftcardConsulta>(api.get(`/caja/giftcard/validar`, { params: { codigo } })),
+  /** Canjea (descuenta saldo) DE INMEDIATO — "Confirmar uso" en GiftcardValidacionModal. */
+  giftcardUsar: (idSucursal: number, codigo: string, monto: number, idempotencyKey: string) =>
+    unwrap<ResultadoUsoGiftcard>(api.post(`/caja/giftcard/usar`, { idSucursal, codigo, monto, idempotencyKey })),
   // imprimir=false: solo trae los acumulados (ej. el preview de "Cerrar turno"), sin disparar la
   // impresión del reporte X en el controlador fiscal. El botón "Arqueo X" no manda el parámetro
   // (default true en el backend): ahí sí corresponde imprimir.

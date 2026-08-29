@@ -15,6 +15,9 @@ export interface PagoInput {
   observacionesCheque?: string | null;
   /** Obligatorio cuando el medio es de tipo Gift Card (código de 8 caracteres de giftcards-app). */
   codigoGiftcard?: string | null;
+  /** Si el canje ya se aplicó de forma inmediata desde el popup "Confirmar uso" (el caso normal),
+   *  viene con el id de esa transacción — el backend no vuelve a cobrar, solo la registra. */
+  transaccionIdGiftcard?: string | null;
 }
 
 export interface PagoResultado {

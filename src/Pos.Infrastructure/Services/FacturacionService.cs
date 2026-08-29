@@ -389,11 +389,8 @@ public class FacturacionService : IFacturacionService
                 {
                     // Gift card tampoco pasa por IPaymentProviderFactory: no hay un canal/adaptador
                     // real, es un control propio contra el API de giftcards-app (ver
-                    // IGiftcardsAppService). A diferencia de cuenta corriente, esto SÍ es un
-                    // llamado a un sistema externo — con timeout+reintentos, mismo criterio que un
-                    // proveedor de pago real (idempotente por IdempotencyKey del lado de
-                    // giftcards-app, así un reintento por timeout no cobra dos veces).
-                    var dtoGc = await AplicarGiftcardAsync(pago.CodigoGiftcard, montoACobrar, medio.IdMedioPago, req.IdSucursal, req.IdOperacion, i, ct);
+                    // IGiftcardsAppService).
+                    var dtoGc = await AplicarGiftcardAsync(pago, montoACobrar, medio.IdMedioPago, req.IdSucursal, req.IdOperacion, i, ct);
                     resultadosPago.Add(dtoGc);
                     continue;
                 }
@@ -1389,33 +1386,36 @@ public class FacturacionService : IFacturacionService
     }
 
     /// <summary>
-    /// Cobra (descuenta saldo de) una gift card contra giftcards-app — ver IGiftcardsAppService.
-    /// A diferencia de cuenta corriente, esto SÍ es una llamada a un sistema externo real: con
-    /// timeout+reintentos (idempotente por IdempotencyKey del lado de giftcards-app) y SIN
-    /// reversión automática si la venta se cae después (decisión explícita: la reversión de una
-    /// gift card ya cobrada se hace a mano en giftcards-app, no hay endpoint de anulación todavía).
+    /// Aplica el pago con gift card contra giftcards-app — ver IGiftcardsAppService. El camino
+    /// normal es que ya venga cobrada: el cajero confirmó el canje en el popup de Caja ANTES de
+    /// facturar (ver CajaController.UsarGiftcard) y acá solo se registra ese resultado, sin volver
+    /// a descontar saldo. Se mantiene un fallback que cobra recién acá (mismo IGiftcardsAppService,
+    /// con reintentos internos) por si algún llamador manda el código sin TransaccionIdGiftcard.
+    /// En ningún caso hay reversión automática si la venta se cae después (decisión explícita: se
+    /// revierte a mano en giftcards-app, no hay endpoint de anulación todavía).
     /// </summary>
     private async Task<PagoResultadoDto> AplicarGiftcardAsync(
-        string? codigo, decimal monto, int idMedioPago, int idSucursal, int idOperacion, int indicePago, CancellationToken ct)
+        PagoInput pago, decimal monto, int idMedioPago, int idSucursal, int idOperacion, int indicePago, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(codigo))
+        if (string.IsNullOrWhiteSpace(pago.CodigoGiftcard))
             throw new DomainException("GIFTCARD_CODIGO_REQUERIDO", "Indicá el código de la gift card.");
+        var codigo = pago.CodigoGiftcard.Trim();
+
+        if (!string.IsNullOrWhiteSpace(pago.TransaccionIdGiftcard))
+        {
+            // Ya se cobró de forma inmediata desde el popup — el monto que se le atribuye acá
+            // (montoACobrar, después de descuentos por medio de pago) tiene que coincidir con lo
+            // que realmente se descontó allá: una gift card no admite "cobrar distinto" después.
+            if (monto != pago.Monto)
+                throw new DomainException("GIFTCARD_MONTO_INCONSISTENTE",
+                    $"La gift card {codigo} ya fue canjeada por ${pago.Monto:0.00}, pero el pago quedó en ${monto:0.00} " +
+                    "(¿hay un descuento por medio de pago configurado para Gift Card? no debería haberlo).");
+            return new PagoResultadoDto(idMedioPago, monto, true, pago.TransaccionIdGiftcard, null);
+        }
 
         var cajeroLabel = $"pos-mayorista:sucursal{idSucursal}:{_currentUser.Usuario ?? "?"}";
         var idempotencyKey = $"{idSucursal}-{idOperacion}-{indicePago}";
-
-        ResultadoUsoGiftcard resultado;
-        try
-        {
-            resultado = await ResilientCall.ConTimeoutYReintentosAsync(
-                ct2 => _giftcards.UsarAsync(codigo.Trim(), monto, cajeroLabel, idempotencyKey, ct2),
-                TimeoutPago, MaxIntentosPago, EsperaEntreIntentosPago, ct);
-        }
-        catch (Exception ex)
-        {
-            throw new DomainException("GIFTCARD_INDISPONIBLE",
-                $"No se pudo cobrar la gift card {codigo}: {ex.Message}");
-        }
+        var resultado = await _giftcards.UsarAsync(codigo, monto, cajeroLabel, idempotencyKey, ct);
 
         if (!resultado.Ok)
             throw new DomainException("GIFTCARD_RECHAZADA", resultado.Error ?? $"Gift card {codigo} rechazada.");

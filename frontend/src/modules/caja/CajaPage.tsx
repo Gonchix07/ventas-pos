@@ -7,6 +7,7 @@ import {
   type Operacion, type OperacionLinea, type OperacionPendiente, type OfertaMedioPagoVigente,
   type PlanCuotaResumen, type TurnoAbierto,
 } from "../../shared/api/caja";
+import { GiftcardValidacionModal } from "./GiftcardValidacionModal";
 import {
   facturacion, type ComprobanteImpresion, type EmitirComprobanteResponse, type PagoInput,
 } from "../../shared/api/facturacion";
@@ -64,6 +65,9 @@ interface PagoForm {
   observacionesCheque: string;
   // Solo se completa si el medio es de tipo Gift Card (código de 8 caracteres de giftcards-app).
   codigoGiftcard: string;
+  /** Vacío = todavía no se confirmó el canje en el popup; con valor = ya se descontó saldo de
+   *  verdad en giftcards-app (ver GiftcardValidacionModal) — el código/monto quedan fijos. */
+  transaccionIdGiftcard: string;
 }
 
 /** Ver enum FuentePago en el backend. */
@@ -565,7 +569,7 @@ export function CajaPage() {
   // en la mano, aunque sea más que lo que corresponde (vuelto, ver calcularVuelto más abajo).
   const nuevoPago = (): PagoForm =>
     ({ idMedioPago: medioPorDefecto(), monto: null, numeroCupon: "", numeroLote: "", idPlan: null,
-      idBanco: null, numeroCheque: "", observacionesCheque: "", codigoGiftcard: "" });
+      idBanco: null, numeroCheque: "", observacionesCheque: "", codigoGiftcard: "", transaccionIdGiftcard: "" });
 
   const esTarjeta = (idMedioPago: number) =>
     mediosPago.find((m) => m.idMedioPago === idMedioPago)?.fuente === FUENTE_TARJETA;
@@ -579,23 +583,28 @@ export function CajaPage() {
   const esGiftcard = (idMedioPago: number) =>
     mediosPago.find((m) => m.idMedioPago === idMedioPago)?.fuente === FUENTE_GIFTCARD;
 
-  // Resultado de "Validar" por fila de pago (índice) — se limpia cada vez que cambia el código o el
-  // medio, para no dejar mostrado el saldo de un código distinto al que quedó tipeado.
-  const [giftcardEstado, setGiftcardEstado] = useState<Record<number,
-    { validando: boolean; info?: GiftcardConsulta; error?: string }>>({});
+  // "Validar" trae los datos y recién ahí abre el popup "Confirmar uso" (GiftcardValidacionModal) —
+  // ese popup es el que de verdad canjea, acá solo se consulta (sin descontar saldo). Un solo popup
+  // a la vez (guardamos también el índice de fila, para saber dónde volcar el resultado al confirmar).
+  const [giftcardModal, setGiftcardModal] = useState<{ i: number; info: GiftcardConsulta } | null>(null);
+  const [giftcardValidando, setGiftcardValidando] = useState<number | null>(null);
+  const [giftcardError, setGiftcardError] = useState<Record<number, string>>({});
 
-  const validarGiftcard = async (i: number, codigo: string) => {
+  const abrirValidarGiftcard = async (i: number, codigo: string) => {
     const cod = codigo.trim().toUpperCase();
+    setGiftcardError((prev) => { const n = { ...prev }; delete n[i]; return n; });
     if (cod.length !== 8) {
-      setGiftcardEstado((prev) => ({ ...prev, [i]: { validando: false, error: "El código debe tener 8 caracteres." } }));
+      setGiftcardError((prev) => ({ ...prev, [i]: "El código debe tener 8 caracteres." }));
       return;
     }
-    setGiftcardEstado((prev) => ({ ...prev, [i]: { validando: true } }));
+    setGiftcardValidando(i);
     try {
       const info = await caja.giftcardValidar(cod);
-      setGiftcardEstado((prev) => ({ ...prev, [i]: { validando: false, info } }));
+      setGiftcardModal({ i, info });
     } catch (e) {
-      setGiftcardEstado((prev) => ({ ...prev, [i]: { validando: false, error: e instanceof Error ? e.message : "No se pudo validar." } }));
+      setGiftcardError((prev) => ({ ...prev, [i]: e instanceof Error ? e.message : "No se pudo validar." }));
+    } finally {
+      setGiftcardValidando(null);
     }
   };
 
@@ -627,7 +636,7 @@ export function CajaPage() {
       const efectivo = mediosPago.find((m) => m.fuente === FUENTE_EFECTIVO);
       setPagos(efectivo
         ? [{ idMedioPago: efectivo.idMedioPago, monto: null, numeroCupon: "", numeroLote: "", idPlan: null,
-            idBanco: null, numeroCheque: "", observacionesCheque: "", codigoGiftcard: "" }]
+            idBanco: null, numeroCheque: "", observacionesCheque: "", codigoGiftcard: "", transaccionIdGiftcard: "" }]
         : []);
     } else {
       setPagos(mediosPago.length ? [nuevoPago()] : []);
@@ -649,7 +658,9 @@ export function CajaPage() {
       const cache = planesPorMedio[idMedioPago];
       setPago(i, { idMedioPago, idPlan: cache && cache.length > 0 ? cache[0].idPlan : null });
     } else {
-      setPago(i, { idMedioPago, idPlan: null });
+      // Cambiar de medio invalida cualquier canje de gift card ya confirmado en la fila (era de
+      // OTRO medio) — si el cajero vuelve a elegir Gift Card, arranca de cero.
+      setPago(i, { idMedioPago, idPlan: null, codigoGiftcard: "", transaccionIdGiftcard: "" });
     }
   };
 
@@ -658,7 +669,17 @@ export function CajaPage() {
     setPagos((ps) => [...ps, nuevoPago()]);
   };
 
-  const quitarPago = (i: number) => setPagos((ps) => ps.filter((_, idx) => idx !== i));
+  const quitarPago = (i: number) => {
+    // La gift card ya canjeada (transaccionIdGiftcard) descontó saldo de verdad en giftcards-app —
+    // no hay reversión automática, así que sacarla del cobro acá NO la devuelve. Se avisa antes de
+    // dejar tirar el pago al vacío.
+    const p = pagos[i];
+    if (p && esGiftcard(p.idMedioPago) && p.transaccionIdGiftcard
+      && !confirm("Esta gift card ya fue canjeada (se descontó el saldo en giftcards-app). Quitarla del cobro NO revierte el canje — hay que revertirlo a mano en giftcards-app si corresponde. ¿Quitar igual?")) {
+      return;
+    }
+    setPagos((ps) => ps.filter((_, idx) => idx !== i));
+  };
 
   // Cubre el caso en que un pago arranca siendo tarjeta sin haber pasado por elegirMedioPago (ej.
   // el medio predeterminado del sistema es una tarjeta). asegurarPlanesDe ya es idempotente.
@@ -696,6 +717,7 @@ export function CajaPage() {
           numeroCheque: esCheque(p.idMedioPago) ? p.numeroCheque.trim() || null : null,
           observacionesCheque: esCheque(p.idMedioPago) ? p.observacionesCheque.trim() || null : null,
           codigoGiftcard: esGiftcard(p.idMedioPago) ? p.codigoGiftcard.trim().toUpperCase() || null : null,
+          transaccionIdGiftcard: esGiftcard(p.idMedioPago) ? p.transaccionIdGiftcard || null : null,
         }))
         .filter((p) => p.monto > 0);
       // La letra (A, B o X) la resuelve el servidor. En Presupuesto, modo=0: sin CAE, sin
@@ -1387,9 +1409,10 @@ export function CajaPage() {
     // mismo criterio que faltaCuponOLote, se avisa antes de intentar emitir.
     const faltaDatosCheque = pagos.some((p) =>
       esCheque(p.idMedioPago) && (!p.idBanco || !p.numeroCheque.trim()));
-    // El backend rechaza una gift card sin código (GIFTCARD_CODIGO_REQUERIDO); "Validar" es solo
-    // para que el cajero vea el saldo antes de cobrar, no es obligatorio haberlo apretado.
-    const faltaCodigoGiftcard = pagos.some((p) => esGiftcard(p.idMedioPago) && !p.codigoGiftcard.trim());
+    // A diferencia de cupón/cheque (que el backend valida recién al facturar), una gift card tiene
+    // que estar YA canjeada (transaccionIdGiftcard) antes de poder confirmar el cobro: el canje se
+    // aplica en el popup "Confirmar uso", no acá — sin eso no hay plata real cubriendo ese pago.
+    const faltaCodigoGiftcard = pagos.some((p) => esGiftcard(p.idMedioPago) && !p.transaccionIdGiftcard);
     // Descuento por medio de pago y vuelto: mismo algoritmo que el backend (FacturacionService) —
     // se calcula sobre lo que cada pago realmente CUBRE de la venta (tope al saldo que todavía
     // falta cubrir), no sobre el monto entregado: si en Efectivo se entrega de más para llevarse
@@ -1416,6 +1439,21 @@ export function CajaPage() {
           <div className="user-box"><span className="usuario-badge">{usuario}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
         </header>
         {bloqueando && <PantallaBloqueada mensaje={bloqueando} />}
+        {giftcardModal && (
+          <GiftcardValidacionModal
+            idSucursal={idSucursal}
+            info={giftcardModal.info}
+            idempotencyKey={`${idSucursal}-${operacion.idOperacion}-gc-${giftcardModal.info.codigo}`}
+            onCerrar={() => setGiftcardModal(null)}
+            onConfirmado={(monto, transaccionId) => {
+              setPago(giftcardModal.i, {
+                codigoGiftcard: giftcardModal.info.codigo, monto,
+                transaccionIdGiftcard: transaccionId ?? "",
+              });
+              setGiftcardModal(null);
+            }}
+          />
+        )}
         <div className="caja-body">
           <h1>Cobro</h1>
           <p className="muted">
@@ -1471,7 +1509,11 @@ export function CajaPage() {
                   </select>
                 </label>
                 <label className="campo-monto">Monto
-                  <MonedaInput value={p.monto} onChange={(v) => setPago(i, { monto: v })} />
+                  {/* Gift card ya canjeada: el monto quedó fijo en lo que se confirmó en el popup
+                      (ver GiftcardValidacionModal) — no se puede "retocar" después sin volver a
+                      canjear, así que el input queda deshabilitado. */}
+                  <MonedaInput value={p.monto} onChange={(v) => setPago(i, { monto: v })}
+                    disabled={esGiftcard(p.idMedioPago) && !!p.transaccionIdGiftcard} />
                 </label>
                 {/* Cupón, lote y plan: solo para tarjetas. Se piden en el cobro porque es cuando el
                     cajero tiene el ticket del posnet en la mano; cupón/lote sirven después para
@@ -1523,28 +1565,30 @@ export function CajaPage() {
                     </label>
                   </>
                 )}
-                {/* Gift Card: código de 8 caracteres + "Validar" (opcional, solo para que el cajero
-                    vea saldo/cliente ANTES de cobrar — el cobro real lo hace el backend al emitir,
-                    esto es una consulta de solo lectura contra giftcards-app). */}
+                {/* Gift Card: código + "Validar" abre el popup "Confirmar uso" (calcado de
+                    giftcards-app) — ahí, al confirmar, se descuenta saldo DE INMEDIATO (no al
+                    facturar). Una vez canjeada, el código queda fijo (hay que "Quitar" el pago
+                    entero para elegir otra). */}
                 {!modoPresupuesto && esGiftcard(p.idMedioPago) && (
                   <>
-                    <label className="campo-cupon">Código
-                      <input value={p.codigoGiftcard} maxLength={8}
-                        onChange={(e) => {
-                          setPago(i, { codigoGiftcard: e.target.value });
-                          setGiftcardEstado((prev) => { const n = { ...prev }; delete n[i]; return n; });
-                        }} />
-                    </label>
-                    <button type="button" disabled={p.codigoGiftcard.trim().length !== 8 || giftcardEstado[i]?.validando}
-                      onClick={() => validarGiftcard(i, p.codigoGiftcard)}>
-                      {giftcardEstado[i]?.validando ? "Validando…" : "Validar"}
-                    </button>
-                    {giftcardEstado[i]?.error && <p className="error">{giftcardEstado[i]!.error}</p>}
-                    {giftcardEstado[i]?.info && (
-                      <p className="muted">
-                        {giftcardEstado[i]!.info!.cliente ?? "Sin cliente"} · saldo {formatearMoneda(giftcardEstado[i]!.info!.saldo ?? 0)}
-                        {giftcardEstado[i]!.info!.estado !== "activa" && ` · ${giftcardEstado[i]!.info!.estado}`}
-                      </p>
+                    {p.transaccionIdGiftcard ? (
+                      <p className="muted">✔ {p.codigoGiftcard} canjeada</p>
+                    ) : (
+                      <>
+                        <label className="campo-cupon">Código
+                          <input value={p.codigoGiftcard} maxLength={8}
+                            onChange={(e) => {
+                              setPago(i, { codigoGiftcard: e.target.value });
+                              setGiftcardError((prev) => { const n = { ...prev }; delete n[i]; return n; });
+                            }} />
+                        </label>
+                        <button type="button" className="success-solid"
+                          disabled={p.codigoGiftcard.trim().length !== 8 || giftcardValidando === i}
+                          onClick={() => void abrirValidarGiftcard(i, p.codigoGiftcard)}>
+                          {giftcardValidando === i ? "Validando…" : "Validar"}
+                        </button>
+                        {giftcardError[i] && <p className="error">{giftcardError[i]}</p>}
+                      </>
                     )}
                   </>
                 )}
@@ -1597,7 +1641,7 @@ export function CajaPage() {
               <p className="error">Los pagos con cheque necesitan el banco emisor y el número de cheque.</p>
             )}
             {faltaCodigoGiftcard && (
-              <p className="error">Los pagos con Gift Card necesitan el código.</p>
+              <p className="error">Los pagos con Gift Card necesitan confirmar el canje ("Validar" → "Confirmar uso").</p>
             )}
             <div className="row-actions">
               <button className="primary" disabled={!cubreElTotal || emitiendo || faltaCuponOLote || faltaDatosCheque || faltaCodigoGiftcard}

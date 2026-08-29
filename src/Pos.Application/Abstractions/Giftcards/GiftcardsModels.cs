@@ -3,9 +3,9 @@ namespace Pos.Application.Abstractions.Giftcards;
 /// <summary>Datos de una gift card consultada (sin cobrar) — para que el cajero vea saldo/cliente
 /// antes de aplicarla como medio de pago. Null en los campos de datos si <see cref="Error"/> viene
 /// con algo (no encontrada, config incompleta, etc.).</summary>
-public record GiftcardConsulta(bool Ok, string? Codigo, string? Cliente, string? Comercio,
-    decimal? Saldo, decimal? MontoMax, bool? UsoParcial, string? Estado, DateOnly? FechaVencimiento,
-    string? Error);
+public record GiftcardConsulta(bool Ok, string? Codigo, string? Cliente, string? Dni, string? Campana,
+    string? Comercio, decimal? Saldo, decimal? MontoMax, bool? UsoParcial, string? Estado,
+    DateOnly? FechaVencimiento, string? Error);
 
 /// <summary>Resultado de cobrar (descontar saldo de) una gift card. A diferencia de
 /// <see cref="Pos.Application.Abstractions.Fidelizacion.ResultadoCargaPuntos"/>, esto SÍ mueve plata
@@ -27,3 +27,8 @@ public interface IGiftcardsAppService
     Task<ResultadoUsoGiftcard> UsarAsync(string codigo, decimal monto, string cajeroLabel,
         string idempotencyKey, CancellationToken ct = default);
 }
+
+/// <summary>Body de POST /caja/giftcard/usar (canje inmediato desde el popup de Caja).
+/// IdempotencyKey la arma el frontend de forma estable por operación+código (ver
+/// GiftcardValidacionModal.tsx del frontend) — un reintento de red no cobra dos veces.</summary>
+public record UsarGiftcardRequest(int IdSucursal, string? Codigo, decimal Monto, string? IdempotencyKey);

@@ -9,10 +9,12 @@
 // IdPlan: plan de cuotas elegido junto con el medio (solo tiene sentido si es Tarjeta; opcional —
 // no todo medio Tarjeta tiene planes cargados, y no se obliga a elegir uno si los hay).
 // CodigoGiftcard: obligatorio cuando el medio es de tipo GiftCard (código de 8 caracteres de
-// giftcards-app); se ignora en el resto de los medios.
+// giftcards-app); se ignora en el resto de los medios. TransaccionIdGiftcard: si el canje ya se
+// aplicó de forma inmediata desde el popup "Confirmar uso" en Caja (ver CajaController.UsarGiftcard),
+// viene con el id de esa transacción — FacturacionService NO vuelve a cobrar, solo la registra.
 public record PagoInput(int IdMedioPago, decimal Monto, string? NumeroCupon = null, string? NumeroLote = null,
     int? IdPlan = null, int? IdBanco = null, string? NumeroCheque = null, string? ObservacionesCheque = null,
-    string? CodigoGiftcard = null);
+    string? CodigoGiftcard = null, string? TransaccionIdGiftcard = null);
 
 /// <summary>
 /// <c>Modo</c>: Presupuesto (0, comprobante X sin valor fiscal), Electronica (1) o Fiscal (2).

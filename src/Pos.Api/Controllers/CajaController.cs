@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pos.Api.Common;
+using Pos.Application.Abstractions;
 using Pos.Application.Abstractions.Giftcards;
 using Pos.Application.Caja;
 using Pos.Application.Common;
@@ -16,10 +17,12 @@ public class CajaController : ControllerBase
 {
     private readonly ICajaService _service;
     private readonly IGiftcardsAppService _giftcards;
-    public CajaController(ICajaService service, IGiftcardsAppService giftcards)
+    private readonly ICurrentUser _currentUser;
+    public CajaController(ICajaService service, IGiftcardsAppService giftcards, ICurrentUser currentUser)
     {
         _service = service;
         _giftcards = giftcards;
+        _currentUser = currentUser;
     }
 
     /// <summary>Consulta saldo/cliente de una gift card en giftcards-app SIN cobrar — para que el
@@ -32,6 +35,22 @@ public class CajaController : ControllerBase
         return r.Ok
             ? Ok(ApiResult<GiftcardConsulta>.Success(r))
             : NotFound(ApiResult<GiftcardConsulta>.Fail("GIFTCARD_NO_VALIDA", r.Error ?? "No se pudo validar la gift card."));
+    }
+
+    /// <summary>Aplica el canje de una gift card DE INMEDIATO (descuenta saldo ahora, no cuando se
+    /// factura la venta) — es el popup "Confirmar uso" en Caja, calcado del propio panel de cajero
+    /// de giftcards-app. <paramref name="req"/>.IdempotencyKey la arma el frontend de forma estable
+    /// (misma operación + código → misma clave), así un reintento por un timeout de red no cobra
+    /// dos veces. Sin reversión automática: si la venta se cae después, hay que revertir a mano en
+    /// giftcards-app.</summary>
+    [HttpPost("giftcard/usar")]
+    public async Task<IActionResult> UsarGiftcard([FromBody] UsarGiftcardRequest req, CancellationToken ct)
+    {
+        var cajeroLabel = $"pos-mayorista:sucursal{req.IdSucursal}:{_currentUser.Usuario ?? "?"}";
+        var r = await _giftcards.UsarAsync(req.Codigo ?? "", req.Monto, cajeroLabel, req.IdempotencyKey ?? "", ct);
+        return r.Ok
+            ? Ok(ApiResult<ResultadoUsoGiftcard>.Success(r))
+            : BadRequest(ApiResult<ResultadoUsoGiftcard>.Fail("GIFTCARD_RECHAZADA", r.Error ?? "No se pudo canjear la gift card."));
     }
 
     [HttpPost("apertura")]
