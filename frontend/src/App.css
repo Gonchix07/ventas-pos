@@ -56,6 +56,15 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .user-box { display: flex; align-items: center; gap: 14px; font-size: 14px; color: var(--muted); }
 .user-box button { border: 1px solid var(--line); background: transparent; border-radius: 8px;
   padding: 6px 12px; cursor: pointer; color: var(--ink); }
+/* Acceso al manual de usuario (icono "?"), junto a Salir en la barra de menús. */
+.ayuda-link { display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid #1a4d8f;
+  background: #1a4d8f; color: #fff; text-decoration: none; font-weight: 700; font-size: 14px;
+  flex-shrink: 0; }
+.ayuda-link:hover { background: #123a6b; border-color: #123a6b; }
+/* Dentro del sidebar de Administración (columna, botones a lo ancho) el "?" queda centrado en vez
+   de estirado a todo el ancho, debajo de Salir. */
+.admin-user .ayuda-link { align-self: center; margin-top: 2px; }
 .app-main { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
 
 /* Margen extra para pantallas que quedaban pegadas al borde: Tesorería (dentro de admin-content,

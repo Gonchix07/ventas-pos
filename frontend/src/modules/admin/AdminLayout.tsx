@@ -99,6 +99,8 @@ export function AdminLayout() {
           </div>
           <button onClick={() => navigate("/")}>Módulos</button>
           <button className="admin-user-salir" onClick={logout}>Salir</button>
+          <a href="/manual-usuario.html" target="_blank" rel="noopener noreferrer"
+            className="ayuda-link" title="Manual de usuario">?</a>
         </div>
         <nav>
           {GRUPOS.map((g) => {

@@ -45,7 +45,6 @@ export function LoginPage() {
         <button type="submit" disabled={loading}>
           {loading ? "Ingresando…" : "Ingresar"}
         </button>
-        <p className="hint">Usuario inicial: <code>admin</code> · clave de seed <code>Admin123!</code></p>
       </form>
     </div>
   );

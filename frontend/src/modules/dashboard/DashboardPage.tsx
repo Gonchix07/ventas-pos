@@ -30,6 +30,8 @@ export function DashboardPage() {
         </div>
         <div className="user-box">
           <span>{usuario} · <strong>{rol}</strong></span>
+          <a href="/manual-usuario.html" target="_blank" rel="noopener noreferrer"
+            className="ayuda-link" title="Manual de usuario">?</a>
           <button onClick={logout}>Salir</button>
         </div>
       </header>

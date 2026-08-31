@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual de Usuario — POS Mayorista</title>
+<style>
+  :root{
+    --azul-900:#0b2545;
+    --azul-800:#123a6b;
+    --azul-700:#1a4d8f;
+    --azul-600:#2563a8;
+    --azul-100:#e8f0fb;
+    --azul-50:#f4f8fd;
+    --ambar:#b8790a;
+    --ambar-bg:#fff6e6;
+    --rojo:#b3261e;
+    --rojo-bg:#fdecea;
+    --verde:#1e7a3c;
+    --verde-bg:#eaf7ee;
+    --texto:#1b2733;
+    --texto-sec:#51606f;
+    --borde:#dde5ee;
+    --fondo:#f7f9fc;
+    --card:#ffffff;
+    --mono: "Consolas","SFMono-Regular",Menlo,monospace;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+    color:var(--texto);
+    background:var(--fondo);
+    line-height:1.55;
+    font-size:15.5px;
+  }
+  a{color:var(--azul-700);}
+
+  /* ---------- Topbar ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; gap:14px;
+    background:linear-gradient(135deg,var(--azul-900),var(--azul-700));
+    color:#fff; padding:14px 22px;
+    box-shadow:0 2px 10px rgba(11,37,69,.25);
+  }
+  .topbar .mark{
+    display:flex; align-items:baseline; gap:6px; font-weight:800; letter-spacing:.5px;
+  }
+  .topbar .mark b{font-size:20px;}
+  .topbar .mark span{font-size:13px; opacity:.85; font-weight:600;}
+  .topbar .sep{width:1px; height:22px; background:rgba(255,255,255,.25);}
+  .topbar h1{font-size:15px; font-weight:600; margin:0; opacity:.95;}
+  .topbar .rightbit{margin-left:auto; font-size:12.5px; opacity:.8;}
+  #btnMenu{
+    display:none; margin-left:auto; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.3);
+    color:#fff; border-radius:8px; padding:7px 12px; font-size:14px; cursor:pointer;
+  }
+
+  /* ---------- Layout ---------- */
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.toc{
+    width:290px; flex:0 0 290px;
+    position:sticky; top:57px; align-self:flex-start;
+    height:calc(100vh - 57px); overflow-y:auto;
+    padding:22px 14px 60px 22px;
+    border-right:1px solid var(--borde);
+    background:var(--azul-50);
+  }
+  nav.toc .search{
+    width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--borde);
+    margin-bottom:14px; font-size:13.5px; background:#fff;
+  }
+  nav.toc .grupo{margin-bottom:4px;}
+  nav.toc .grupo-titulo{
+    font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--texto-sec);
+    font-weight:700; margin:18px 0 6px; padding-left:4px;
+  }
+  nav.toc .grupo-titulo:first-child{margin-top:0;}
+  nav.toc a{
+    display:block; padding:6px 10px; border-radius:7px; color:var(--texto);
+    text-decoration:none; font-size:13.8px; margin-bottom:2px;
+  }
+  nav.toc a:hover{background:var(--azul-100);}
+  nav.toc a.rol-cajero{border-left:3px solid var(--azul-600); padding-left:9px;}
+  nav.toc a.rol-tesorero{border-left:3px solid var(--ambar); padding-left:9px;}
+  nav.toc a.rol-admin{border-left:3px solid var(--texto-sec); padding-left:9px;}
+  nav.toc a.activo{background:var(--azul-100); font-weight:700; color:var(--azul-800);}
+
+  main{
+    flex:1; min-width:0;
+    padding:32px 44px 100px;
+    max-width:900px;
+  }
+
+  /* ---------- Portada ---------- */
+  .portada{
+    background:linear-gradient(135deg,var(--azul-900),var(--azul-700) 70%);
+    color:#fff; border-radius:16px; padding:38px 34px; margin-bottom:38px;
+    box-shadow:0 8px 24px rgba(11,37,69,.18);
+  }
+  .portada .kicker{font-size:12.5px; text-transform:uppercase; letter-spacing:1.2px; opacity:.75; font-weight:700;}
+  .portada h1{font-size:32px; margin:8px 0 10px; font-weight:800;}
+  .portada p{opacity:.9; max-width:620px; margin:0 0 18px;}
+  .chips{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{
+    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.28);
+    padding:5px 12px; border-radius:999px; font-size:12.5px; font-weight:600;
+  }
+
+  /* ---------- Secciones ---------- */
+  section{margin-bottom:52px; scroll-margin-top:72px;}
+  section.sub{margin-bottom:38px;}
+  h2{
+    font-size:23px; color:var(--azul-900); margin:0 0 6px;
+    padding-bottom:10px; border-bottom:2px solid var(--borde);
+    display:flex; align-items:center; gap:10px;
+  }
+  h2 .rol-tag{
+    font-size:11px; font-weight:800; letter-spacing:.4px; text-transform:uppercase;
+    padding:3px 9px; border-radius:6px; vertical-align:middle;
+  }
+  .tag-cajero{background:var(--azul-100); color:var(--azul-700);}
+  .tag-tesorero{background:var(--ambar-bg); color:var(--ambar);}
+  .tag-admin{background:#eceff3; color:#4a5766;}
+  .tag-todos{background:var(--verde-bg); color:var(--verde);}
+  h3{font-size:18px; color:var(--azul-800); margin:26px 0 10px;}
+  h4{font-size:15px; color:var(--azul-800); margin:18px 0 8px;}
+  p{margin:0 0 12px;}
+  .lead{color:var(--texto-sec); font-size:14.8px;}
+
+  ol.pasos{margin:0 0 16px; padding-left:0; list-style:none; counter-reset:paso;}
+  ol.pasos > li{
+    counter-increment:paso; position:relative; padding:2px 0 14px 40px; margin:0;
+  }
+  ol.pasos > li::before{
+    content:counter(paso); position:absolute; left:0; top:1px;
+    width:26px; height:26px; border-radius:50%; background:var(--azul-700); color:#fff;
+    font-size:12.5px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  }
+  ol.pasos > li::after{
+    content:""; position:absolute; left:13px; top:28px; bottom:0; width:2px; background:var(--borde);
+  }
+  ol.pasos > li:last-child::after{display:none;}
+  ol.pasos > li strong{color:var(--texto);}
+
+  ul{padding-left:22px; margin:0 0 14px;}
+  li{margin-bottom:5px;}
+
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.8px;}
+  th,td{padding:8px 10px; text-align:left; border-bottom:1px solid var(--borde); vertical-align:top;}
+  th{background:var(--azul-50); color:var(--azul-800); font-weight:700; font-size:12.8px; text-transform:uppercase; letter-spacing:.3px;}
+  tr:hover td{background:#fafcff;}
+  .tabla-wrap{overflow-x:auto;}
+
+  code, .kbd{
+    font-family:var(--mono); background:#eef2f7; border:1px solid #dde5ee; border-radius:5px;
+    padding:1px 6px; font-size:.87em; color:#2a3a4c;
+  }
+  .kbd{box-shadow:0 1px 0 #cfd8e3;}
+
+  .callout{
+    border-radius:10px; padding:13px 16px; margin:16px 0; font-size:14px;
+    border:1px solid; display:flex; gap:11px; align-items:flex-start;
+  }
+  .callout .ico{font-size:17px; line-height:1.3;}
+  .callout b{display:block; margin-bottom:2px;}
+  .callout.info{background:var(--azul-50); border-color:#c7dcf5; color:#1a3a5c;}
+  .callout.warn{background:var(--ambar-bg); border-color:#f0d29a; color:#7a5308;}
+  .callout.danger{background:var(--rojo-bg); border-color:#f0bcb8; color:#7d1e18;}
+  .callout.ok{background:var(--verde-bg); border-color:#b9e3c4; color:#155229;}
+  .callout.super{background:#f4eefc; border-color:#dcc8f5; color:#5b2b8a;}
+
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:16px 0;}
+  @media (max-width:760px){.grid2{grid-template-columns:1fr;}}
+  .card{background:var(--card); border:1px solid var(--borde); border-radius:12px; padding:16px 18px;}
+  .card h4{margin-top:0;}
+
+  .badge-rol{
+    display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:5px;
+    background:var(--azul-100); color:var(--azul-700); margin:0 4px 4px 0;
+  }
+
+  .top-link{font-size:12.5px; opacity:.7;}
+  .volver{
+    display:inline-block; margin-top:6px; font-size:12.5px; color:var(--texto-sec); text-decoration:none;
+  }
+  .volver:hover{color:var(--azul-700);}
+
+  footer{
+    max-width:900px; margin:0 auto; padding:30px 44px 60px; color:var(--texto-sec); font-size:12.5px;
+    border-top:1px solid var(--borde);
+  }
+
+  ::-webkit-scrollbar{width:10px; height:10px;}
+  ::-webkit-scrollbar-thumb{background:#c6d3e2; border-radius:6px;}
+
+  @media (max-width:980px){
+    nav.toc{
+      position:fixed; left:0; top:57px; bottom:0; z-index:35; background:var(--fondo);
+      transform:translateX(-100%); transition:transform .2s ease; box-shadow:4px 0 20px rgba(0,0,0,.12);
+      width:82vw; max-width:340px;
+    }
+    nav.toc.abierto{transform:translateX(0);}
+    #btnMenu{display:inline-block;}
+    main{padding:24px 20px 90px;}
+    .grid2{grid-template-columns:1fr;}
+  }
+
+  @media print{
+    nav.toc, .topbar, #btnMenu{display:none !important;}
+    main{max-width:none; padding:0;}
+    a{color:inherit; text-decoration:none;}
+    section{page-break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="mark"><b>POS</b><span>Mayorista</span></div>
+  <div class="sep"></div>
+  <h1>Manual de Usuario</h1>
+  <span class="rightbit">Sistema de Venta POS · Hergo</span>
+  <button id="btnMenu" onclick="document.querySelector('nav.toc').classList.toggle('abierto')">☰ Índice</button>
+</div>
+
+<div class="layout">
+<nav class="toc">
+  <input class="search" id="tocSearch" type="text" placeholder="Buscar en el índice…">
+
+  <div class="grupo-titulo">General</div>
+  <div class="grupo">
+    <a href="#intro">1. Introducción y roles</a>
+    <a href="#login">2. Ingreso al sistema</a>
+    <a href="#navegacion">3. Navegación general</a>
+  </div>
+
+  <div class="grupo-titulo">Cajero</div>
+  <div class="grupo">
+    <a class="rol-cajero" href="#caja-apertura">4.1 Apertura de caja</a>
+    <a class="rol-cajero" href="#caja-cliente">4.2 Identificar al cliente</a>
+    <a class="rol-cajero" href="#caja-venta">4.3 Armar la venta</a>
+    <a class="rol-cajero" href="#caja-cobro">4.4 Cobro y medios de pago</a>
+    <a class="rol-cajero" href="#caja-comprobante">4.5 Comprobante y ticket</a>
+    <a class="rol-cajero" href="#caja-nc">4.6 Notas de crédito</a>
+    <a class="rol-cajero" href="#caja-arqueo">4.7 Arqueo X</a>
+    <a class="rol-cajero" href="#caja-cierre-turno">4.8 Cierre de turno</a>
+    <a class="rol-cajero" href="#caja-cierre-z">4.9 Cierre Z (fiscal)</a>
+    <a class="rol-cajero" href="#clientes">5. Módulo Clientes</a>
+    <a class="rol-cajero" href="#verificar-precios">6. Verificar Precios</a>
+    <a class="rol-cajero" href="#etiquetas">7. Etiquetas de precios</a>
+  </div>
+
+  <div class="grupo-titulo">Integraciones</div>
+  <div class="grupo">
+    <a href="#giftcards">8.1 Gift Cards</a>
+    <a href="#puntos">8.2 Puntos de fidelización</a>
+  </div>
+
+  <div class="grupo-titulo">Tesorero</div>
+  <div class="grupo">
+    <a class="rol-tesorero" href="#tesoreria">9.1 Panel de Tesorería</a>
+    <a class="rol-tesorero" href="#tesoreria-cerrar">9.2 Cerrar caja pendiente</a>
+    <a class="rol-tesorero" href="#tesoreria-validar">9.3 Validar / reabrir un cierre</a>
+    <a class="rol-tesorero" href="#cupones">9.4 Cupones de tarjeta</a>
+    <a class="rol-tesorero" href="#efectividad">9.5 Efectividad</a>
+    <a class="rol-tesorero" href="#reimpresion">10. Reimpresión</a>
+    <a class="rol-tesorero" href="#caea">11. Facturación CAEA</a>
+  </div>
+
+  <div class="grupo-titulo">Administrador</div>
+  <div class="grupo">
+    <a class="rol-admin" href="#ventas">12. Ventas (estadísticas)</a>
+    <a class="rol-admin" href="#admin">13. Administración</a>
+  </div>
+
+  <div class="grupo-titulo">Referencia</div>
+  <div class="grupo">
+    <a href="#permisos">14. Roles y permisos</a>
+    <a href="#supervisor">15. Código de supervisor</a>
+    <a href="#glosario">16. Glosario</a>
+  </div>
+</nav>
+
+<main>
+
+<div class="portada">
+  <div class="kicker">Manual de usuario</div>
+  <h1>Sistema de Venta POS Mayorista</h1>
+  <p>Guía completa de todas las funciones del sistema: apertura y cierre de caja, ventas, cobros, notas de crédito, tesorería, etiquetas y administración. Pensada especialmente para <strong>Cajeros</strong> y <strong>Tesoreros</strong>, que son quienes más lo usan en el día a día.</p>
+  <div class="chips">
+    <span class="chip">Cajero</span>
+    <span class="chip">Supervisor</span>
+    <span class="chip">Tesorero</span>
+    <span class="chip">Repositor</span>
+    <span class="chip">Administrador</span>
+  </div>
+</div>
+
+<section id="intro">
+  <h2>1. Introducción y roles</h2>
+  <p>El sistema organiza sus pantallas por <strong>módulos</strong>, y cada usuario ve solo los módulos habilitados para su rol. Hay cinco roles:</p>
+  <div class="tabla-wrap">
+  <table>
+    <tr><th>Rol</th><th>Para qué se usa</th><th>Módulos típicos</th></tr>
+    <tr><td><strong>Cajero</strong></td><td>Atiende el mostrador: abre su caja, cobra ventas, imprime tickets.</td><td>Caja, Clientes, Verificar Precios, Etiquetas</td></tr>
+    <tr><td><strong>Supervisor</strong></td><td>Igual que Cajero, más autoriza operaciones sensibles con su propio login (anular línea, abrir caja ajena, Cierre Z) sin necesitar código de otro supervisor.</td><td>Caja, Clientes, Verificar Precios, Etiquetas, Cupones, Efectividad, Reimpresión</td></tr>
+    <tr><td><strong>Tesorero</strong></td><td>Controla y cierra administrativamente las cajas del día, valida rendiciones, gestiona cupones de tarjeta.</td><td>Tesorería, Cupones, Efectividad, Reimpresión, Facturación CAEA, Clientes, Verificar Precios, Etiquetas</td></tr>
+    <tr><td><strong>Repositor</strong></td><td>Imprime etiquetas de precios en el salón.</td><td>Etiquetas, Verificar Precios</td></tr>
+    <tr><td><strong>Administrador</strong></td><td>Configura todo el sistema: artículos, precios, ofertas, usuarios, estructura de cajas.</td><td>Todos, incluyendo Administración</td></tr>
+  </table>
+  </div>
+  <div class="callout info">
+    <span class="ico">ℹ️</span>
+    <div><b>Un mismo usuario puede tener más de un módulo habilitado.</b> Lo que ve cada persona al entrar depende de su rol y, dentro de eso, de los "Permisos por rol" configurados en Administración (ver <a href="#permisos">sección 14</a>).</div>
+  </div>
+</section>
+
+<section id="login">
+  <h2>2. Ingreso al sistema</h2>
+  <ol class="pasos">
+    <li><strong>Usuario y clave.</strong> Se completan en la pantalla de inicio y se presiona <span class="kbd">Ingresar</span>. Si algo es incorrecto, el sistema informa el motivo puntual (por ejemplo "Usuario o clave incorrectos").</li>
+    <li><strong>La sucursal y la caja se resuelven solas.</strong> El sistema reconoce automáticamente en qué PC física se está iniciando sesión y, según cómo esté vinculada esa PC en Administración → <em>Asignación de cajas</em>, asigna sola la sucursal y la caja correspondiente. El cajero no elige nada manualmente.</li>
+    <li><strong>Si la PC no está vinculada a ninguna caja</strong>, los módulos Caja y Verificar Precios muestran el aviso <em>"Puesto no autorizado para operar"</em>. Hay que avisar a Administración para que vincule ese equipo (botón "Vincular este equipo" en Asignación de cajas, parado frente a esa PC).</li>
+  </ol>
+
+  <div class="callout warn">
+    <span class="ico">🔒</span>
+    <div><b>Bloqueo por intentos fallidos.</b> Después de 5 intentos de clave incorrecta seguidos, el usuario queda bloqueado durante 15 minutos y el sistema lo informa con la hora en que se destraba solo. No hace falta llamar a nadie: alcanza con esperar o, si es urgente, pedirle a un Administrador que revise el usuario.</div>
+  </div>
+
+  <p class="lead">Por seguridad, la sesión se renueva sola cada 15 minutos mientras se sigue trabajando, y expira del todo a los 7 días de inactividad — no requiere ninguna acción del usuario, es automático.</p>
+</section>
+
+<section id="navegacion">
+  <h2>3. Navegación general</h2>
+  <p>Al ingresar aparece la pantalla de <strong>Módulos</strong>: una grilla de tarjetas, una por cada función del sistema. Solo son "clickeables" las tarjetas del módulo habilitado para el usuario; el resto figura en gris con la leyenda "Sin permiso".</p>
+  <p>Arriba a la derecha siempre está disponible:</p>
+  <ul>
+    <li><strong>Usuario y rol</strong> con los que se está trabajando.</li>
+    <li><strong>Salir</strong>: cierra la sesión.</li>
+  </ul>
+  <p>Desde cualquier pantalla operativa se puede volver a esta grilla con el botón <strong>Módulos</strong> del encabezado.</p>
+</section>
+
+<!-- =================== CAJA =================== -->
+<section id="caja">
+  <h2><span class="rol-tag tag-cajero">Cajero</span> 4. Módulo Caja</h2>
+  <p class="lead">Es la pantalla principal del día a día: apertura de caja, atención al cliente, escaneo de artículos, cobro, emisión de comprobante y cierre. El flujo sigue siempre este orden.</p>
+
+  <section class="sub" id="caja-apertura">
+    <h3>4.1 Apertura de caja</h3>
+    <p>Al entrar a Caja, si todavía no hay un turno abierto hoy en esa caja, se muestra la pantalla de apertura:</p>
+    <ol class="pasos">
+      <li>El sistema ya muestra la <strong>sucursal y caja</strong> que le corresponden a ese puesto. Solo hace falta abrir la propia; abrir la caja de <em>otro</em> puesto requiere <a href="#supervisor">código de supervisor</a>.</li>
+      <li>Se presiona <strong>Abrir caja</strong> y se ingresa el <strong>fondo inicial</strong> (el efectivo con el que arranca la caja; puede ser $0).</li>
+      <li>Si el fondo fue mayor a $0, se imprime automáticamente un comprobante de ese ingreso inicial.</li>
+    </ol>
+    <div class="callout info">
+      <span class="ico">🔁</span>
+      <div><b>Turno abierto en otra caja.</b> Si el sistema detecta un turno propio abierto en otra caja (por ejemplo, la PC se apagó de golpe), muestra esa situación con un botón <strong>Retomar acá</strong> para continuar exactamente donde se había quedado, sin perder ninguna venta.</div>
+    </div>
+    <p>Desde esta misma pantalla, sin necesidad de tener la caja abierta, también se puede ejecutar el <a href="#caja-cierre-z">Cierre Z del controlador fiscal</a> (es una operación distinta, ver 4.9).</p>
+  </section>
+
+  <section class="sub" id="caja-cliente">
+    <h3>4.2 Identificar al cliente</h3>
+    <p>El sistema <strong>no permite vender sin cliente identificado</strong>: cada venta queda asociada a quién compra.</p>
+    <ol class="pasos">
+      <li>En el campo de búsqueda se puede escribir o escanear: <strong>tarjeta, DNI, CUIT, código de cliente, razón social o nombre de fantasía</strong>.</li>
+      <li>Si hay un solo resultado, se selecciona automáticamente. Si hay varios, aparece una tabla con Código, Cliente, CUIT/DNI, Condición de IVA, Domicilio, Tarjeta y Lista de precios asociada — se hace clic en la fila correcta.</li>
+      <li>Si no hay resultados, el sistema avisa "Sin resultados" y se puede reintentar la búsqueda.</li>
+    </ol>
+    <div class="callout warn">
+      <span class="ico">🧾</span>
+      <div><b>Ventas sin terminar.</b> Si ese cliente ya tenía una operación empezada en el turno (por ejemplo, se cortó la luz a mitad de un escaneo), el sistema la detecta y muestra una tabla de "Ventas sin terminar" con la opción de <strong>Retomarla</strong> tal cual estaba, o empezar una venta nueva.</div>
+    </div>
+    <p>Desde esta pantalla, sin tener aún artículos cargados, ya están disponibles en el encabezado los accesos a <strong>Notas de Crédito</strong>, <strong>Retiro de efectivo</strong>, <strong>Arqueo X</strong> y <strong>Cerrar turno</strong>.</p>
+  </section>
+
+  <section class="sub" id="caja-venta">
+    <h3>4.3 Armar la venta</h3>
+    <p>Con el cliente identificado se pasa a la pantalla de venta:</p>
+    <ol class="pasos">
+      <li><strong>Escaneo.</strong> Se lee con la pistola el código de barras del producto (o se tipea a mano en el campo "Escanear o escribir código"). No hace falta hacer clic en ningún lado antes: el lector funciona apunte donde apunte el cursor en esta pantalla.</li>
+      <li><strong>Cantidad.</strong> Si se necesita más de una unidad, se completa el campo Cantidad antes de escanear (para artículos por peso, como fiambres o verdulería, el peso viaja adentro del propio código de la balanza y se toma automáticamente, sin escribir nada).</li>
+      <li>Cada artículo escaneado más de una vez <strong>se acumula en la misma fila</strong> (la fila destella un instante para que se note el cambio), en vez de crear líneas repetidas.</li>
+      <li><strong>Precio, descuentos y ofertas se aplican solos</strong>: el cajero no tiene que hacer nada para que se reconozca un convenio del cliente o una promoción vigente — ya vienen calculados en la línea.</li>
+      <li>Si se necesita buscar un producto sin código a mano, está el botón de <strong>lupa</strong>: abre un buscador por código, descripción o código de barra, con resultados en tabla y botón Agregar por fila.</li>
+      <li>Para sacar un artículo cargado por error, se usa <strong>Anular</strong> en su fila (requiere <a href="#supervisor">código de supervisor</a> si quien está logueado no es Supervisor/Administrador).</li>
+    </ol>
+
+    <div class="callout danger">
+      <span class="ico">⛔</span>
+      <div><b>"ARTÍCULO NO ENCONTRADO".</b> Si se escanea un código que no existe en el sistema, aparece este aviso en rojo y <strong>se frena el escaneo</strong> hasta resolverlo — así no se sigue vendiendo por error algo que no se puede identificar. Las opciones son revisar el código con el producto en mano, o presionar <strong>"Descartar y continuar"</strong> para saltear ese artículo y seguir escaneando el resto de la compra.</div>
+    </div>
+
+    <p>Arriba de la tabla de artículos se ven en todo momento los totales: Bruto, Descuento, Percepciones de IVA e Ingresos Brutos (si el cliente las tiene, según su padrón), y el <strong>Total</strong>. El botón <strong>Cobrar</strong> pasa a la pantalla de pago.</p>
+
+    <div class="callout warn">
+      <span class="ico">💵</span>
+      <div><b>Aviso de límite de efectivo.</b> Cuando el efectivo acumulado en la caja supera el tope configurado por Administración, aparece un cartel sugiriendo hacer un <strong>Retiro de efectivo</strong> (disponible en el encabezado) para no acumular demasiado dinero suelto en el puesto.</div>
+    </div>
+
+    <p>El botón <strong>Anular Operación</strong> del encabezado no borra nada: vuelve a la pantalla de identificación de cliente y la venta queda guardada como "sin terminar", disponible para retomarla más tarde.</p>
+  </section>
+
+  <section class="sub" id="caja-cobro">
+    <h3>4.4 Cobro y medios de pago</h3>
+    <p>Al presionar <strong>Cobrar</strong> se muestra el total a pagar y la letra de comprobante prevista (Factura A o B, según la condición de IVA del cliente) o "Presupuesto" si corresponde.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <h4>Presupuesto (no factura)</h4>
+        <p>Si el cliente tiene permiso para presupuestos y la caja lo admite, aparece el tilde <strong>"Emitir Presupuesto - No Facturar"</strong>. Genera un comprobante sin CAE ni impresora fiscal, con un único pago en Efectivo por el neto (sin discriminar impuestos). Igual queda contabilizado como venta en las estadísticas.</p>
+      </div>
+      <div class="card">
+        <h4>Cómo se cargan los pagos</h4>
+        <p>Se elige el <strong>Medio de pago</strong> y se escribe el <strong>Monto</strong>. Se pueden combinar varios medios en una misma venta con el botón <strong>"+ Otro medio de pago"</strong>.</p>
+      </div>
+    </div>
+
+    <p>Según el medio elegido, el sistema pide datos adicionales:</p>
+    <div class="tabla-wrap">
+    <table>
+      <tr><th>Medio</th><th>Datos que pide</th></tr>
+      <tr><td><strong>Tarjeta</strong></td><td>N° de cupón, N° de lote y Plan de cuotas — los tres son obligatorios, el sistema no deja avanzar sin ellos.</td></tr>
+      <tr><td><strong>Cheque</strong></td><td>Banco, N° de cheque y Observaciones (opcional).</td></tr>
+      <tr><td><strong>Gift Card</strong></td><td>Código de 8 caracteres + validación (ver <a href="#giftcards">sección 8.1</a>).</td></tr>
+      <tr><td><strong>Cuenta corriente</strong></td><td>No pide datos extra, pero solo se acepta si el cliente tiene cuenta habilitada y le queda crédito disponible (ver debajo).</td></tr>
+      <tr><td><strong>Efectivo / transferencia / billetera virtual</strong></td><td>Solo el monto.</td></tr>
+    </table>
+    </div>
+
+    <div class="callout danger">
+      <span class="ico">🚫</span>
+      <div><b>Cuenta corriente sin crédito disponible.</b> El sistema controla que el saldo actual de la cuenta más el nuevo monto no supere el límite de crédito autorizado para ese cliente en esa sucursal. Si se supera, rechaza el pago mostrando el saldo actual y el límite — hay que cobrar por otro medio o completar solo una parte por cuenta corriente.</div>
+    </div>
+
+    <p>Mientras el total no esté cubierto, se muestra en rojo <strong>"Falta cubrir $…"</strong>. Si el efectivo cargado supera lo que falta, se calcula el <strong>vuelto</strong> automáticamente (el vuelto siempre se entrega en efectivo, nunca en otro medio). El botón <strong>Confirmar cobro y facturar</strong> se habilita recién cuando el total está cubierto y no falta ningún dato obligatorio.</p>
+
+    <p>Si el medio de pago tiene un descuento configurado (por ejemplo, 3 cuotas sin interés con determinada tarjeta), se muestra en vivo cuánto se ahorra el cliente antes de confirmar.</p>
+
+    <p>Al confirmar, el sistema factura (puede demorar unos segundos porque pide el CAE real a ARCA) mostrando "Facturando…". Si corresponde, antes del ticket final aparece el popup de <a href="#puntos">puntos de fidelización</a> cargados.</p>
+
+    <p>El botón <strong>Volver</strong> permite abandonar la pantalla de cobro sin perder la venta, para seguir escaneando o corregir algo.</p>
+  </section>
+
+  <section class="sub" id="caja-comprobante">
+    <h3>4.5 Comprobante y ticket</h3>
+    <p>Terminado el cobro se muestra el comprobante final con número completo, CAE (o CAEA si el sistema tuvo que emitir en contingencia por una caída momentánea de ARCA), neto, IVA, percepciones, total y vuelto. Se indica si se imprimió correctamente; si hubo un problema de impresión, la venta <strong>no se pierde</strong> — queda registrada igual y se puede reimprimir después (ver <a href="#reimpresion">sección 10</a>). El botón <strong>Nueva venta</strong> vuelve a identificación de cliente.</p>
+  </section>
+
+  <section class="sub" id="caja-nc">
+    <h3>4.6 Notas de crédito</h3>
+    <p>Desde el botón <strong>Notas de Crédito</strong> del encabezado (disponible en cualquier momento, con o sin cliente identificado) se abre un buscador de facturas ya emitidas en la sucursal, por número, cliente o CUIT. Sobre la factura encontrada se puede anular:</p>
+    <ul>
+      <li><strong>Total</strong>: anula la venta completa.</li>
+      <li><strong>Por artículos</strong>: se eligen líneas completas a devolver (no se admite devolver "parte" de la cantidad de una línea).</li>
+      <li><strong>Por diferencia de precio</strong>: se ingresa un importe suelto a devolver, sin asociarlo a artículos puntuales.</li>
+    </ul>
+    <p>La devolución del dinero es siempre en <strong>efectivo</strong>. Emitir una nota de crédito requiere <a href="#supervisor">código de supervisor</a>.</p>
+  </section>
+
+  <section class="sub" id="caja-arqueo">
+    <h3>4.7 Arqueo X</h3>
+    <p>El Arqueo X es una <strong>foto del estado actual</strong> de la caja, sin cerrarla ni afectar nada. Muestra: total por cada medio de pago, anulaciones (notas de crédito), retiros de efectivo, vueltos entregados y los totales generales. Se puede imprimir (si la caja trabaja en modo Electrónica; en modo Fiscal el propio controlador ya lo hace). Se puede pedir todas las veces que haga falta durante el turno.</p>
+  </section>
+
+  <section class="sub" id="caja-cierre-turno">
+    <h3>4.8 Cierre de turno (rendición del cajero)</h3>
+    <div class="callout danger">
+      <span class="ico">⚠️</span>
+      <div><b>Esta acción es irreversible.</b> Una vez confirmado el cierre de turno, no se puede deshacer ni volver a abrir la caja para seguir vendiendo en ese turno.</div>
+    </div>
+    <ol class="pasos">
+      <li>El sistema trae el Esperado (calculado por el sistema) de cada medio de pago.</li>
+      <li>El cajero completa <strong>Declarado</strong>: lo que realmente contó en cada medio (el campo arranca precargado con el esperado, para agilizar, pero se debe corregir si no coincide con lo contado a mano).</li>
+      <li>Si algún medio tiene diferencia entre esperado y declarado, hay que elegir un <strong>Motivo de diferencia</strong> de la lista (obligatorio) y se puede agregar una <strong>Observación</strong> libre.</li>
+      <li>Se confirma con <strong>Confirmar cierre de turno</strong>. El sistema muestra a continuación la rendición completa (reporte de cierre) para revisar o imprimir.</li>
+    </ol>
+    <p class="lead">El cierre de turno queda pendiente de revisión por Tesorería (ver <a href="#tesoreria">sección 9</a>) hasta que se valide.</p>
+  </section>
+
+  <section class="sub" id="caja-cierre-z">
+    <h3>4.9 Cierre Z (controlador fiscal)</h3>
+    <p>Es una operación distinta al cierre de turno: cierra la <strong>jornada fiscal de la impresora</strong> (el "Z" que exige AFIP/ARCA a nivel de la máquina), y no depende de que haya un turno de cajero abierto. Se ejecuta desde la propia pantalla de apertura de caja y requiere <a href="#supervisor">código de supervisor</a>. El sistema muestra la hora y el número fiscal del último Z ejecutado, para saber si ya se hizo en el día.</p>
+  </section>
+</section>
+
+<section id="clientes">
+  <h2><span class="rol-tag tag-cajero">Cajero</span> 5. Módulo Clientes</h2>
+  <p>Pantalla pensada para el mostrador de atención (por ejemplo, entrega de compras o consultas de cuenta): se queda esperando a que se escanee el <strong>código QR del DNI</strong> del cliente (o se tipee el número). Encuentra las cuentas asociadas a esa persona, ya sea como <strong>Titular</strong> o como <strong>Autorizado</strong> de otra cuenta, y se puede <strong>imprimir un ticket</strong> con los datos de cada una.</p>
+</section>
+
+<section id="verificar-precios">
+  <h2><span class="rol-tag tag-cajero">Cajero</span> 6. Verificar Precios</h2>
+  <p>Kiosco de autoconsulta pensado para que lo use el propio cliente en el salón: se escanea un producto y se muestra su imagen, descripción, los precios de las listas vigentes (AZUL/ROJA) y las promociones activas sobre ese artículo. Si no se reconoce el código, avisa "PRODUCTO NO ENCONTRADO". Después de mostrar un resultado, la pantalla se reinicia sola a los 20 segundos, lista para el siguiente cliente.</p>
+</section>
+
+<section id="etiquetas">
+  <h2><span class="rol-tag tag-todos">Todos los roles</span> 7. Etiquetas de precios</h2>
+  <p>Para armar e imprimir cartelería de precios (fleje para góndola, o carteles A4/A5).</p>
+  <ol class="pasos">
+    <li><strong>Elegir artículos</strong>: buscando y agregando uno por uno, o por <strong>clasificación completa</strong> (Línea / Sector / Familia) con el botón "Agregar todos los que coincidan" — útil para renovar todo un sector de golpe.</li>
+    <li>Revisar la lista armada a la derecha (se puede quitar cualquier artículo antes de imprimir).</li>
+    <li>Elegir <strong>Sucursal</strong> y <strong>Formato</strong>: Fleje (etiqueta chica de góndola), A4 o A5 (cartel grande).</li>
+    <li><strong>Generar PDF</strong>: se abre en una pestaña nueva, listo para imprimir.</li>
+  </ol>
+  <p>Cada etiqueta muestra automáticamente: precio por cada lista/tarjeta que tenga el artículo, precio por unidad de medida (por Kg o por Lt, cuando corresponde) y precio sin impuestos nacionales, además de la <strong>compra mínima</strong> si el artículo tiene una oferta de bonificación vigente por cantidad.</p>
+</section>
+
+<!-- =================== INTEGRACIONES =================== -->
+<section id="integraciones">
+  <h2><span class="rol-tag tag-cajero">Cajero</span> 8. Integraciones con otras apps de Hergo</h2>
+
+  <section class="sub" id="giftcards">
+    <h3>8.1 Gift Cards</h3>
+    <p>El sistema puede cobrar con tarjetas de regalo emitidas en la app <strong>giftcards-app</strong>, directamente desde la pantalla de cobro (ver <a href="#caja-cobro">4.4</a>):</p>
+    <ol class="pasos">
+      <li>Se elige el medio de pago <strong>Gift Card</strong> y se escribe el código de 8 caracteres impreso o entregado al cliente.</li>
+      <li>Se presiona <strong>Validar</strong>: el sistema consulta en giftcards-app el estado, la campaña, el cliente dueño de la tarjeta, el saldo disponible y el vencimiento.</li>
+      <li>Se abre la pantalla <strong>"Confirmar uso"</strong>, con el mismo diseño que el cajero ya conoce de giftcards-app, donde se indica cuánto monto se va a usar (algunas gift cards son de uso total: consumen todo el saldo de una sola vez, sin poder fraccionar).</li>
+      <li>Al confirmar, <strong>el saldo se descuenta en el acto</strong> en giftcards-app — no espera a que termine de facturarse la venta.</li>
+    </ol>
+    <div class="callout warn">
+      <span class="ico">⚠️</span>
+      <div><b>Quitar una gift card ya confirmada.</b> Si después de confirmar el uso se decide sacar ese pago de la venta, el sistema avisa que el canje real en giftcards-app <strong>no se revierte solo</strong> — hay que anularlo manualmente en esa aplicación si corresponde devolver el saldo.</div>
+    </div>
+    <p class="lead">Motivos por los que una gift card puede no ser usable: estado distinto de "activa", vencida, sin cliente asignado, o sin saldo — el sistema explica el motivo puntual en pantalla.</p>
+  </section>
+
+  <section class="sub" id="puntos">
+    <h3>8.2 Puntos de fidelización</h3>
+    <p>Si el cliente de la venta tiene tarjeta del programa de puntos (app <strong>puntos-app</strong>) y trae su DNI cargado, al facturar el sistema le suma puntos <strong>automáticamente</strong>, sin que el cajero tenga que hacer nada extra.</p>
+    <ul>
+      <li>Si la carga de puntos fue exitosa, aparece un popup <strong>"¡Puntos cargados!"</strong> con la cantidad otorgada en esta compra y el total acumulado del cliente, antes de mostrar el ticket para imprimir.</li>
+      <li>Si el cliente no tiene tarjeta de puntos, o la integración no está activa, <strong>no aparece ningún aviso ni error</strong> — la venta sigue su curso normal, sin interrupciones.</li>
+    </ul>
+    <p class="lead">La conexión con puntos-app y con giftcards-app (URL, clave de acceso, habilitación) se configura una sola vez desde Administración → Configuraciones (ver <a href="#admin">sección 13</a>).</p>
+  </section>
+</section>
+
+<!-- =================== TESORERIA =================== -->
+<section id="tesoreria-modulo">
+  <h2><span class="rol-tag tag-tesorero">Tesorero</span> 9. Tesorería</h2>
+  <p class="lead">Panel de control de todas las cajas de la sucursal: revisa lo que declaró cada cajero al cerrar su turno, valida los cierres y puede intervenir cuando una caja quedó abierta sin cerrar.</p>
+
+  <section class="sub" id="tesoreria">
+    <h3>9.1 Panel principal</h3>
+    <p>Muestra una fila por cada <strong>lote</strong> (turno de un cajero en una caja), con filtros por Sucursal, rango de fechas y Estado:</p>
+    <div class="tabla-wrap">
+    <table>
+      <tr><th>Estado en Tesorería</th><th>Qué significa</th></tr>
+      <tr><td><strong>Cerrar caja</strong></td><td>El lote sigue Abierto — el cajero todavía no hizo su cierre de turno.</td></tr>
+      <tr><td><strong>Pendiente</strong></td><td>El cajero ya cerró su turno; falta que Tesorería lo revise y valide.</td></tr>
+      <tr><td><strong>Validado</strong></td><td>Tesorería ya revisó y dio conformidad al cierre.</td></tr>
+    </table>
+    </div>
+    <p>Cada fila muestra usuario, hora de apertura y cierre, saldo inicial, saldo del sistema, saldo declarado por el cajero y la diferencia (con un ícono de aviso si sobró dinero). Haciendo clic en una fila se despliega el detalle completo: rendición por medio de pago, retiros, correcciones, notas de crédito y el motivo/observación que dejó el cajero.</p>
+  </section>
+
+  <section class="sub" id="tesoreria-cerrar">
+    <h3>9.2 Cerrar una caja que quedó abierta</h3>
+    <p>Si un cajero se retiró sin cerrar su turno (situación excepcional), Tesorería puede hacer el cierre administrativo desde el botón <strong>Cerrar Caja</strong> de esa fila:</p>
+    <ol class="pasos">
+      <li>Se declara el monto contado por cada medio de pago (igual que haría el cajero).</li>
+      <li><strong>Motivo de cierre</strong>: obligatorio siempre (por ejemplo, "cierre administrativo por olvido del cajero").</li>
+      <li><strong>Motivo de diferencia</strong>: obligatorio solo si hay diferencia entre lo esperado y lo declarado.</li>
+      <li>Se confirma con <strong>Confirmar cierre</strong>.</li>
+    </ol>
+    <div class="callout danger">
+      <span class="ico">⚠️</span>
+      <div><b>También es irreversible.</b> Nota: este cierre no imprime el Z fiscal, porque la impresora está físicamente en la caja del cajero, no en Tesorería.</div>
+    </div>
+  </section>
+
+  <section class="sub" id="tesoreria-validar">
+    <h3>9.3 Validar o reabrir un cierre</h3>
+    <p>Sobre un lote en estado <strong>Pendiente</strong>, el botón de validación permite dejar un motivo y observación (ambos opcionales acá) y confirmar — pasa a <strong>Validado</strong>.</p>
+    <p>Un lote ya <strong>Validado</strong> se puede <strong>Reabrir</strong> si hace falta revisarlo de nuevo: vuelve a estado Pendiente. Reabrir el lote en Tesorería <strong>no reabre la caja</strong> para que el cajero siga vendiendo — es solo para poder corregir la revisión administrativa.</p>
+    <p>También existe <strong>Entrega de valores</strong> por fila, para registrar cuándo el efectivo/cheques de esa caja se entregaron formalmente a Tesorería.</p>
+  </section>
+
+  <section class="sub" id="cupones">
+    <h3>9.4 Cupones de tarjeta</h3>
+    <p>Listado de todos los cupones de tarjeta cobrados, filtrable por Sucursal, fechas y Cajero. Sirve para <strong>corregir</strong> un número de cupón, lote o plan que el cajero haya tipeado mal al cobrar — cada corrección queda registrada en un historial, sin perder trazabilidad de qué se cambió y cuándo. También accesible por Supervisor.</p>
+  </section>
+
+  <section class="sub" id="efectividad">
+    <h3>9.5 Efectividad</h3>
+    <p>Panel de indicadores y estadísticas sobre la efectividad de las ventas de la sucursal. También accesible por Supervisor.</p>
+  </section>
+</section>
+
+<section id="reimpresion">
+  <h2><span class="rol-tag tag-tesorero">Tesorero / Supervisor</span> 10. Reimpresión</h2>
+  <p>Para volver a imprimir un comprobante ya emitido. Se filtra por Sucursal, fechas y <strong>Tipo</strong> (Facturas, Notas de crédito, Presupuestos o Rendiciones de cierre), y se busca por número de comprobante, cliente, CUIT, o número de lote/cajero en el caso de rendiciones.</p>
+  <div class="callout info">
+    <span class="ico">🖨️</span>
+    <div><b>Cómo sale la reimpresión.</b> Facturas y notas de crédito se reimprimen en papel común (no en el rollo fiscal original de la impresora fiscal). Las rendiciones de cierre se generan como PDF y se abren en una pestaña nueva.</div>
+  </div>
+</section>
+
+<section id="caea">
+  <h2><span class="rol-tag tag-tesorero">Tesorero</span> 11. Facturación CAEA</h2>
+  <p>Cuando ARCA no responde al momento de facturar (caída momentánea del servicio), el sistema emite igual el comprobante usando un <strong>CAEA</strong> (código de autorización precargado, con vigencia de contingencia) en vez del CAE habitual. Estos comprobantes quedan pendientes de <strong>informar a ARCA dentro de las 48 horas</strong>, obligación fiscal ineludible.</p>
+  <p>Esta pantalla agrupa esos comprobantes pendientes por sucursal, punto de venta, tipo de comprobante y CAEA usado. Por cada grupo se puede <strong>Ver comprobantes</strong> (detalle) y <strong>Subir a ARCA</strong> (acción irreversible, pide confirmación explícita); una vez informado correctamente, el grupo desaparece de la lista.</p>
+</section>
+
+<!-- =================== ADMIN =================== -->
+<section id="ventas">
+  <h2><span class="rol-tag tag-admin">Administrador</span> 12. Ventas (estadísticas)</h2>
+  <p>Tablero con gráficos y estadísticas generales de ventas del sistema.</p>
+</section>
+
+<section id="admin">
+  <h2><span class="rol-tag tag-admin">Administrador</span> 13. Administración</h2>
+  <p class="lead">Es el módulo de configuración del sistema: datos maestros, precios, ofertas, estructura de cajas y usuarios. Está organizado en un menú lateral con 5 grupos.</p>
+
+  <h4>Artículos</h4>
+  <ul>
+    <li><strong>Artículos</strong>: alta y edición de productos (código, descripción, sector/línea/familia, condición de IVA, unidad de medida, presentaciones y códigos de barra).</li>
+    <li><strong>Líneas, Sectores, Familias</strong>: listas de clasificación de artículos (la Familia depende del Sector elegido).</li>
+  </ul>
+
+  <h4>Clientes</h4>
+  <ul>
+    <li><strong>Clientes</strong>: alta y edición de clientes, datos fiscales, permisos (presupuesto, cuenta corriente) y personas <strong>Autorizadas</strong> a comprar en su nombre.</li>
+    <li><strong>Clusters</strong>: agrupaciones de clientes, usadas como alcance de ofertas y restricciones de medios de pago.</li>
+    <li><strong>Cuentas corrientes</strong>: habilitación y <strong>límite de crédito</strong> por cliente y sucursal.</li>
+    <li><strong>Padrones</strong>: padrón de percepción de Ingresos Brutos y de excepción de percepción de IVA, con carga manual o importación masiva de archivo.</li>
+  </ul>
+
+  <h4>Precios y ofertas</h4>
+  <ul>
+    <li><strong>Listas de precios</strong>: alta de listas y carga de precios por artículo.</li>
+    <li><strong>Ofertas</strong>: descuentos y bonificaciones por Cluster, Sector, Línea, Familia o Artículo puntual, con vigencia y reglas de acumulación.</li>
+    <li><strong>Ofertas por medio de pago</strong>: descuentos según el medio o la cantidad de cuotas usada al cobrar.</li>
+    <li><strong>Convenios</strong>: porcentaje de descuento y/o lista de precios especial por cliente y sucursal.</li>
+    <li><strong>Tarjetas</strong>: tipos de tarjeta de cliente (cada una con su lista de precios asociada) y asignación de número de tarjeta.</li>
+  </ul>
+
+  <h4>Caja y pagos</h4>
+  <ul>
+    <li><strong>Medios de pago</strong>: tipos de pago genéricos (efectivo, tarjeta, cheque, gift card, etc.) y los medios concretos de cada tipo, con el predeterminado marcado.</li>
+    <li><strong>Estructura de caja</strong>: tipos de punto de venta, puntos de venta (número ARCA), cajas físicas (con la IP del controlador fiscal) y terminales de tarjeta.</li>
+    <li><strong>Asignación de cajas</strong>: vincula cada PC física a su caja, asigna el punto de venta principal, si esa caja admite presupuestos y qué terminal de tarjeta usa.</li>
+    <li><strong>Motivos de diferencia / Motivos de cierre</strong>: listas que alimentan los combos obligatorios del cierre de turno.</li>
+    <li><strong>Bancos</strong>: listado usado al cargar pagos con cheque.</li>
+  </ul>
+
+  <h4>Sistema</h4>
+  <ul>
+    <li><strong>Empresas / Sucursales</strong>: datos fiscales de la empresa, certificado de firma para ARCA, carga de CAEA para contingencia, y alta de sucursales.</li>
+    <li><strong>Usuarios</strong>: alta de usuarios, asignación de rol, y el <strong>código de supervisor</strong> de 8 dígitos de cada uno (ver <a href="#supervisor">sección 15</a>).</li>
+    <li><strong>Permisos por rol</strong>: matriz que decide qué tarjetas de módulo ve cada rol en la pantalla principal.</li>
+    <li><strong>Configuraciones</strong>: parámetros generales del sistema (por ejemplo, el límite de efectivo en caja) y las <strong>tres integraciones</strong> con sistemas externos: conexión a base de datos externa, Puntos de fidelización (puntos-app) y Gift Card (giftcards-app) — URL, clave de acceso y botón de prueba de conexión para cada una.</li>
+  </ul>
+</section>
+
+<!-- =================== REFERENCIA =================== -->
+<section id="permisos">
+  <h2>14. Roles y permisos por módulo</h2>
+  <div class="tabla-wrap">
+  <table>
+    <tr><th>Módulo</th><th>Roles con acceso</th></tr>
+    <tr><td>Caja</td><td><span class="badge-rol">Cajero</span><span class="badge-rol">Supervisor</span><span class="badge-rol">Administrador</span></td></tr>
+    <tr><td>Clientes</td><td><span class="badge-rol">Cajero</span><span class="badge-rol">Supervisor</span><span class="badge-rol">Tesorero</span><span class="badge-rol">Administrador</span></td></tr>
+    <tr><td>Verificar Precios</td><td><span class="badge-rol">Cajero</span><span class="badge-rol">Supervisor</span><span class="badge-rol">Tesorero</span><span class="badge-rol">Repositor</span><span class="badge-rol">Administrador</span></td></tr>
+    <tr><td>Tesorería</td><td><span class="badge-rol">Tesorero</span><span class="badge-rol">Administrador</span></td></tr>
+    <tr><td>Cupones de tarjeta / Efectividad</td><td><span class="badge-rol">Tesorero</span><span class="badge-rol">Supervisor</span><span class="badge-rol">Administrador</span></td></tr>
+    <tr><td>Etiquetas</td><td><span class="badge-rol">Repositor</span><span class="badge-rol">Tesorero</span><span class="badge-rol">Cajero</span><span class="badge-rol">Supervisor</span><span class="badge-rol">Administrador</span></td></tr>
+    <tr><td>Reimpresión</td><td><span class="badge-rol">Supervisor</span><span class="badge-rol">Tesorero</span><span class="badge-rol">Administrador</span></td></tr>
+    <tr><td>Ventas</td><td><span class="badge-rol">Administrador</span></td></tr>
+    <tr><td>Facturación CAEA</td><td><span class="badge-rol">Tesorero</span><span class="badge-rol">Administrador</span></td></tr>
+    <tr><td>Administración</td><td><span class="badge-rol">Administrador</span></td></tr>
+  </table>
+  </div>
+  <p class="lead">Administración → Permisos por rol permite además habilitar módulos adicionales a un rol puntual (por ejemplo, dar Etiquetas a alguien que normalmente no lo tendría) — eso solo cambia qué tarjetas ve esa persona, la seguridad real de cada pantalla la sigue controlando el sistema por su cuenta.</p>
+</section>
+
+<section id="supervisor">
+  <h2>15. Código de supervisor</h2>
+  <p>Ciertas acciones sensibles requieren la autorización de un Supervisor o Administrador, mediante un <strong>código numérico de 8 dígitos</strong> personal (cargado por Administración en el ABM de Usuarios):</p>
+  <ul>
+    <li>Anular una línea de la venta.</li>
+    <li>Emitir una nota de crédito.</li>
+    <li>Abrir la caja de un puesto que no es el propio.</li>
+    <li>Ejecutar el Cierre Z del controlador fiscal.</li>
+  </ul>
+  <div class="callout super">
+    <span class="ico">🔑</span>
+    <div><b>Si quien está logueado ya es Supervisor o Administrador</b>, estas acciones se habilitan directamente, sin pedir ningún código adicional. El código solo se pide cuando el usuario logueado tiene un rol distinto (por ejemplo, Cajero) y necesita que un Supervisor autorice puntualmente esa acción.</div>
+  </div>
+</section>
+
+<section id="glosario">
+  <h2>16. Glosario</h2>
+  <div class="tabla-wrap">
+  <table>
+    <tr><th>Término</th><th>Significado</th></tr>
+    <tr><td><strong>Lote</strong></td><td>El turno de trabajo de un cajero en una caja: desde que la abre hasta que la cierra.</td></tr>
+    <tr><td><strong>Arqueo X</strong></td><td>Consulta del estado actual de la caja, sin cerrarla — se puede repetir cuantas veces haga falta.</td></tr>
+    <tr><td><strong>Cierre de turno</strong></td><td>Rendición final del cajero: declara lo contado, deja motivo si hay diferencia, y cierra el lote. Irreversible.</td></tr>
+    <tr><td><strong>Cierre Z</strong></td><td>Cierre de la jornada fiscal en el propio controlador/impresora fiscal — distinto y aparte del cierre de turno.</td></tr>
+    <tr><td><strong>Validar (Tesorería)</strong></td><td>Confirmación administrativa de que el cierre de un cajero fue revisado y está conforme.</td></tr>
+    <tr><td><strong>CAE</strong></td><td>Código de autorización electrónico que otorga ARCA al facturar en el momento.</td></tr>
+    <tr><td><strong>CAEA</strong></td><td>Código de autorización de contingencia, precargado, para usar cuando ARCA no responde al facturar; se debe informar a ARCA dentro de las 48 hs.</td></tr>
+    <tr><td><strong>Convenio</strong></td><td>Condición comercial especial de un cliente: descuento fijo y/o lista de precios propia.</td></tr>
+    <tr><td><strong>Cluster</strong></td><td>Agrupación de clientes usada para definir a quién le aplica una oferta o un medio de pago restringido.</td></tr>
+  </table>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer>
+  Sistema de Venta POS Mayorista — Manual de usuario interno. Ante dudas puntuales de una pantalla, consultar con Administración.
+</footer>
+
+<script>
+  // resaltar el ítem del índice correspondiente a la sección visible
+  const links = Array.from(document.querySelectorAll('nav.toc a[href^="#"]'));
+  const map = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const secciones = Array.from(document.querySelectorAll('main section[id]'));
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      const link = map.get(e.target.id);
+      if (!link) return;
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('activo'));
+        link.classList.add('activo');
+      }
+    });
+  }, { rootMargin: '-15% 0px -75% 0px' });
+  secciones.forEach(s => obs.observe(s));
+
+  // cerrar el menú móvil al elegir un link
+  links.forEach(a => a.addEventListener('click', () => {
+    document.querySelector('nav.toc').classList.remove('abierto');
+  }));
+
+  // buscador simple del índice
+  document.getElementById('tocSearch').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    links.forEach(a => {
+      const visible = !q || a.textContent.toLowerCase().includes(q);
+      a.style.display = visible ? '' : 'none';
+    });
+    document.querySelectorAll('nav.toc .grupo-titulo').forEach(g => {
+      const grupo = g.nextElementSibling;
+      const algunoVisible = Array.from(grupo.querySelectorAll('a')).some(a => a.style.display !== 'none');
+      g.style.display = algunoVisible ? '' : 'none';
+      grupo.style.display = algunoVisible ? '' : 'none';
+    });
+  });
+</script>
+
+</body>
+</html>
