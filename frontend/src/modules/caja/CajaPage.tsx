@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/auth/auth";
 import {
-  caja, type ArqueoX, type ArticuloEncontrado, type BancoResumen, type CierreTurnoResultado, type CierreZFiscalResultado,
+  caja, type ArqueoX, type ArticuloEncontrado, type BancoResumen, type CampaniaVigente, type CierreTurnoResultado, type CierreZFiscalResultado,
   type ClienteResumen, type DeclaracionPago, type CajaDisponible, type GiftcardConsulta, type Lote, type MedioPagoResumen, type Motivo,
   type Operacion, type OperacionLinea, type OperacionPendiente, type OfertaMedioPagoVigente,
   type PlanCuotaResumen, type TurnoAbierto,
@@ -42,6 +42,13 @@ function claseLista(lista: string): string {
   if (l.includes("AZUL")) return "badge lista-azul";
   if (l.includes("ROJA") || l.includes("ROJO")) return "badge lista-roja";
   return "badge";
+}
+
+// De todas las campañas vigentes (generales + de este local) se destaca la de mayor descuento en
+// el badge; si hay más de una, el resto se ve en el tooltip.
+function mejorCampania(campanias: CampaniaVigente[]): CampaniaVigente | null {
+  if (campanias.length === 0) return null;
+  return campanias.reduce((mejor, c) => (c.descuentoPorcentaje > mejor.descuentoPorcentaje ? c : mejor));
 }
 
 interface ColaItem {
@@ -132,6 +139,9 @@ export function CajaPage() {
   const [busquedaEjecutada, setBusquedaEjecutada] = useState("");
   const [resultadosCliente, setResultadosCliente] = useState<ClienteResumen[]>([]);
   const [clienteSel, setClienteSel] = useState<ClienteResumen | null>(null);
+  // Campañas de puntos-app vigentes para el cliente/local, solo informativo (badge violeta) — ver
+  // cargarCampanias. No se aplican solas al precio, es un dato extra para el cajero.
+  const [campanias, setCampanias] = useState<CampaniaVigente[]>([]);
   const [clienteConfirmado, setClienteConfirmado] = useState(false);
   // Ventas del cliente que quedaron sin cobrar en este turno (recuperación ante caída del sistema).
   const [pendientes, setPendientes] = useState<OperacionPendiente[]>([]);
@@ -319,9 +329,21 @@ export function CajaPage() {
     catch { /* el cobro avisa si quedó sin medios */ }
   };
 
+  // Best-effort a propósito, igual que giftcards/puntos al facturar: sin DNI, integración apagada,
+  // o cualquier error, simplemente no se muestra el badge — nunca interrumpe la identificación.
+  const cargarCampanias = async (documento?: string | null) => {
+    if (!documento) { setCampanias([]); return; }
+    try {
+      const r = await caja.campanias(documento);
+      setCampanias(r.ok ? r.campanias : []);
+    } catch { setCampanias([]); }
+  };
+
   // Siempre con cliente: no hay venta anónima desde caja (se quitó "Continuar sin cliente").
   const seleccionarCliente = async (c: ClienteResumen) => {
     setClienteSel(c);
+    setCampanias([]);
+    void cargarCampanias(c.documento);
     setResultadosCliente([]);
     setError(null);
     await cargarMediosPago(c.idCliente);
@@ -363,6 +385,7 @@ export function CajaPage() {
   const volverAIdentificar = () => {
     setPendientes([]);
     setClienteSel(null);
+    setCampanias([]);
   };
 
   // "Anular Operación": vuelve a la selección de clientes SIN borrar nada. La operación ya está
@@ -377,6 +400,7 @@ export function CajaPage() {
     }
     setOperacion(null);
     setClienteSel(null);
+    setCampanias([]);
     setClienteConfirmado(false);
     setCola([]);
     setColaError(null);
@@ -791,7 +815,7 @@ export function CajaPage() {
 
   const nuevaVenta = () => {
     setComprobante(null); setImpresion(null); setPuntosPopupVisible(false); setVoucherPago(null); setCobroActivo(false); setPagos([]);
-    setOperacion(null); setClienteSel(null); setClienteConfirmado(false); setPendientes([]);
+    setOperacion(null); setClienteSel(null); setCampanias([]); setClienteConfirmado(false); setPendientes([]);
     setBusquedaCliente(""); setBusquedaEjecutada(""); setResultadosCliente([]);
     setCola([]); setColaError(null); setModoPresupuesto(false);
     void cargarMediosPago();
@@ -1335,12 +1359,6 @@ export function CajaPage() {
             <button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button>
           </div>
         </header>
-        {cierreZFiscalResultado && (
-          <p className="muted" style={{ padding: "0 20px" }}>
-            Cierre Z ejecutado a las {new Date(cierreZFiscalResultado.fechaHoraUtc).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-            {cierreZFiscalResultado.numeroFiscal && <> · Nº fiscal <b className="mono">{cierreZFiscalResultado.numeroFiscal}</b></>}
-          </p>
-        )}
         {notaCreditoAbierta && (
           <NotaCreditoModal idSucursal={idSucursal} idCaja={lote.idCaja}
             onCerrar={() => setNotaCreditoAbierta(false)} />
@@ -1713,12 +1731,6 @@ export function CajaPage() {
           <button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button>
         </div>
       </header>
-      {cierreZFiscalResultado && (
-        <p className="muted" style={{ padding: "0 20px" }}>
-          Cierre Z ejecutado a las {new Date(cierreZFiscalResultado.fechaHoraUtc).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-          {cierreZFiscalResultado.numeroFiscal && <> · Nº fiscal <b className="mono">{cierreZFiscalResultado.numeroFiscal}</b></>}
-        </p>
-      )}
       {notaCreditoAbierta && (
         <NotaCreditoModal idSucursal={idSucursal} idCaja={lote.idCaja}
           onCerrar={() => setNotaCreditoAbierta(false)} />
@@ -1742,6 +1754,15 @@ export function CajaPage() {
             <span className={claseLista(clienteSel.listaPrecioDescripcion)}
               title={`Lista de precios según ${clienteSel.listaPrecioOrigen?.toLowerCase() ?? "cliente"}`}>
               {clienteSel.listaPrecioDescripcion}
+            </span>
+          )}
+          {mejorCampania(campanias) && (
+            <span className="badge campania"
+              title={campanias.length > 1
+                ? campanias.map((c) => `${c.nombre} (${c.descuentoPorcentaje}% dto.)`).join(" · ")
+                : `Campaña de puntos-app: ${mejorCampania(campanias)!.nombre}`}>
+              <span className="campania-estrella" aria-hidden="true">⭐</span>
+              {mejorCampania(campanias)!.descuentoPorcentaje}% dto.
             </span>
           )}
           {operacion && <span className="muted">· Operación #{operacion.idOperacion}</span>}

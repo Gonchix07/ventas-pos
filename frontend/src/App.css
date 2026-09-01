@@ -89,6 +89,11 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
 /* Listas de precios del negocio, con los colores con los que se las nombra en el mostrador. */
 .badge.lista-azul { color: #10429c; background: #d6e6fb; }
 .badge.lista-roja { color: #b3231c; background: #fbdcdb; }
+/* Campaña de puntos-app (descuento adicional, solo informativo): mismo violeta de la identidad
+   visual de esa app (ver PuntosCargadosPopup), con su estrellita chica, para que el cajero la
+   reconozca de un vistazo como algo de ese sistema y no del propio pos-mayorista. */
+.badge.campania { color: #5b2b8a; background: #ede4fb; display: inline-flex; align-items: center; gap: 4px; }
+.campania-estrella { font-size: 11px; line-height: 1; }
 .module-card.clickable { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
 .module-card.clickable:hover { border-color: var(--petrol); box-shadow: 0 6px 18px rgba(12,107,99,.12); }
 

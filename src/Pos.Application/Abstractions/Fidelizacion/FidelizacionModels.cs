@@ -15,6 +15,18 @@ public record CargaPuntosFidelizacion(string Dni, decimal FacturaPesos, string F
 public record ResultadoCargaPuntos(bool Ok, string? Cliente, decimal? PuntosOtorgados,
     decimal? PuntosTotales, string? Error);
 
+/// <summary>Una campaña de descuento vigente en puntos-app para el cliente/local consultados —
+/// ver GET /api/campanias de puntos-app. <c>Local</c> es el nombre del local al que está
+/// restringida, o "General" si aplica a cualquier local.</summary>
+public record CampaniaVigente(string Id, string Nombre, string? Descripcion, decimal DescuentoPorcentaje,
+    string Local, DateOnly? FechaDesde);
+
+/// <summary>Resultado de consultar campañas vigentes. <c>Ok=false</c> cubre tanto "no se intentó"
+/// (integración deshabilitada/sin configurar) como "se intentó y falló" (DNI no encontrado en
+/// puntos-app, timeout, etc.) — best-effort, mismo criterio que <see cref="ResultadoCargaPuntos"/>:
+/// nunca debe bloquear la identificación del cliente en Caja, es solo un dato informativo extra.</summary>
+public record ResultadoCampanias(bool Ok, IReadOnlyList<CampaniaVigente> Campanias, string? Error);
+
 /// <summary>
 /// Puerto hacia el API de puntos-app (programa de fidelización externo, proyecto aparte) —
 /// <c>POST /api/cargar-puntos</c>. Best-effort A PROPÓSITO, mismo criterio que
@@ -31,4 +43,10 @@ public record ResultadoCargaPuntos(bool Ok, string? Cliente, decimal? PuntosOtor
 public interface IPuntosFidelizacionService
 {
     Task<ResultadoCargaPuntos> CargarPuntosAsync(CargaPuntosFidelizacion carga, CancellationToken ct = default);
+
+    /// <summary>Campañas vigentes del cliente (por DNI) restringidas a este local (el <c>Comercio</c>
+    /// configurado en ConexionPuntosApp) + las generales — GET /api/campanias?dni=...&amp;local=...
+    /// Se usa para mostrar un descuento adicional en Caja al identificar al cliente; no reemplaza a
+    /// Convenio ni se aplica solo — es informativo hasta que el negocio decida aplicarlo.</summary>
+    Task<ResultadoCampanias> ConsultarCampaniasAsync(string dni, CancellationToken ct = default);
 }

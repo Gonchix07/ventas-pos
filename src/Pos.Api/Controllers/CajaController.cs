@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Pos.Api.Common;
 using Pos.Application.Abstractions;
+using Pos.Application.Abstractions.Fidelizacion;
 using Pos.Application.Abstractions.Giftcards;
 using Pos.Application.Caja;
 using Pos.Application.Common;
@@ -17,11 +18,14 @@ public class CajaController : ControllerBase
 {
     private readonly ICajaService _service;
     private readonly IGiftcardsAppService _giftcards;
+    private readonly IPuntosFidelizacionService _puntosFidelizacion;
     private readonly ICurrentUser _currentUser;
-    public CajaController(ICajaService service, IGiftcardsAppService giftcards, ICurrentUser currentUser)
+    public CajaController(ICajaService service, IGiftcardsAppService giftcards,
+        IPuntosFidelizacionService puntosFidelizacion, ICurrentUser currentUser)
     {
         _service = service;
         _giftcards = giftcards;
+        _puntosFidelizacion = puntosFidelizacion;
         _currentUser = currentUser;
     }
 
@@ -52,6 +56,13 @@ public class CajaController : ControllerBase
             ? Ok(ApiResult<ResultadoUsoGiftcard>.Success(r))
             : BadRequest(ApiResult<ResultadoUsoGiftcard>.Fail("GIFTCARD_RECHAZADA", r.Error ?? "No se pudo canjear la gift card."));
     }
+
+    /// <summary>Campañas vigentes en puntos-app para este cliente (por DNI) en este local — solo
+    /// informativo, se muestra como badge violeta al identificar al cliente en Caja. Best-effort:
+    /// nunca falla la identificación, si no hay nada que mostrar devuelve una lista vacía.</summary>
+    [HttpGet("campanias")]
+    public async Task<IActionResult> Campanias([FromQuery] string dni, CancellationToken ct) =>
+        Ok(ApiResult<ResultadoCampanias>.Success(await _puntosFidelizacion.ConsultarCampaniasAsync(dni ?? "", ct)));
 
     [HttpPost("apertura")]
     public async Task<IActionResult> Abrir([FromBody] AperturaRequest req, CancellationToken ct) =>

@@ -18,6 +18,20 @@ file record CargaPuntosRespuestaJson(
 /// <summary>Forma del body de error de puntos-app ({ "error": "mensaje" }) en 4xx/5xx.</summary>
 file record ErrorRespuestaJson([property: JsonPropertyName("error")] string? Error);
 
+/// <summary>Una campaña dentro del array "campanias" de GET /api/campanias (ver campanias.js de
+/// puntos-app).</summary>
+file record CampaniaJson(
+    // uuid en puntos-app (campania_id, ver migration_campanias.sql), no un entero.
+    [property: JsonPropertyName("id")] string? Id,
+    [property: JsonPropertyName("nombre")] string? Nombre,
+    [property: JsonPropertyName("descripcion")] string? Descripcion,
+    [property: JsonPropertyName("descuento_porcentaje")] decimal DescuentoPorcentaje,
+    [property: JsonPropertyName("local")] string? Local,
+    [property: JsonPropertyName("fecha_desde")] DateOnly? FechaDesde);
+
+/// <summary>Forma del body 200 de GET /api/campanias.</summary>
+file record CampaniasRespuestaJson([property: JsonPropertyName("campanias")] List<CampaniaJson>? Campanias);
+
 /// <summary>
 /// Llama a puntos-app (POST /api/cargar-puntos) para sumar puntos de fidelización al facturar.
 /// Best-effort A PROPÓSITO — ver <see cref="IPuntosFidelizacionService"/>: cualquier error (config
@@ -109,6 +123,66 @@ public class PuntosFidelizacionService : IPuntosFidelizacionService
                 "No se pudo sumar puntos en puntos-app para la factura {Factura} (DNI {Dni}).",
                 carga.FacturaNumero, carga.Dni);
             return new ResultadoCargaPuntos(false, null, null, null, ex.Message);
+        }
+    }
+
+    public async Task<ResultadoCampanias> ConsultarCampaniasAsync(string dni, CancellationToken ct = default)
+    {
+        var vacio = Array.Empty<CampaniaVigente>();
+        try
+        {
+            if (string.IsNullOrWhiteSpace(dni)) return new ResultadoCampanias(false, vacio, null);
+
+            var config = await _db.ConexionesPuntosApp.AsNoTracking().SingleOrDefaultAsync(ct);
+            // Integración no activada: no es un error, simplemente no se consulta (no hay nada que
+            // mostrarle al cajero — mismo criterio que CargarPuntosAsync).
+            if (config is null || !config.Habilitada) return new ResultadoCampanias(false, vacio, null);
+
+            if (string.IsNullOrWhiteSpace(config.UrlBase) || string.IsNullOrWhiteSpace(config.Comercio)
+                || string.IsNullOrEmpty(config.TokenProtegido))
+                return new ResultadoCampanias(false, vacio, "Integración con puntos-app incompleta (falta URL/comercio/API key).");
+
+            var apiKey = _protector.Unprotect(config.TokenProtegido);
+
+            // "local" = el Comercio configurado acá (este mismo POS): devuelve las campañas
+            // generales + las restringidas a este local únicamente, nunca las de otro local.
+            using var req = new HttpRequestMessage(HttpMethod.Get,
+                $"{config.UrlBase.TrimEnd('/')}/api/campanias?dni={Uri.EscapeDataString(dni)}&local={Uri.EscapeDataString(config.Comercio)}");
+            req.Headers.Add("X-Api-Key", apiKey);
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(Timeout);
+            using var resp = await _http.SendAsync(req, cts.Token);
+            var bodyText = await resp.Content.ReadAsStringAsync(ct);
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                // 404 = DNI sin cliente en puntos-app, el caso más común (la mayoría de los clientes
+                // de pos-mayorista no tienen tarjeta de fidelización) — no es una falla real, así que
+                // se loguea más bajo que el resto para no ensuciar el log en cada venta.
+                string? motivo = null;
+                try { motivo = System.Text.Json.JsonSerializer.Deserialize<ErrorRespuestaJson>(bodyText)?.Error; }
+                catch (System.Text.Json.JsonException) { /* body no era el JSON esperado; se ignora el motivo */ }
+                if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    _log.LogDebug("puntos-app no tiene campañas para DNI {Dni}: {Body}", dni, bodyText);
+                else
+                    _log.LogWarning("No se pudieron consultar campañas en puntos-app para DNI {Dni}: {Status} {Body}",
+                        dni, (int)resp.StatusCode, bodyText);
+                return new ResultadoCampanias(false, vacio, motivo ?? $"HTTP {(int)resp.StatusCode}");
+            }
+
+            var data = System.Text.Json.JsonSerializer.Deserialize<CampaniasRespuestaJson>(bodyText,
+                new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+            var campanias = (data?.Campanias ?? new List<CampaniaJson>())
+                .Select(c => new CampaniaVigente(c.Id ?? "", c.Nombre ?? "", c.Descripcion, c.DescuentoPorcentaje,
+                    c.Local ?? "General", c.FechaDesde))
+                .ToList();
+            return new ResultadoCampanias(true, campanias, null);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "No se pudieron consultar campañas en puntos-app para DNI {Dni}.", dni);
+            return new ResultadoCampanias(false, vacio, ex.Message);
         }
     }
 }

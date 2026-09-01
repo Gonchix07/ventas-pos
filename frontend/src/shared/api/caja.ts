@@ -34,6 +34,16 @@ export interface GiftcardConsulta {
 export interface ResultadoUsoGiftcard {
   transaccionId?: string | null; saldoResultante?: number | null; estado?: string | null;
 }
+
+/** Campaña de descuento vigente en puntos-app para el cliente/local — ver GET /caja/campanias.
+ *  Solo informativo (badge violeta en Caja), no se aplica sola al precio. */
+export interface CampaniaVigente {
+  id: string; nombre: string; descripcion?: string | null; descuentoPorcentaje: number;
+  local: string; fechaDesde?: string | null;
+}
+/** Resultado de GET /caja/campanias. `ok=false` = no hay nada que mostrar (integración apagada,
+ *  cliente sin campañas, DNI no encontrado, etc.) — nunca es un error para el cajero. */
+export interface ResultadoCampanias { ok: boolean; campanias: CampaniaVigente[]; error?: string | null; }
 /** Plan de cuotas de un medio Tarjeta, para elegir junto con el medio al cobrar. */
 export interface PlanCuotaResumen { idPlan: number; denominacion: string; cantidadCuotas: number; }
 /** Banco emisor, para el combo del pago con Cheque. */
@@ -197,6 +207,10 @@ export const caja = {
   /** Canjea (descuenta saldo) DE INMEDIATO — "Confirmar uso" en GiftcardValidacionModal. */
   giftcardUsar: (idSucursal: number, codigo: string, monto: number, idempotencyKey: string) =>
     unwrap<ResultadoUsoGiftcard>(api.post(`/caja/giftcard/usar`, { idSucursal, codigo, monto, idempotencyKey })),
+  /** Campañas vigentes en puntos-app para este cliente (DNI) en este local — badge violeta al
+   *  identificar al cliente. Best-effort: `ok=false` no es un error, solo "no hay nada que mostrar". */
+  campanias: (dni: string) =>
+    unwrap<ResultadoCampanias>(api.get(`/caja/campanias`, { params: { dni } })),
   // imprimir=false: solo trae los acumulados (ej. el preview de "Cerrar turno"), sin disparar la
   // impresión del reporte X en el controlador fiscal. El botón "Arqueo X" no manda el parámetro
   // (default true en el backend): ahí sí corresponde imprimir.

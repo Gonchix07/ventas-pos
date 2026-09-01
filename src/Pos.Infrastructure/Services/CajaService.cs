@@ -360,14 +360,35 @@ public class CajaService : ICajaService
         _currentUser.AsegurarSucursal(idSucursal);
         codigo = codigo.Trim();
 
-        var porBarra = await (
-            from b in _db.Barras.AsNoTracking().Where(x => x.CodigoBarra == codigo)
-            join pr in _db.Presentaciones.AsNoTracking() on b.IdPresentacion equals pr.IdPresentacion
-            join a in _db.Articulos.AsNoTracking() on pr.IdArticulo equals a.IdArticulo
+        // Código interno PRIMERO (antes que código de barra): un código de artículo (corto, ~5-6
+        // dígitos) identifica al ARTÍCULO, no a una presentación puntual — así que siempre se
+        // resuelve a su mínima fracción (unidad suelta, menor UnidadXBulto), nunca a un bulto.
+        // Se prueba antes que la barra a propósito: si por casualidad ese mismo valor también está
+        // cargado como código de barra de una presentación de bulto (pasaba con el artículo 25002:
+        // "25002" es su código interno Y coincide con la barra de la presentación x6), la barra no
+        // debe ganarle a la búsqueda por código interno — un código de barra real (EAN, 8-13
+        // dígitos) prácticamente nunca coincide por casualidad con un código interno corto, así que
+        // este orden no cambia nada para un escaneo real de góndola.
+        var match = await (
+            from a in _db.Articulos.AsNoTracking().Where(x => x.CodigoInterno == codigo)
+            join pr in _db.Presentaciones.AsNoTracking() on a.IdArticulo equals pr.IdArticulo
+            orderby pr.UnidadXBulto
             select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo }
         ).FirstOrDefaultAsync(ct);
 
-        var match = porBarra;
+        // orderby UnidadXBulto también acá: si el código coincide con más de una barra (no debería,
+        // pero el catálogo importado puede tener alguna duplicada entre presentaciones del mismo
+        // artículo — ver tools/import-catalogo), se prioriza la mínima fracción antes que un bulto.
+        if (match is null)
+        {
+            match = await (
+                from b in _db.Barras.AsNoTracking().Where(x => x.CodigoBarra == codigo)
+                join pr in _db.Presentaciones.AsNoTracking() on b.IdPresentacion equals pr.IdPresentacion
+                join a in _db.Articulos.AsNoTracking() on pr.IdArticulo equals a.IdArticulo
+                orderby pr.UnidadXBulto
+                select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo }
+            ).FirstOrDefaultAsync(ct);
+        }
 
         // Etiqueta de balanza: la barra no está cargada como tal (cambia con cada pesada), trae
         // adentro el código del artículo y el peso. El peso viaja como cantidad de la línea.
@@ -382,16 +403,6 @@ public class CajaService : ICajaService
                 select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo }
             ).FirstOrDefaultAsync(ct);
             if (match is not null) cantidadDetectada = pesada.Peso;
-        }
-
-        if (match is null)
-        {
-            match = await (
-                from a in _db.Articulos.AsNoTracking().Where(x => x.CodigoInterno == codigo)
-                join pr in _db.Presentaciones.AsNoTracking() on a.IdArticulo equals pr.IdArticulo
-                orderby pr.UnidadXBulto
-                select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo }
-            ).FirstOrDefaultAsync(ct);
         }
 
         if (match is null || !match.Activo) return null;
