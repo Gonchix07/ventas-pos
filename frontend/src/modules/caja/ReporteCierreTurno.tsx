@@ -255,8 +255,9 @@ export function ReporteCierreTurno({
         </section>
 
         <footer className="rendicion__pie">
-          Este comprobante se generó automáticamente al confirmar el cierre de turno — el cierre es
-          irreversible. Impreso el {fechaHora(new Date().toISOString())}.
+          <p>Este comprobante se generó automáticamente al confirmar el cierre de turno. El cierre es irreversible.</p>
+          <p>Generado el {fechaHora(cierre.fechaCierre)}.</p>
+          <p>Impreso el {fechaHora(new Date().toISOString())}.</p>
         </footer>
       </div>
 

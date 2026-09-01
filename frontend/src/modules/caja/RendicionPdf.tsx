@@ -266,8 +266,10 @@ function RendicionDocument({ arqueo, cierre, usuario, motivoDescripcion, observa
         </View>
 
         <Text style={s.pie}>
-          Este comprobante se generó automáticamente al confirmar el cierre de turno — el cierre es
-          irreversible. Generado el {fechaHora(new Date().toISOString())}.
+          Este comprobante se generó automáticamente al confirmar el cierre de turno. El cierre es
+          irreversible.{"\n"}
+          Generado el {fechaHora(cierre.fechaCierre)}.{"\n"}
+          Impreso el {fechaHora(new Date().toISOString())}.
         </Text>
       </Page>
     </Document>

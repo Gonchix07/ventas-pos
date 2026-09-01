@@ -92,6 +92,8 @@
 .rendicion__firma small { display: block; font-size: 8pt; color: #555; margin-top: 0.5mm; }
 
 .rendicion__pie { margin-top: 6mm; font-size: 7.5pt; color: #666; text-align: center; }
+.rendicion__pie p { margin: 0 0 2px; }
+.rendicion__pie p:last-child { margin-bottom: 0; }
 
 .rendicion__acciones { display: flex; gap: 8px; justify-content: center; margin: 14px 0; }
 
