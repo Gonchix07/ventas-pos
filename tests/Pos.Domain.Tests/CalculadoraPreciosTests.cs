@@ -107,6 +107,7 @@ public class CalculadoraPreciosTests
         var r = CalculadoraPrecios.Resolver(candidatos, Hoy, new ConvenioInfo(7m, 95m, 4));
         Assert.Equal(80m, r.PrecioConvenio);
         Assert.False(r.AplicoConvenio);
+        Assert.Equal(80m, r.PrecioBase); // el folder gana también como "Precio" a mostrar, no la lista propia (95)
         Assert.Equal(5, r.IdListaPrecio);
     }
 
@@ -133,6 +134,7 @@ public class CalculadoraPreciosTests
         Assert.Equal(75m, r.PrecioConvenio);
         Assert.Equal(4, r.IdListaPrecio); // la lista cobrada es la del convenio, no la ganadora
         Assert.True(r.AplicoConvenio);
+        Assert.Equal(75m, r.PrecioBase); // "Precio" en Caja: la lista propia, no PrecioVigente (100)
     }
 
     [Fact]
@@ -148,5 +150,86 @@ public class CalculadoraPreciosTests
         Assert.Equal(100m, r.PrecioVigente);
         Assert.Equal(80m, r.PrecioConvenio);
         Assert.True(r.AplicoConvenio);
+    }
+
+    // ---- Campaña de puntos-app: se suma al % del convenio (a pedido del negocio) ----
+
+    [Fact]
+    public void Campania_SolaSinConvenio_AplicaDescuentoPorcentual()
+    {
+        var candidatos = new[] { new CandidatoPrecio(TipoListaPrecio.Base, 1, null, null, 100m, 0m) };
+        var r = CalculadoraPrecios.Resolver(candidatos, Hoy, convenio: null, campaniaDescuentoPorc: 15m);
+        Assert.Equal(100m, r.PrecioVigente);
+        Assert.Equal(85m, r.PrecioConvenio);
+        Assert.True(r.AplicoConvenio);
+    }
+
+    [Fact]
+    public void Campania_SeSumaAlPorcentajeDelConvenio()
+    {
+        var candidatos = new[] { new CandidatoPrecio(TipoListaPrecio.Base, 1, null, null, 100m, 0m) };
+        // Convenio 10% + campaña 15% = 25% sobre el precio de lista.
+        var r = CalculadoraPrecios.Resolver(candidatos, Hoy, new ConvenioInfo(10m, null), campaniaDescuentoPorc: 15m);
+        Assert.Equal(75m, r.PrecioConvenio);
+        Assert.True(r.AplicoConvenio);
+    }
+
+    [Fact]
+    public void Campania_SeSumaSobreLaListaPropiaDelConvenio()
+    {
+        var candidatos = new[] { new CandidatoPrecio(TipoListaPrecio.Base, 1, null, null, 100m, 0m, 3) };
+        // Lista propia del convenio ($75) + campaña 20% sobre ESE precio, no sobre el de lista general.
+        var r = CalculadoraPrecios.Resolver(candidatos, Hoy, new ConvenioInfo(0m, 75m, 4), campaniaDescuentoPorc: 20m);
+        Assert.Equal(60m, r.PrecioConvenio);
+        Assert.Equal(4, r.IdListaPrecio);
+        Assert.True(r.AplicoConvenio);
+        Assert.Equal(75m, r.PrecioBase); // "Precio" en Caja: la lista propia (75), no la general (100)
+    }
+
+    [Fact]
+    public void PrecioBase_CasoReal_ListaDeTarjetaMasConvenioMasCampania()
+    {
+        // Caso real reportado: art. 355, lista general $20339,89, pero el cliente tiene tarjeta con
+        // lista propia a $17999,90 (vía TipoTarjeta.IdListaPrecio, resguardo de PricingService cuando
+        // el Convenio no tiene lista propia). Convenio 7% + campaña puntos-app 10% = 17%, aplicado
+        // sobre la lista de la tarjeta, NO sobre la general — "Precio" en Caja debe mostrar $17999,90
+        // (no $20339,89) y "Descuento" tiene que salir de ahí, no de la lista general.
+        var candidatos = new[] { new CandidatoPrecio(TipoListaPrecio.Base, 1, null, null, 20339.89m, 0m) };
+        var convenio = new ConvenioInfo(7m, 17999.90m, 9);
+        var r = CalculadoraPrecios.Resolver(candidatos, Hoy, convenio, campaniaDescuentoPorc: 10m);
+        Assert.Equal(20339.89m, r.PrecioVigente); // lista general, informativo, no lo que se muestra
+        Assert.Equal(17999.90m, r.PrecioBase); // esto es lo que Caja tiene que mostrar como "Precio"
+        Assert.Equal(14939.9170m, r.PrecioConvenio); // 17999.90 × 0.83
+    }
+
+    [Fact]
+    public void Campania_SumaConvenioNuncaSuperaCienPorciento()
+    {
+        var candidatos = new[] { new CandidatoPrecio(TipoListaPrecio.Base, 1, null, null, 100m, 0m) };
+        var r = CalculadoraPrecios.Resolver(candidatos, Hoy, new ConvenioInfo(70m, null), campaniaDescuentoPorc: 60m);
+        Assert.Equal(0m, r.PrecioConvenio); // clamp a 100%, nunca precio negativo
+    }
+
+    [Fact]
+    public void Folder_NoAcumulaConCampaniaTampoco()
+    {
+        var candidatos = new[]
+        {
+            new CandidatoPrecio(TipoListaPrecio.Base, 1, null, null, 100m, 0m, 3),
+            new CandidatoPrecio(TipoListaPrecio.Folder, 1, null, null, 80m, 0m, 5),
+        };
+        var r = CalculadoraPrecios.Resolver(candidatos, Hoy, convenio: null, campaniaDescuentoPorc: 15m);
+        Assert.Equal(80m, r.PrecioConvenio); // ni 68 (15% sobre el folder)
+        Assert.False(r.AplicoConvenio);
+    }
+
+    [Fact]
+    public void SinConvenioNiCampania_PrecioConvenioIgualAlVigente()
+    {
+        var candidatos = new[] { new CandidatoPrecio(TipoListaPrecio.Base, 1, null, null, 100m, 0m) };
+        var r = CalculadoraPrecios.Resolver(candidatos, Hoy);
+        Assert.Equal(100m, r.PrecioConvenio);
+        Assert.False(r.AplicoConvenio);
+        Assert.Equal(100m, r.PrecioBase);
     }
 }

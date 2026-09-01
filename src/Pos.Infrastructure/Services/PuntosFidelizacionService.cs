@@ -173,9 +173,13 @@ public class PuntosFidelizacionService : IPuntosFidelizacionService
 
             var data = System.Text.Json.JsonSerializer.Deserialize<CampaniasRespuestaJson>(bodyText,
                 new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+            // Trunca a entero: puntos-app puede guardar el % con decimales de más (ej. 10.7 en vez de
+            // 10 por cómo se cargó la campaña ahí), y el negocio pidió redondear siempre hacia abajo
+            // al entero — nunca cobrarle de más al cliente por un resto de decimal que ni se ve en
+            // el globo de Caja.
             var campanias = (data?.Campanias ?? new List<CampaniaJson>())
-                .Select(c => new CampaniaVigente(c.Id ?? "", c.Nombre ?? "", c.Descripcion, c.DescuentoPorcentaje,
-                    c.Local ?? "General", c.FechaDesde))
+                .Select(c => new CampaniaVigente(c.Id ?? "", c.Nombre ?? "", c.Descripcion,
+                    Math.Truncate(c.DescuentoPorcentaje), c.Local ?? "General", c.FechaDesde))
                 .ToList();
             return new ResultadoCampanias(true, campanias, null);
         }

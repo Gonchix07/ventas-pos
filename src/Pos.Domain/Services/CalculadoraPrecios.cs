@@ -22,9 +22,16 @@ public record ConvenioInfo(decimal DescuentoPorc, decimal? PrecioListaConvenio, 
 /// <param name="AplicoConvenio">
 /// false cuando el cliente tiene convenio pero NO se le aplicó (precio de folder, que no acumula).
 /// </param>
+/// <param name="PrecioBase">
+/// El precio de lista que "le corresponde" a ESTE cliente, SIN el % de convenio/campaña todavía —
+/// es la lista de su tarjeta/convenio si tiene una propia, o si no el mismo PrecioVigente. Es lo
+/// que Caja tiene que mostrar en la columna "Precio" (no PrecioVigente a secas, que es la lista
+/// genérica y puede no ser la que ese cliente realmente ve): el % de descuento del convenio y la
+/// campaña se calcula y se muestra siempre sobre PrecioBase, nunca sobre PrecioVigente.
+/// </param>
 public record ResultadoPrecio(
     bool Encontrado, decimal PrecioVigente, decimal ImpuestoInterno, decimal PrecioConvenio,
-    int? IdListaPrecio = null, bool AplicoConvenio = false);
+    int? IdListaPrecio = null, bool AplicoConvenio = false, decimal PrecioBase = 0m);
 
 /// <summary>
 /// Resuelve el precio de una presentación aplicando la prioridad de listas del SRS:
@@ -49,8 +56,13 @@ public static class CalculadoraPrecios
         return true;
     }
 
+    /// <param name="campaniaDescuentoPorc">% de descuento de una campaña de puntos-app vigente para
+    /// el cliente/local (0 si no hay). Se SUMA al % del convenio (a pedido del negocio: convenio y
+    /// campaña acumulan) antes de aplicarse — mismo tratamiento que el convenio en todo lo demás,
+    /// incluida la regla de que un precio de folder no acumula con nada.</param>
     public static ResultadoPrecio Resolver(
-        IEnumerable<CandidatoPrecio> candidatos, DateTime fecha, ConvenioInfo? convenio = null)
+        IEnumerable<CandidatoPrecio> candidatos, DateTime fecha, ConvenioInfo? convenio = null,
+        decimal campaniaDescuentoPorc = 0m)
     {
         var ganador = candidatos
             .Where(c => Vigente(c, fecha))
@@ -60,27 +72,31 @@ public static class CalculadoraPrecios
             .FirstOrDefault();
 
         if (ganador is null)
-            return new ResultadoPrecio(false, 0m, 0m, 0m);
+            return new ResultadoPrecio(false, 0m, 0m, 0m, PrecioBase: 0m);
 
         var precioVigente = ganador.PrecioFinal;
         var idListaGanadora = ganador.IdListaPrecio == 0 ? (int?)null : ganador.IdListaPrecio;
 
-        // Un precio de folder es una promoción y NO acumula con el convenio del cliente: se cobra tal
-        // cual, sin su lista ni su descuento (regla del negocio). Vale también para el convenio que
-        // solo tiene descuento %: antes ese caso lo aplicaba sobre el folder y el que tenía lista
-        // propia no, así que el mismo cliente pagaba distinto según cómo estuviera armado su convenio.
-        if (convenio is null || ganador.Tipo == TipoListaPrecio.Folder)
-            return new ResultadoPrecio(true, precioVigente, ganador.ImpuestoInterno, precioVigente,
-                idListaGanadora, AplicoConvenio: false);
+        // Un precio de folder es una promoción y NO acumula con el convenio ni con la campaña de
+        // puntos-app: se cobra tal cual, sin lista propia ni descuento adicional (regla del negocio).
+        // Vale también para el convenio que solo tiene descuento %: antes ese caso lo aplicaba sobre
+        // el folder y el que tenía lista propia no, así que el mismo cliente pagaba distinto según
+        // cómo estuviera armado su convenio.
+        var campaniaPorc = Math.Clamp(campaniaDescuentoPorc, 0m, 100m);
+        var tienePrecioListaConvenio = convenio?.PrecioListaConvenio is not null;
+        var descPorc = Math.Clamp((convenio?.DescuentoPorc ?? 0m) + campaniaPorc, 0m, 100m);
 
-        var baseConv = convenio.PrecioListaConvenio ?? precioVigente;
-        var desc = Math.Clamp(convenio.DescuentoPorc, 0m, 100m);
-        var precioConvenio = Redondear(baseConv * (1 - desc / 100m));
+        if (ganador.Tipo == TipoListaPrecio.Folder || (!tienePrecioListaConvenio && descPorc <= 0m))
+            return new ResultadoPrecio(true, precioVigente, ganador.ImpuestoInterno, precioVigente,
+                idListaGanadora, AplicoConvenio: false, PrecioBase: precioVigente);
+
+        var baseConv = convenio?.PrecioListaConvenio ?? precioVigente;
+        var precioConvenio = Redondear(baseConv * (1 - descPorc / 100m));
         // Si el precio base salió de la lista del convenio, esa es la lista que se cobró.
-        var idLista = convenio.PrecioListaConvenio is not null ? convenio.IdListaPrecio : idListaGanadora;
+        var idLista = tienePrecioListaConvenio ? convenio!.IdListaPrecio : idListaGanadora;
 
         return new ResultadoPrecio(true, precioVigente, ganador.ImpuestoInterno, precioConvenio,
-            idLista, AplicoConvenio: true);
+            idLista, AplicoConvenio: true, PrecioBase: baseConv);
     }
 
     private static decimal Redondear(decimal v) => Math.Round(v, 4, MidpointRounding.AwayFromZero);

@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Pos.Application.Abstractions;
+using Pos.Application.Abstractions.Fidelizacion;
 using Pos.Application.Caja;
 using Pos.Application.Common;
 using Pos.Application.Percepciones;
@@ -20,9 +21,11 @@ public class CajaService : ICajaService
     private readonly ICurrentUser _currentUser;
     private readonly ISupervisorAuthService _supervisorAuth;
     private readonly IPercepcionesCalculoService _percepciones;
+    private readonly IPuntosFidelizacionService _puntosFidelizacion;
 
     public CajaService(PosDbContext db, IPricingService pricing, IImageBank images, ICurrentUser currentUser,
-        ISupervisorAuthService supervisorAuth, IPercepcionesCalculoService percepciones)
+        ISupervisorAuthService supervisorAuth, IPercepcionesCalculoService percepciones,
+        IPuntosFidelizacionService puntosFidelizacion)
     {
         _db = db;
         _pricing = pricing;
@@ -30,6 +33,7 @@ public class CajaService : ICajaService
         _currentUser = currentUser;
         _supervisorAuth = supervisorAuth;
         _percepciones = percepciones;
+        _puntosFidelizacion = puntosFidelizacion;
     }
 
     // ---------- Apertura de caja ----------
@@ -491,8 +495,29 @@ public class CajaService : ICajaService
         var lote = await ObtenerLoteAbiertoHoyAsync(req.IdSucursal, req.IdCaja, _currentUser.IdUsuario ?? 0, ct)
             ?? throw new DomainException("SIN_LOTE_ABIERTO", "No hay un lote de caja abierto. Abra la caja primero.");
 
-        if (req.IdCliente is int idc && !await _db.Clientes.AnyAsync(c => c.IdCliente == idc && c.Activo, ct))
-            throw new DomainException("CLIENTE_INEXISTENTE", "El cliente no existe o está inactivo.");
+        string? documentoCliente = null;
+        if (req.IdCliente is int idc)
+        {
+            // (bool Existe, string? Documento) en un solo objeto: no se puede distinguir "no existe"
+            // de "existe pero sin DNI cargado" con solo Select(Documento).FirstOrDefault (ambos dan
+            // null) — un cliente sin DNI es un caso válido (ej. solo tiene CUIT), no debe rechazarse.
+            var cli = await _db.Clientes.AsNoTracking().Where(c => c.IdCliente == idc && c.Activo)
+                .Select(c => new { c.Documento }).FirstOrDefaultAsync(ct);
+            if (cli is null)
+                throw new DomainException("CLIENTE_INEXISTENTE", "El cliente no existe o está inactivo.");
+            documentoCliente = cli.Documento;
+        }
+
+        // Campaña de puntos-app: se resuelve UNA sola vez acá (implica una llamada HTTP externa) y
+        // queda cacheada en la operación — AgregarLineaAsync la reutiliza en cada línea sin volver a
+        // golpear la API. Best-effort: 0% si no hay DNI, la integración está apagada, o falla.
+        var porcentajeCampania = 0m;
+        if (!string.IsNullOrWhiteSpace(documentoCliente))
+        {
+            var campanias = await _puntosFidelizacion.ConsultarCampaniasAsync(documentoCliente, ct);
+            if (campanias.Ok && campanias.Campanias.Count > 0)
+                porcentajeCampania = campanias.Campanias.Max(c => c.DescuentoPorcentaje);
+        }
 
         // Lock por sucursal: dos cajas distintas de la misma sucursal creando una operación al
         // mismo tiempo no deben poder calcular el mismo próximo IdOperacion (PK compuesta, sin
@@ -507,7 +532,8 @@ public class CajaService : ICajaService
         {
             IdSucursal = req.IdSucursal, IdOperacion = next, IdCliente = req.IdCliente,
             IdCaja = req.IdCaja, IdLote = lote.IdLote,
-            Estado = EstadoOperacion.EnCurso, Total = 0, DescuentoTotal = 0
+            Estado = EstadoOperacion.EnCurso, Total = 0, DescuentoTotal = 0,
+            PorcentajeCampaniaPuntos = porcentajeCampania,
         };
         _db.Operaciones.Add(op);
         await _db.SaveChangesAsync(ct);
@@ -547,12 +573,11 @@ public class CajaService : ICajaService
             ?? throw new DomainException("PRESENTACION_INEXISTENTE", "La presentación no existe.");
 
         var precio = await _pricing.ResolverPrecioAsync(
-            new ResolverPrecioRequest(idSucursal, req.IdPresentacion, op.IdCliente), ct);
+            new ResolverPrecioRequest(idSucursal, req.IdPresentacion, op.IdCliente, op.PorcentajeCampaniaPuntos), ct);
         if (!precio.Encontrado)
             throw new DomainException("SIN_PRECIO", "El artículo no tiene precio vigente en esta sucursal.");
 
         var precioUnit = precio.TieneConvenio ? precio.PrecioConvenio : precio.PrecioVigente;
-
         // Artículo repetido: se acumula en la línea que ya existe (escanear 3 veces el mismo producto
         // deja UNA fila con cantidad 3) en vez de repetir filas. Se exige el mismo precio unitario:
         // si por algún motivo se resolvió distinto, va en una línea aparte para no perder el importe.
@@ -581,7 +606,8 @@ public class CajaService : ICajaService
             var detalle = new DetalleOperacion
             {
                 IdSucursal = idSucursal, IdOperacion = idOperacion, IdPresentacion = req.IdPresentacion,
-                Cantidad = req.Cantidad, Precio = precioUnit, IdListaPrecio = precio.IdListaPrecio
+                Cantidad = req.Cantidad, Precio = precioUnit, PrecioLista = precio.PrecioBase,
+                IdListaPrecio = precio.IdListaPrecio
             };
             _db.DetallesOperaciones.Add(detalle);
             vivas.Add(detalle);
@@ -781,15 +807,24 @@ public class CajaService : ICajaService
         var lineas = op.Detalles.OrderByDescending(d => d.IdDetalleOperacion).Select(d =>
         {
             var i = info.GetValueOrDefault(d.IdPresentacion);
-            var bruto = d.Precio * d.Cantidad;
+            // PrecioLista: precio de lista SIN ningún descuento (columna "Precio" de Caja). Fallback
+            // a d.Precio para líneas viejas de antes de este campo (PrecioLista=0 ahí), así no
+            // aparecen con precio $0 — no tenían campaña/convenio distinguible igual en ese momento.
+            var precioLista = d.PrecioLista > 0 ? d.PrecioLista : d.Precio;
+            var bruto = precioLista * d.Cantidad;
+            // Lo realmente cobrado: d.Precio ya trae convenio+campaña aplicados, d.Descuento es solo
+            // la oferta. La resta contra "bruto" (a precio de lista) da el descuento TOTAL sumado
+            // (convenio + campaña + oferta) para la columna "Descuento".
+            var neto = d.Precio * d.Cantidad - d.Descuento;
+            var descuentoTotal = bruto - neto;
             var ofertas = string.IsNullOrWhiteSpace(d.OfertasAplicadas)
                 ? new List<string>()
                 : JsonSerializer.Deserialize<List<string>>(d.OfertasAplicadas!) ?? new List<string>();
             var tieneLista = d.IdListaPrecio is int idl && listas.TryGetValue(idl, out var lista);
             var datosLista = tieneLista ? listas[d.IdListaPrecio!.Value] : default;
             return new OperacionLineaDto(d.IdDetalleOperacion, d.IdPresentacion,
-                i?.CodigoInterno ?? "", i?.Descripcion ?? "", d.Cantidad, d.Precio,
-                bruto, d.Descuento, bruto - d.Descuento, ofertas,
+                i?.CodigoInterno ?? "", i?.Descripcion ?? "", d.Cantidad, precioLista,
+                bruto, descuentoTotal, neto, ofertas,
                 tieneLista ? datosLista.Codigo : null,
                 tieneLista && datosLista.Tipo == TipoListaPrecio.Folder);
         }).ToList();
@@ -801,8 +836,11 @@ public class CajaService : ICajaService
         var percepciones = await _percepciones.CalcularAsync(op.IdSucursal, op.IdCliente,
             op.Detalles.Select(d => new LineaParaPercepcion(d.IdPresentacion, d.Cantidad, d.Precio, d.Descuento, d.IdListaPrecio)).ToList(), ct);
 
+        // Descuento acá = suma del descuento YA discriminado por línea (convenio+campaña+oferta), no
+        // op.DescuentoTotal (que solo trae la oferta) — así Bruto − Descuento = Total siempre cierra
+        // con lo que se ve línea por línea.
         return new OperacionDto(op.IdSucursal, op.IdOperacion, op.IdCliente, clienteDesc,
-            op.Estado.ToString(), lineas, lineas.Sum(l => l.Bruto), op.DescuentoTotal, op.Total,
+            op.Estado.ToString(), lineas, lineas.Sum(l => l.Bruto), lineas.Sum(l => l.Descuento), op.Total,
             percepciones.PercepcionIva21, percepciones.PercepcionIva105, percepciones.PercepcionIibb,
             op.Total + percepciones.Total, percepciones.AlicuotaIibb);
     }

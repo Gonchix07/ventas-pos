@@ -108,6 +108,11 @@ public class Operacion : AuditableEntity
     public EstadoOperacion Estado { get; set; } = EstadoOperacion.EnCurso;
     public decimal Total { get; set; }
     public decimal DescuentoTotal { get; set; }
+    /// <summary>% de descuento de la campaña de puntos-app vigente para este cliente/local, resuelto
+    /// UNA sola vez al crear la operación (ver CajaService.CrearOperacionAsync) y reutilizado en cada
+    /// línea que se agregue — evita golpear la API externa en cada escaneo. 0 si no hay campaña o la
+    /// integración está apagada/no responde (best-effort, nunca bloquea la venta).</summary>
+    public decimal PorcentajeCampaniaPuntos { get; set; }
     public ICollection<DetalleOperacion> Detalles { get; set; } = new List<DetalleOperacion>();
 }
 
@@ -119,7 +124,21 @@ public class DetalleOperacion : AuditableEntity
     public Operacion? Operacion { get; set; }
     public int IdPresentacion { get; set; }
     public decimal Cantidad { get; set; }
+    /// <summary>Precio realmente cobrado por unidad, YA con convenio/campaña de puntos-app aplicados
+    /// (no con la oferta — esa se descuenta aparte en <see cref="Descuento"/>). Es la base sobre la
+    /// que corre el motor de ofertas. Para mostrarle al cajero el precio de lista SIN ningún
+    /// descuento, ver <see cref="PrecioLista"/>.</summary>
     public decimal Precio { get; set; }
+    /// <summary>Precio de la lista que le corresponde a ESTE cliente (la de su tarjeta/convenio
+    /// propio si tiene una — ver ResultadoPrecio.PrecioBase —, si no la lista general vigente), SIN
+    /// el % de convenio ni de campaña ni la oferta — lo que se muestra en la columna "Precio" de
+    /// Caja. La diferencia entre este y el total realmente facturado
+    /// (PrecioLista×Cantidad − (Precio×Cantidad − Descuento)) es todo lo que se le descontó al
+    /// cliente por cualquier motivo (convenio, campaña, oferta), y es lo que Caja suma en la
+    /// columna "Descuento".</summary>
+    public decimal PrecioLista { get; set; }
+    /// <summary>Descuento de OFERTA únicamente (MotorOfertas) — convenio y campaña ya están
+    /// descontados dentro de <see cref="Precio"/>, no acá.</summary>
     public decimal Descuento { get; set; }
     /// <summary>Trazabilidad: ofertas aplicadas a la línea (JSON, array de descripciones).</summary>
     public string? OfertasAplicadas { get; set; }

@@ -64,11 +64,11 @@ public class PricingService : IPricingService
                 convenio = new ConvenioInfo(cv?.Descuento ?? 0m, precioLista, idListaPropia);
         }
 
-        var r = CalculadoraPrecios.Resolver(candidatos, fecha, convenio);
+        var r = CalculadoraPrecios.Resolver(candidatos, fecha, convenio, req.PorcentajeCampania);
         // TieneConvenio = el convenio se APLICÓ a este precio (no "el cliente tiene convenio"): con un
         // precio de folder el convenio no entra, y la caja cobra PrecioVigente.
         return new ResolverPrecioResponse(r.Encontrado, r.PrecioVigente, r.ImpuestoInterno,
-            r.PrecioConvenio, r.AplicoConvenio, r.IdListaPrecio);
+            r.PrecioConvenio, r.AplicoConvenio, r.IdListaPrecio, r.PrecioBase);
     }
 
     public async Task<AplicarOfertasResponse> AplicarOfertasAsync(AplicarOfertasRequest req, CancellationToken ct = default)
