@@ -213,14 +213,18 @@ public class CajaService : ICajaService
             l.FechaApertura, l.Estado.ToString(), caja?.AdmitePresupuesto ?? false, modo);
     }
 
-    public async Task<string?> ObtenerDescripcionCajaAsync(int idSucursal, int idCaja, CancellationToken ct = default)
+    public async Task<DescripcionCajaDto> ObtenerDescripcionCajaAsync(int idSucursal, int idCaja, CancellationToken ct = default)
     {
         // Se consulta también en la pantalla de pre-apertura (todavía sin lote), así que se permite
         // igual que la apertura: cualquier caja de la sucursal autorizada.
         await AsegurarCajaAsync(idSucursal, idCaja, paraApertura: true, ct);
-        return await _db.Cajas.AsNoTracking()
+        var descripcionCaja = await _db.Cajas.AsNoTracking()
             .Where(c => c.IdSucursal == idSucursal && c.IdCaja == idCaja)
             .Select(c => c.Descripcion).FirstOrDefaultAsync(ct);
+        var nombreSucursal = await _db.Sucursales.AsNoTracking()
+            .Where(s => s.IdSucursal == idSucursal)
+            .Select(s => s.Descripcion).FirstOrDefaultAsync(ct);
+        return new DescripcionCajaDto(nombreSucursal, descripcionCaja);
     }
 
     public async Task<IReadOnlyList<MedioPagoResumen>> GetMediosPagoAsync(int? idCliente = null, CancellationToken ct = default)

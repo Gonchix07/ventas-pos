@@ -123,6 +123,7 @@ export function CajaPage() {
 
   const [lote, setLote] = useState<Lote | null>(null);
   const [descripcionCaja, setDescripcionCaja] = useState<string | null>(null);
+  const [nombreSucursal, setNombreSucursal] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingLote, setLoadingLote] = useState(true);
 
@@ -238,7 +239,9 @@ export function CajaPage() {
     void cargarMediosPago();
     caja.ofertasMedioPagoVigentes(idSucursal).then(setOfertasMedioPago).catch(() => {});
     caja.bancos().then(setBancos).catch(() => {});
-    caja.descripcion(idSucursal, idCaja).then(setDescripcionCaja).catch(() => {});
+    caja.descripcion(idSucursal, idCaja)
+      .then((d) => { setDescripcionCaja(d.descripcionCaja); setNombreSucursal(d.nombreSucursal); })
+      .catch(() => {});
     caja.misTurnos(idSucursal).then(setTurnos).catch(() => {});
     caja.cajas(idSucursal).then(setCajas).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -906,7 +909,7 @@ export function CajaPage() {
           <div className="card form" style={{ maxWidth: 560 }}>
             <h3>Apertura de caja</h3>
             <p className="muted">
-              Sucursal {idSucursal} · Caja {descripcionCaja ?? idCaja}. No hay un lote abierto hoy en esta caja.
+              {nombreSucursal ?? `Sucursal ${idSucursal}`} · {descripcionCaja ?? idCaja}. No tenés un lote abierto hoy.
             </p>
             {error && <p className="error">{error}</p>}
 
@@ -1323,10 +1326,21 @@ export function CajaPage() {
           <button onClick={() => setRetiroAbierto(true)}>Retiro de efectivo</button>
             <button onClick={abrirArqueo}>Arqueo X</button>
             <button onClick={abrirCierre}>Cerrar turno</button>
+            {lote.modoFacturacion === "FISCAL" && (
+              <button className="danger-solid" onClick={ejecutarCierreZFiscal} disabled={ejecutandoZFiscal}>
+                {ejecutandoZFiscal ? "Ejecutando Z…" : "Cierre Z"}
+              </button>
+            )}
             <span className="usuario-badge">{usuario}</span>
             <button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button>
           </div>
         </header>
+        {cierreZFiscalResultado && (
+          <p className="muted" style={{ padding: "0 20px" }}>
+            Cierre Z ejecutado a las {new Date(cierreZFiscalResultado.fechaHoraUtc).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+            {cierreZFiscalResultado.numeroFiscal && <> · Nº fiscal <b className="mono">{cierreZFiscalResultado.numeroFiscal}</b></>}
+          </p>
+        )}
         {notaCreditoAbierta && (
           <NotaCreditoModal idSucursal={idSucursal} idCaja={lote.idCaja}
             onCerrar={() => setNotaCreditoAbierta(false)} />
@@ -1404,6 +1418,7 @@ export function CajaPage() {
             <p className="muted">Sin resultados para «{busquedaEjecutada}».</p>
           )}
         </div>
+        {modalSupervisor}
       </div>
     );
   }
@@ -1689,10 +1704,21 @@ export function CajaPage() {
           <button onClick={() => setRetiroAbierto(true)}>Retiro de efectivo</button>
           <button onClick={abrirArqueo}>Arqueo X</button>
           <button onClick={abrirCierre}>Cerrar turno</button>
+          {lote.modoFacturacion === "FISCAL" && (
+            <button className="danger-solid" onClick={ejecutarCierreZFiscal} disabled={ejecutandoZFiscal}>
+              {ejecutandoZFiscal ? "Ejecutando Z…" : "Cierre Z"}
+            </button>
+          )}
           <span className="usuario-badge">{usuario}</span>
           <button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button>
         </div>
       </header>
+      {cierreZFiscalResultado && (
+        <p className="muted" style={{ padding: "0 20px" }}>
+          Cierre Z ejecutado a las {new Date(cierreZFiscalResultado.fechaHoraUtc).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+          {cierreZFiscalResultado.numeroFiscal && <> · Nº fiscal <b className="mono">{cierreZFiscalResultado.numeroFiscal}</b></>}
+        </p>
+      )}
       {notaCreditoAbierta && (
         <NotaCreditoModal idSucursal={idSucursal} idCaja={lote.idCaja}
           onCerrar={() => setNotaCreditoAbierta(false)} />

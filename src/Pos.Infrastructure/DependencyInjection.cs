@@ -22,7 +22,14 @@ public static class DependencyInjection
     {
         services.AddDbContext<PosDbContext>(opt =>
             opt.UseSqlServer(config.GetConnectionString("Pos"),
-                sql => sql.MigrationsAssembly(typeof(PosDbContext).Assembly.FullName)));
+                sql => sql
+                    .MigrationsAssembly(typeof(PosDbContext).Assembly.FullName)
+                    // Declara explícito el comportamiento que EF ya usaba por defecto (una sola
+                    // consulta con JOINs) para silenciar el warning "MultipleCollectionInclude" sin
+                    // cambiar el comportamiento real. Si una consulta puntual necesita evitar el
+                    // producto cartesiano de traer 2+ colecciones relacionadas a la vez, se puede
+                    // pedir .AsSplitQuery() en esa consulta específica.
+                    .UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery)));
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped(typeof(ICrudService<>), typeof(CrudService<>));

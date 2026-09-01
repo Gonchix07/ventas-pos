@@ -76,7 +76,7 @@ public class CajaController : ControllerBase
 
     [HttpGet("descripcion")]
     public async Task<IActionResult> Descripcion([FromQuery] int idSucursal, [FromQuery] int idCaja, CancellationToken ct) =>
-        Ok(ApiResult<string?>.Success(await _service.ObtenerDescripcionCajaAsync(idSucursal, idCaja, ct)));
+        Ok(ApiResult<DescripcionCajaDto>.Success(await _service.ObtenerDescripcionCajaAsync(idSucursal, idCaja, ct)));
 
     /// <summary>Medios habilitados para el cliente (los restringidos a un cluster se filtran).</summary>
     [HttpGet("medios-pago")]

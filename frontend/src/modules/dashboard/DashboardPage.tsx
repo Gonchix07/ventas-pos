@@ -13,7 +13,9 @@ const MODULOS = [
   // "key" (que tiene que coincidir tal cual con Modulo.Descripcion del backend/permisos).
   { key: "FacturacionCaea", label: "Facturación CAEA", desc: "Comprobantes emitidos en contingencia (CAEA) pendientes de informar a ARCA", to: "/facturacion-caea" },
   // Al final a propósito: es el módulo con más opciones y el que menos se usa día a día.
-  { key: "Administracion", desc: "ABM de datos maestros y configuración", to: "/admin" },
+  // "label" solo para el título de la tarjeta (más claro para el usuario que "Administración");
+  // "key" no se toca porque tiene que coincidir con Modulo.Descripcion del backend/permisos.
+  { key: "Administracion", label: "Configuraciones", desc: "ABM de datos maestros y configuración", to: "/admin" },
 ];
 
 export function DashboardPage() {

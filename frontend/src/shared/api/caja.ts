@@ -1,5 +1,11 @@
 import { api, unwrap } from "./client";
 
+/** Sucursal y caja resueltas por login, para la pantalla de pre-apertura (todavía sin lote). */
+export interface DescripcionCaja {
+  nombreSucursal: string | null;
+  descripcionCaja: string | null;
+}
+
 /** `admitePresupuesto`: si ESTA caja habilita el modo Presupuesto (el cliente necesita además su
     propio permiso, ver ClienteResumen.permitePresupuesto — las dos condiciones se exigen juntas). */
 export interface Lote {
@@ -167,7 +173,7 @@ export const caja = {
   abrir: (idSucursal: number, idCaja: number, codigoSupervisor?: string | null, montoInicial?: number) =>
     unwrap<Lote>(api.post(`/caja/apertura`, { idSucursal, idCaja, codigoSupervisor, montoInicial })),
   descripcion: (idSucursal: number, idCaja: number) =>
-    unwrap<string | null>(api.get(`/caja/descripcion`, { params: { idSucursal, idCaja } })),
+    unwrap<DescripcionCaja>(api.get(`/caja/descripcion`, { params: { idSucursal, idCaja } })),
   motivosDiferencia: () => unwrap<Motivo[]>(api.get(`/caja/motivos-diferencia`)),
   loteActual: (idSucursal: number, idCaja: number) =>
     unwrap<Lote>(api.get(`/caja/lote-actual`, { params: { idSucursal, idCaja } })),

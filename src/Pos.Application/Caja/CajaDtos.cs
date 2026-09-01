@@ -27,6 +27,10 @@ public record TurnoAbiertoDto(int IdSucursal, int IdLote, int IdCaja, string Des
 /// <summary>Caja de la sucursal, para elegir dónde abrir turno desde un puesto sin configurar.</summary>
 public record CajaDisponibleDto(int IdSucursal, int IdCaja, string Descripcion, int IdPuntoVenta);
 
+/// <summary>Datos para el encabezado de la pantalla de pre-apertura (todavía sin lote): nombre de la
+/// sucursal y descripción de la caja, ambos ya resueltos por el login.</summary>
+public record DescripcionCajaDto(string? NombreSucursal, string? DescripcionCaja);
+
 /// <summary>
 /// Medio de pago ofrecido en el cobro. <c>Fuente</c> = familia (5 = Cuenta corriente, 2 = Tarjetas:
 /// estos últimos piden cupón y lote). <c>EsPredeterminado</c> marca cuál viene elegido de entrada.
@@ -146,6 +150,6 @@ public interface ICajaService
     /// <summary>Bancos para el combo de banco emisor al cobrar con Cheque.</summary>
     Task<IReadOnlyList<BancoResumen>> GetBancosAsync(CancellationToken ct = default);
 
-    /// <summary>Descripción de la caja resuelta por login (para mostrar antes de que exista un lote).</summary>
-    Task<string?> ObtenerDescripcionCajaAsync(int idSucursal, int idCaja, CancellationToken ct = default);
+    /// <summary>Sucursal y descripción de la caja resueltas por login (para mostrar antes de que exista un lote).</summary>
+    Task<DescripcionCajaDto> ObtenerDescripcionCajaAsync(int idSucursal, int idCaja, CancellationToken ct = default);
 }
