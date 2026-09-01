@@ -64,7 +64,7 @@ public class GiftcardsAppService : IGiftcardsAppService
 
     private async Task<(Domain.Entities.ConexionGiftcardsApp Config, string ApiKey)?> ConfigValidaAsync(CancellationToken ct)
     {
-        var config = await _db.ConexionesGiftcardsApp.AsNoTracking().FirstOrDefaultAsync(ct);
+        var config = await _db.ConexionesGiftcardsApp.AsNoTracking().SingleOrDefaultAsync(ct);
         if (config is null || !config.Habilitada) return null;
         if (string.IsNullOrWhiteSpace(config.UrlBase) || string.IsNullOrEmpty(config.TokenProtegido)) return null;
         return (config, _protector.Unprotect(config.TokenProtegido));

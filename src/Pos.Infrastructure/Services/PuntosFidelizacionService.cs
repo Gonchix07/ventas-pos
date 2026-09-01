@@ -49,7 +49,7 @@ public class PuntosFidelizacionService : IPuntosFidelizacionService
     {
         try
         {
-            var config = await _db.ConexionesPuntosApp.AsNoTracking().FirstOrDefaultAsync(ct);
+            var config = await _db.ConexionesPuntosApp.AsNoTracking().SingleOrDefaultAsync(ct);
             // Integración no activada: no es un error, simplemente no se intenta (no hay nada que
             // mostrarle al cajero — el frontend no muestra popup cuando Error es null).
             if (config is null || !config.Habilitada) return new ResultadoCargaPuntos(false, null, null, null, null);

@@ -37,7 +37,7 @@ public class InterfaseContableService : IInterfaseContableService
     /// llamador es responsable de loguear cualquier excepción que tire esto (best-effort).</summary>
     private async Task<MySqlConnection?> AbrirConexionAsync(long idVentaSalonParaLog, CancellationToken ct)
     {
-        var config = await _db.ConexionesExternasMySql.AsNoTracking().FirstOrDefaultAsync(ct);
+        var config = await _db.ConexionesExternasMySql.AsNoTracking().SingleOrDefaultAsync(ct);
         if (config is null || !config.Habilitada) return null;
 
         if (string.IsNullOrEmpty(config.PasswordProtegida))

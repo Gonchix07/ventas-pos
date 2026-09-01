@@ -688,7 +688,7 @@ public class ConexionExternaAdminService : IConexionExternaAdminService
 
     public async Task<ConexionExternaMySqlDto> GetAsync(CancellationToken ct = default)
     {
-        var c = await _db.ConexionesExternasMySql.AsNoTracking().FirstOrDefaultAsync(ct);
+        var c = await _db.ConexionesExternasMySql.AsNoTracking().SingleOrDefaultAsync(ct);
         if (c is null) return new ConexionExternaMySqlDto("", 3306, "", "", false, false);
         return new ConexionExternaMySqlDto(c.Host, c.Puerto, c.BaseDatos, c.Usuario,
             !string.IsNullOrEmpty(c.PasswordProtegida), c.Habilitada);
@@ -696,7 +696,7 @@ public class ConexionExternaAdminService : IConexionExternaAdminService
 
     public async Task UpdateAsync(ConexionExternaMySqlInput input, CancellationToken ct = default)
     {
-        var c = await _db.ConexionesExternasMySql.FirstOrDefaultAsync(ct);
+        var c = await _db.ConexionesExternasMySql.SingleOrDefaultAsync(ct);
         if (c is null)
         {
             c = new ConexionExternaMySql();
@@ -721,7 +721,7 @@ public class ConexionExternaAdminService : IConexionExternaAdminService
         string? password = input.Password;
         if (string.IsNullOrEmpty(password))
         {
-            var guardada = await _db.ConexionesExternasMySql.AsNoTracking().FirstOrDefaultAsync(ct);
+            var guardada = await _db.ConexionesExternasMySql.AsNoTracking().SingleOrDefaultAsync(ct);
             if (string.IsNullOrEmpty(guardada?.PasswordProtegida))
                 return new ProbarConexionResultado(false, "No hay contraseña guardada ni se ingresó una nueva.");
             password = _protector.Unprotect(guardada.PasswordProtegida);
@@ -771,14 +771,14 @@ public class ConexionPuntosAppAdminService : IConexionPuntosAppAdminService
 
     public async Task<ConexionPuntosAppDto> GetAsync(CancellationToken ct = default)
     {
-        var c = await _db.ConexionesPuntosApp.AsNoTracking().FirstOrDefaultAsync(ct);
+        var c = await _db.ConexionesPuntosApp.AsNoTracking().SingleOrDefaultAsync(ct);
         if (c is null) return new ConexionPuntosAppDto("", "", false, false);
         return new ConexionPuntosAppDto(c.UrlBase, c.Comercio, !string.IsNullOrEmpty(c.TokenProtegido), c.Habilitada);
     }
 
     public async Task UpdateAsync(ConexionPuntosAppInput input, CancellationToken ct = default)
     {
-        var c = await _db.ConexionesPuntosApp.FirstOrDefaultAsync(ct);
+        var c = await _db.ConexionesPuntosApp.SingleOrDefaultAsync(ct);
         if (c is null)
         {
             c = new ConexionPuntosApp();
@@ -801,7 +801,7 @@ public class ConexionPuntosAppAdminService : IConexionPuntosAppAdminService
         var apiKey = input.Token;
         if (string.IsNullOrEmpty(apiKey))
         {
-            var guardada = await _db.ConexionesPuntosApp.AsNoTracking().FirstOrDefaultAsync(ct);
+            var guardada = await _db.ConexionesPuntosApp.AsNoTracking().SingleOrDefaultAsync(ct);
             if (string.IsNullOrEmpty(guardada?.TokenProtegido))
                 return new ProbarConexionResultado(false, "No hay API key guardada ni se ingresó una nueva.");
             apiKey = _protector.Unprotect(guardada.TokenProtegido);
@@ -855,14 +855,14 @@ public class ConexionGiftcardsAppAdminService : IConexionGiftcardsAppAdminServic
 
     public async Task<ConexionGiftcardsAppDto> GetAsync(CancellationToken ct = default)
     {
-        var c = await _db.ConexionesGiftcardsApp.AsNoTracking().FirstOrDefaultAsync(ct);
+        var c = await _db.ConexionesGiftcardsApp.AsNoTracking().SingleOrDefaultAsync(ct);
         if (c is null) return new ConexionGiftcardsAppDto("", "", false, false);
         return new ConexionGiftcardsAppDto(c.UrlBase, c.Comercio, !string.IsNullOrEmpty(c.TokenProtegido), c.Habilitada);
     }
 
     public async Task UpdateAsync(ConexionGiftcardsAppInput input, CancellationToken ct = default)
     {
-        var c = await _db.ConexionesGiftcardsApp.FirstOrDefaultAsync(ct);
+        var c = await _db.ConexionesGiftcardsApp.SingleOrDefaultAsync(ct);
         if (c is null)
         {
             c = new ConexionGiftcardsApp();
@@ -881,7 +881,7 @@ public class ConexionGiftcardsAppAdminService : IConexionGiftcardsAppAdminServic
         var apiKey = input.Token;
         if (string.IsNullOrEmpty(apiKey))
         {
-            var guardada = await _db.ConexionesGiftcardsApp.AsNoTracking().FirstOrDefaultAsync(ct);
+            var guardada = await _db.ConexionesGiftcardsApp.AsNoTracking().SingleOrDefaultAsync(ct);
             if (string.IsNullOrEmpty(guardada?.TokenProtegido))
                 return new ProbarConexionResultado(false, "No hay API key guardada ni se ingresó una nueva.");
             apiKey = _protector.Unprotect(guardada.TokenProtegido);
