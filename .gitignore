@@ -14,6 +14,8 @@ appsettings.*.local.json
 appsettings.Local.json
 *.secrets.json
 secrets.json
+API KEY/
+*api*key*.txt
 
 # Certificados CAE subidos + claves de Data Protection (Storage:CertificadosPath, ver Program.cs)
 App_Data/
