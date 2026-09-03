@@ -57,6 +57,17 @@ public static class InterfaseContableReglas
     /// del artículo, completando ceros a la izquierda.</summary>
     public static string Articulo(string codigoInterno) => codigoInterno.PadLeft(13, '0');
 
+    /// <summary>
+    /// Porcentaje de descuento para <c>movstock.descto</c> (corregido 2026-08-26: no va el monto
+    /// descontado, va el % que representa sobre el bruto de la línea). 0 si el bruto es 0 (evita
+    /// dividir por cero en líneas sin precio).
+    /// </summary>
+    public static decimal PorcentajeDescuento(decimal precio, decimal cantidad, decimal descuento)
+    {
+        var bruto = precio * cantidad;
+        return bruto <= 0m ? 0m : Math.Round(descuento / bruto * 100m, 2, MidpointRounding.AwayFromZero);
+    }
+
     /// <summary>Código de reparto para <c>movstock.reparto</c> (char 8): el número de operación de
     /// pos-mayorista, completando ceros a la izquierda (confirmado con el usuario — no hay reparto
     /// real todavía, se usa como referencia).</summary>
@@ -79,8 +90,13 @@ public static class InterfaseContableReglas
     /// otra codificación porque son columnas de tablas distintas.</summary>
     public static string CondVta(bool tieneCuentaCorriente) => tieneCuentaCorriente ? "02" : "01";
 
-    /// <summary>Hora del comprobante en formato HH:mm, para <c>comision.hora</c> (char 5).</summary>
-    public static string Hora(DateTime fecha) => fecha.ToString("HH:mm");
+    /// <summary>
+    /// Hora del comprobante en formato HH:mm, para <c>comision.hora</c> (char 5). Bug real
+    /// (2026-08-26): <paramref name="fechaUtc"/> siempre viene en UTC (convención de todo el
+    /// proyecto, ver <c>UtcDateTimeConverter</c>) — sin restar el offset, quedaba 3 horas adelantada
+    /// respecto de la hora real de Argentina (UTC-3, sin horario de verano).
+    /// </summary>
+    public static string Hora(DateTime fechaUtc) => fechaUtc.AddHours(-3).ToString("HH:mm");
 
     /// <summary>Código de plan de cuotas para <c>cupones.plan</c> (char 3): la cantidad de cuotas,
     /// completando ceros a la izquierda (confirmado con el usuario — sin cuotas/1 sola cuota →

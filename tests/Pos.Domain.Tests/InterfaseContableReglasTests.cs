@@ -78,10 +78,19 @@ public class InterfaseContableReglasTests
         Assert.Equal(esperado, InterfaseContableReglas.CondVta(tieneCuentaCorriente));
 
     [Fact]
-    public void Hora_FormateaComoHHmm()
+    public void Hora_ConvierteDeUtcAUtcMenos3YFormateaComoHHmm()
     {
-        var fecha = new DateTime(2026, 8, 21, 14, 5, 32);
-        Assert.Equal("14:05", InterfaseContableReglas.Hora(fecha));
+        // fechaUtc son las 14:05 UTC → en Argentina (UTC-3, sin horario de verano) son las 11:05.
+        var fechaUtc = new DateTime(2026, 8, 21, 14, 5, 32);
+        Assert.Equal("11:05", InterfaseContableReglas.Hora(fechaUtc));
+    }
+
+    [Fact]
+    public void Hora_CruzaMedianocheHaciaElDiaAnterior()
+    {
+        // 01:30 UTC → 22:30 del día anterior en Argentina.
+        var fechaUtc = new DateTime(2026, 8, 21, 1, 30, 0);
+        Assert.Equal("22:30", InterfaseContableReglas.Hora(fechaUtc));
     }
 
     [Fact]
@@ -183,5 +192,37 @@ public class InterfaseContableReglasTests
     {
         var codificado = InterfaseContableReglas.CodificarCantidadMovStock(2.12345m, 1m, ventaPorPeso: true);
         Assert.Equal(2.123m, codificado);
+    }
+
+    // --- PorcentajeDescuento ---
+
+    [Fact]
+    public void PorcentajeDescuento_CalculaElPorcentajeSobreElBruto()
+    {
+        // Bruto = 100 (precio) × 10 (cantidad) = 1000; descuento 100 → 10%.
+        var porcentaje = InterfaseContableReglas.PorcentajeDescuento(precio: 100m, cantidad: 10m, descuento: 100m);
+        Assert.Equal(10m, porcentaje);
+    }
+
+    [Fact]
+    public void PorcentajeDescuento_SinDescuento_DevuelveCero()
+    {
+        var porcentaje = InterfaseContableReglas.PorcentajeDescuento(precio: 100m, cantidad: 10m, descuento: 0m);
+        Assert.Equal(0m, porcentaje);
+    }
+
+    [Fact]
+    public void PorcentajeDescuento_BrutoCero_DevuelveCeroSinDividirPorCero()
+    {
+        var porcentaje = InterfaseContableReglas.PorcentajeDescuento(precio: 0m, cantidad: 5m, descuento: 10m);
+        Assert.Equal(0m, porcentaje);
+    }
+
+    [Fact]
+    public void PorcentajeDescuento_RedondeaA2Decimales()
+    {
+        // Bruto = 3; descuento 1 → 33,333...% → 33.33%.
+        var porcentaje = InterfaseContableReglas.PorcentajeDescuento(precio: 3m, cantidad: 1m, descuento: 1m);
+        Assert.Equal(33.33m, porcentaje);
     }
 }
