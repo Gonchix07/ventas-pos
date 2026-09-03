@@ -512,11 +512,18 @@ public class CajaService : ICajaService
         // queda cacheada en la operación — AgregarLineaAsync la reutiliza en cada línea sin volver a
         // golpear la API. Best-effort: 0% si no hay DNI, la integración está apagada, o falla.
         var porcentajeCampania = 0m;
+        string? idCampania = null;
         if (!string.IsNullOrWhiteSpace(documentoCliente))
         {
             var campanias = await _puntosFidelizacion.ConsultarCampaniasAsync(documentoCliente, ct);
             if (campanias.Ok && campanias.Campanias.Count > 0)
-                porcentajeCampania = campanias.Campanias.Max(c => c.DescuentoPorcentaje);
+            {
+                // La MISMA que se aplica al precio (mayor %) es la que hay que registrar como usada
+                // al facturar — ver FacturacionService.EmitirAsync.
+                var mejor = campanias.Campanias.OrderByDescending(c => c.DescuentoPorcentaje).First();
+                porcentajeCampania = mejor.DescuentoPorcentaje;
+                idCampania = mejor.Id;
+            }
         }
 
         // Lock por sucursal: dos cajas distintas de la misma sucursal creando una operación al
@@ -533,7 +540,7 @@ public class CajaService : ICajaService
             IdSucursal = req.IdSucursal, IdOperacion = next, IdCliente = req.IdCliente,
             IdCaja = req.IdCaja, IdLote = lote.IdLote,
             Estado = EstadoOperacion.EnCurso, Total = 0, DescuentoTotal = 0,
-            PorcentajeCampaniaPuntos = porcentajeCampania,
+            PorcentajeCampaniaPuntos = porcentajeCampania, IdCampaniaPuntos = idCampania,
         };
         _db.Operaciones.Add(op);
         await _db.SaveChangesAsync(ct);

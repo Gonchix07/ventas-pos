@@ -177,6 +177,12 @@
   .card{background:var(--card); border:1px solid var(--borde); border-radius:12px; padding:16px 18px;}
   .card h4{margin-top:0;}
 
+  .mapa-card{
+    background:var(--card); border:1px solid var(--borde); border-radius:16px;
+    padding:18px; margin:18px 0 8px;
+  }
+  .mapa-svg{width:100%; height:auto; display:block; max-width:760px; margin:0 auto;}
+
   .badge-rol{
     display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:5px;
     background:var(--azul-100); color:var(--azul-700); margin:0 4px 4px 0;
@@ -281,6 +287,7 @@
     <a href="#permisos">14. Roles y permisos</a>
     <a href="#supervisor">15. Código de supervisor</a>
     <a href="#glosario">16. Glosario</a>
+    <a href="#mapa-sistema">17. Mapa del sistema</a>
   </div>
 </nav>
 
@@ -712,6 +719,116 @@
     <tr><td><strong>Convenio</strong></td><td>Condición comercial especial de un cliente: descuento fijo y/o lista de precios propia.</td></tr>
     <tr><td><strong>Cluster</strong></td><td>Agrupación de clientes usada para definir a quién le aplica una oferta o un medio de pago restringido.</td></tr>
   </table>
+  </div>
+</section>
+
+<section id="mapa-sistema">
+  <h2>17. Mapa del sistema</h2>
+  <p class="lead">De un vistazo, los grandes bloques del sistema y qué incluye cada uno.</p>
+  <div class="mapa-card">
+    <svg class="mapa-svg" viewBox="0 0 1000 1090" xmlns="http://www.w3.org/2000/svg" role="img"
+      aria-label="Mapa de módulos del sistema, organizado alrededor de POS Mayorista: Caja, Clientes, Etiquetas, Facturación, Tesorería, Integraciones, Precios y Ofertas, y Administración.">
+      <circle cx="500" cy="500" r="330" fill="none" stroke="#c7dcf5" stroke-width="2" stroke-dasharray="3 10" />
+
+      <!-- Rayos: del centro a cada módulo -->
+      <line x1="500" y1="500" x2="500" y2="110" stroke="#1a4d8f" stroke-width="3" stroke-opacity=".55" />
+      <line x1="500" y1="500" x2="733" y2="267" stroke="#1a4d8f" stroke-width="3" stroke-opacity=".55" />
+      <line x1="500" y1="500" x2="830" y2="500" stroke="#1e7a3c" stroke-width="3" stroke-opacity=".55" />
+      <line x1="500" y1="500" x2="733" y2="733" stroke="#b8790a" stroke-width="3" stroke-opacity=".55" />
+      <line x1="500" y1="500" x2="500" y2="930" stroke="#b8790a" stroke-width="3" stroke-opacity=".55" />
+      <line x1="500" y1="500" x2="267" y2="733" stroke="#5b2b8a" stroke-width="3" stroke-opacity=".55" />
+      <line x1="500" y1="500" x2="170" y2="500" stroke="#4a5766" stroke-width="3" stroke-opacity=".55" />
+      <line x1="500" y1="500" x2="267" y2="267" stroke="#4a5766" stroke-width="3" stroke-opacity=".55" />
+
+      <!-- Centro -->
+      <circle cx="500" cy="500" r="95" fill="#0b2545" />
+      <text x="500" y="491" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="28"
+        font-weight="800" fill="#ffffff">POS</text>
+      <text x="500" y="518" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16"
+        font-weight="600" fill="#cfe0f7">Mayorista</text>
+
+      <!-- Caja (arriba, más separada del centro) -->
+      <g font-family="Segoe UI, sans-serif">
+        <rect x="386" y="44" width="228" height="132" rx="16" fill="#f4f8fd" stroke="#1a4d8f" stroke-width="2" />
+        <rect x="386" y="44" width="228" height="34" rx="16" fill="#1a4d8f" />
+        <text x="500" y="67" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Caja</text>
+        <text x="404" y="101" font-size="14.5" fill="#1b2733">• Apertura y cobro</text>
+        <text x="404" y="125" font-size="14.5" fill="#1b2733">• Medios de pago</text>
+        <text x="404" y="149" font-size="14.5" fill="#1b2733">• Notas de crédito</text>
+      </g>
+
+      <!-- Clientes (arriba derecha) -->
+      <g font-family="Segoe UI, sans-serif">
+        <rect x="619" y="201" width="228" height="132" rx="16" fill="#f4f8fd" stroke="#1a4d8f" stroke-width="2" />
+        <rect x="619" y="201" width="228" height="34" rx="16" fill="#1a4d8f" />
+        <text x="733" y="224" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Clientes</text>
+        <text x="637" y="258" font-size="14.5" fill="#1b2733">• Identificación</text>
+        <text x="637" y="282" font-size="14.5" fill="#1b2733">• Autorizados</text>
+        <text x="637" y="306" font-size="14.5" fill="#1b2733">• Tarjetas</text>
+      </g>
+
+      <!-- Etiquetas (derecha) -->
+      <g font-family="Segoe UI, sans-serif">
+        <rect x="716" y="434" width="228" height="132" rx="16" fill="#eaf7ee" stroke="#1e7a3c" stroke-width="2" />
+        <rect x="716" y="434" width="228" height="34" rx="16" fill="#1e7a3c" />
+        <text x="830" y="457" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Etiquetas</text>
+        <text x="734" y="491" font-size="14.5" fill="#1b2733">• Fleje</text>
+        <text x="734" y="515" font-size="14.5" fill="#1b2733">• A4 / A5</text>
+        <text x="734" y="539" font-size="14.5" fill="#1b2733">• Verificar Precios</text>
+      </g>
+
+      <!-- Facturación (abajo derecha) -->
+      <g font-family="Segoe UI, sans-serif">
+        <rect x="619" y="667" width="228" height="172" rx="16" fill="#fff6e6" stroke="#b8790a" stroke-width="2" />
+        <rect x="619" y="667" width="228" height="34" rx="16" fill="#b8790a" />
+        <text x="733" y="690" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Facturación</text>
+        <text x="637" y="724" font-size="14.5" fill="#1b2733">• Fiscal</text>
+        <text x="637" y="744" font-size="14.5" fill="#1b2733">• CAE</text>
+        <text x="637" y="764" font-size="14.5" fill="#1b2733">• CAEA (contingencia)</text>
+        <text x="637" y="784" font-size="14.5" fill="#1b2733">• Créditos</text>
+        <text x="637" y="804" font-size="14.5" fill="#1b2733">• Reimpresión</text>
+      </g>
+
+      <!-- Tesorería (abajo, más separada del centro) -->
+      <g font-family="Segoe UI, sans-serif">
+        <rect x="386" y="864" width="228" height="132" rx="16" fill="#fff6e6" stroke="#b8790a" stroke-width="2" />
+        <rect x="386" y="864" width="228" height="34" rx="16" fill="#b8790a" />
+        <text x="500" y="887" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Tesorería</text>
+        <text x="404" y="921" font-size="14.5" fill="#1b2733">• Cierres de caja</text>
+        <text x="404" y="945" font-size="14.5" fill="#1b2733">• Cupones</text>
+        <text x="404" y="969" font-size="14.5" fill="#1b2733">• Efectividad</text>
+      </g>
+
+      <!-- Integraciones (abajo izquierda) -->
+      <g font-family="Segoe UI, sans-serif">
+        <rect x="153" y="667" width="228" height="132" rx="16" fill="#ede4fb" stroke="#5b2b8a" stroke-width="2" />
+        <rect x="153" y="667" width="228" height="34" rx="16" fill="#5b2b8a" />
+        <text x="267" y="690" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Integraciones</text>
+        <text x="171" y="724" font-size="14.5" fill="#1b2733">• Puntos (campañas)</text>
+        <text x="171" y="748" font-size="14.5" fill="#1b2733">• Gift Cards</text>
+        <text x="171" y="772" font-size="14.5" fill="#1b2733">• Conexión externa</text>
+      </g>
+
+      <!-- Precios y Ofertas (izquierda) -->
+      <g font-family="Segoe UI, sans-serif">
+        <rect x="56" y="434" width="228" height="132" rx="16" fill="#eceff3" stroke="#4a5766" stroke-width="2" />
+        <rect x="56" y="434" width="228" height="34" rx="16" fill="#4a5766" />
+        <text x="170" y="457" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Precios y Ofertas</text>
+        <text x="74" y="491" font-size="14.5" fill="#1b2733">• Listas de precios</text>
+        <text x="74" y="515" font-size="14.5" fill="#1b2733">• Ofertas</text>
+        <text x="74" y="539" font-size="14.5" fill="#1b2733">• Convenios</text>
+      </g>
+
+      <!-- Administración (arriba izquierda) -->
+      <g font-family="Segoe UI, sans-serif">
+        <rect x="153" y="201" width="228" height="132" rx="16" fill="#eceff3" stroke="#4a5766" stroke-width="2" />
+        <rect x="153" y="201" width="228" height="34" rx="16" fill="#4a5766" />
+        <text x="267" y="224" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Administración</text>
+        <text x="171" y="258" font-size="14.5" fill="#1b2733">• Usuarios y roles</text>
+        <text x="171" y="282" font-size="14.5" fill="#1b2733">• Empresas / Sucursales</text>
+        <text x="171" y="306" font-size="14.5" fill="#1b2733">• Estructura de caja</text>
+      </g>
+    </svg>
   </div>
 </section>
 

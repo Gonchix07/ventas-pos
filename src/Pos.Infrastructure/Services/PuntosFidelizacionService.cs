@@ -189,4 +189,58 @@ public class PuntosFidelizacionService : IPuntosFidelizacionService
             return new ResultadoCampanias(false, vacio, ex.Message);
         }
     }
+
+    public async Task<ResultadoUsoCampania> RegistrarUsoCampaniaAsync(string idCampania, string dni, CancellationToken ct = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(idCampania) || string.IsNullOrWhiteSpace(dni))
+                return new ResultadoUsoCampania(false, null);
+
+            var config = await _db.ConexionesPuntosApp.AsNoTracking().SingleOrDefaultAsync(ct);
+            if (config is null || !config.Habilitada) return new ResultadoUsoCampania(false, null);
+
+            if (string.IsNullOrWhiteSpace(config.UrlBase) || string.IsNullOrWhiteSpace(config.Comercio)
+                || string.IsNullOrEmpty(config.TokenProtegido))
+                return new ResultadoUsoCampania(false, "Integración con puntos-app incompleta (falta URL/comercio/API key).");
+
+            var apiKey = _protector.Unprotect(config.TokenProtegido);
+
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{config.UrlBase.TrimEnd('/')}/api/campanias");
+            req.Headers.Add("X-Api-Key", apiKey);
+            req.Content = JsonContent.Create(new
+            {
+                campania_id = idCampania,
+                dni,
+                local = config.Comercio,
+            });
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(Timeout);
+            using var resp = await _http.SendAsync(req, cts.Token);
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                var bodyText = await resp.Content.ReadAsStringAsync(ct);
+                // No bloquea nada (la venta ya está facturada) — solo se loguea para poder revisar
+                // por qué puntos-app no pudo marcar el uso (ej. la campaña dejó de ser válida entre
+                // que se cacheó al abrir la venta y que se facturó, minutos después).
+                _log.LogWarning(
+                    "puntos-app no pudo registrar el uso de la campaña {IdCampania} (DNI {Dni}): {Status} {Body}",
+                    idCampania, dni, (int)resp.StatusCode, bodyText);
+                string? motivo = null;
+                try { motivo = System.Text.Json.JsonSerializer.Deserialize<ErrorRespuestaJson>(bodyText)?.Error; }
+                catch (System.Text.Json.JsonException) { /* body no era el JSON esperado; se ignora el motivo */ }
+                return new ResultadoUsoCampania(false, motivo ?? $"HTTP {(int)resp.StatusCode}");
+            }
+
+            return new ResultadoUsoCampania(true, null);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "No se pudo registrar en puntos-app el uso de la campaña {IdCampania} (DNI {Dni}).",
+                idCampania, dni);
+            return new ResultadoUsoCampania(false, ex.Message);
+        }
+    }
 }

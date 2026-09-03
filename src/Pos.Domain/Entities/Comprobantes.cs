@@ -113,6 +113,10 @@ public class Operacion : AuditableEntity
     /// línea que se agregue — evita golpear la API externa en cada escaneo. 0 si no hay campaña o la
     /// integración está apagada/no responde (best-effort, nunca bloquea la venta).</summary>
     public decimal PorcentajeCampaniaPuntos { get; set; }
+    /// <summary>Id (uuid) de la campaña de puntos-app de la que salió <see cref="PorcentajeCampaniaPuntos"/>
+    /// — null si no hay campaña aplicada. Se necesita para registrar el USO real en puntos-app
+    /// (POST /api/campanias) al facturar, ver FacturacionService.EmitirAsync.</summary>
+    public string? IdCampaniaPuntos { get; set; }
     public ICollection<DetalleOperacion> Detalles { get; set; } = new List<DetalleOperacion>();
 }
 

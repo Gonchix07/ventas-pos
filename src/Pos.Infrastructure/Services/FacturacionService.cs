@@ -824,7 +824,8 @@ public class FacturacionService : IFacturacionService
                     filasMovStock.Add(new MovStockInterfase(
                         Fecha: cabecera.Fecha,
                         Articulo: InterfaseContableReglas.Articulo(codigoArticulo),
-                        Salida: salidaCodificada, Descto: origen.Descuento,
+                        Salida: salidaCodificada,
+                        Descto: InterfaseContableReglas.PorcentajeDescuento(origen.Precio, origen.Cantidad, origen.Descuento),
                         Unitario: origen.Precio, Pesos: importe,
                         DeDeposito: InterfaseContableReglas.DepositoFijo,
                         Cliente: Truncar(datosCliente?.CodigoInt, 5),
@@ -887,6 +888,15 @@ public class FacturacionService : IFacturacionService
                         Dni: datosCliente.Documento!, FacturaPesos: cabecera.Total,
                         FacturaNumero: $"{req.IdSucursal}-{cabecera.NumeroCompleto}"), ct);
                     fidelizacionResultado = new FidelizacionResultDto(r.Ok, r.Cliente, r.PuntosOtorgados, r.PuntosTotales, r.Error);
+
+                    // Uso de campaña (best-effort, silencioso — nunca se le muestra al cajero, solo
+                    // se loguea si falla): hay que avisarle a puntos-app que el descuento que ya se
+                    // aplicó al precio se EFECTIVIZÓ en una venta real, para que cumpla la
+                    // periodicidad (diaria/semanal/mensual) de esa campaña puntual. Solo si el
+                    // descuento de campaña realmente se aplicó a esta operación.
+                    if (!string.IsNullOrWhiteSpace(operacion.IdCampaniaPuntos))
+                        await _fidelizacion.RegistrarUsoCampaniaAsync(
+                            operacion.IdCampaniaPuntos!, datosCliente.Documento!, ct);
                 }
             }
 
