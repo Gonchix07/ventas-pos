@@ -3,6 +3,8 @@ import {
   ofertasMedioPago, referencias, pagos as pagosApi,
   type Lookup, type OfertaMedioPago, type OfertaMedioPagoInput, type MedioPago, type PlanCuota,
 } from "../../shared/api/admin";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
+import { useAuth } from "../../shared/auth/auth";
 
 // Fecha en hora LOCAL: con toISOString() (UTC) después de las 21 hs la oferta nueva arrancaba
 // mañana y no aplicaba en el día (mismo criterio que OfertasPage).
@@ -22,6 +24,7 @@ const vacio = (): OfertaMedioPagoInput => ({
  * artículo en "Ofertas". El resultado sale como una línea "Descuento x MP" en el comprobante.
  */
 export function OfertasMedioPagoPage() {
+  const { idSucursalPredeterminada } = useAuth();
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
   const [suc, setSuc] = useState(0);
   const [items, setItems] = useState<OfertaMedioPago[]>([]);
@@ -33,8 +36,13 @@ export function OfertasMedioPagoPage() {
   const [editId, setEditId] = useState<number | null>(null);
 
   useEffect(() => {
-    referencias.sucursales().then((s) => { setSucursales(s); if (s.length) setSuc(s[0].id); }).catch(() => {});
+    referencias.sucursales().then((s) => {
+      setSucursales(s);
+      if (idSucursalPredeterminada) setSuc(idSucursalPredeterminada);
+      else if (s.length) setSuc(s[0].id);
+    }).catch(() => {});
     pagosApi.medios().then(setMedios).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cargar = async (s: number) => {
@@ -148,7 +156,7 @@ export function OfertasMedioPagoPage() {
         <thead><tr><th>ID</th><th>Descripción</th><th>Medio</th><th>Cuotas</th><th>%</th><th>Tope $</th><th>Vigencia</th><th>Activa</th><th></th></tr></thead>
         <tbody>
           {items.map((o) => (
-            <tr key={o.idOfertaMedioPago}>
+            <tr key={o.idOfertaMedioPago} className={editId === o.idOfertaMedioPago ? "lote-sel" : ""}>
               <td className="mono">{o.idOfertaMedioPago}</td>
               <td>{o.descripcion}</td>
               <td>{o.medioPagoDescripcion ?? o.idMedioPago}</td>
@@ -158,11 +166,11 @@ export function OfertasMedioPagoPage() {
               <td className="mono">{o.fechaInicio.slice(0, 10)} → {o.fechaFin.slice(0, 10)}</td>
               <td>{o.activo ? <span className="badge on">Sí</span> : <span className="badge off">No</span>}</td>
               <td className="row-actions">
-                <button onClick={() => editar(o)}>✎</button>
-                <button className="danger" onClick={() => {
+                <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => editar(o)}><IconEditar /></button>
+                <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar" onClick={() => {
                   if (!confirm(`¿Eliminar la oferta «${o.descripcion}»?`)) return;
                   void run(() => ofertasMedioPago.remove(suc, o.idOfertaMedioPago));
-                }}>×</button>
+                }}><IconEliminar /></button>
               </td>
             </tr>
           ))}

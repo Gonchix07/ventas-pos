@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { clusters, clientes, type Cluster, type ClusterMiembro, type Cliente } from "../../shared/api/admin";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
 
 /**
  * ABM de clusters. El editor de miembros trabaja sobre una selección local (Set de ids) y se
@@ -183,8 +184,10 @@ export function ClustersPage() {
                   <td className="mono">{c.cantidadClientes}</td>
                   <td className="row-actions">
                     <button className="primary" onClick={() => abrir(c)}>Editar miembros</button>
-                    <button onClick={() => { setRenombrando(c.idCluster); setRenombreDesc(c.descripcion); }}>Renombrar</button>
-                    <button className="danger" onClick={() => eliminar(c)}>Eliminar</button>
+                    <button className="icon-btn" title="Renombrar" aria-label="Renombrar"
+                      onClick={() => { setRenombrando(c.idCluster); setRenombreDesc(c.descripcion); }}><IconEditar /></button>
+                    <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                      onClick={() => eliminar(c)}><IconEliminar /></button>
                   </td>
                 </tr>
               ))}

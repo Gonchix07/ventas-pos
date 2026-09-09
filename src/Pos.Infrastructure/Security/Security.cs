@@ -31,7 +31,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
     public JwtTokenGenerator(JwtOptions opt) => _opt = opt;
 
     public (string token, DateTime expiraUtc) Generar(UsuarioAutenticado usuario, int? idSucursal, int? idCaja,
-        IReadOnlyList<string> modulos)
+        IReadOnlyList<string> modulos, int? idSucursalPredeterminada = null)
     {
         var expira = DateTime.UtcNow.AddMinutes(_opt.Minutos);
         var claims = new List<Claim>
@@ -43,6 +43,10 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         };
         if (idSucursal is not null) claims.Add(new("idSucursal", idSucursal.ToString()!));
         if (idCaja is not null) claims.Add(new("idCaja", idCaja.ToString()!));
+        // Distinto de "idSucursal" de arriba (esa la resuelve el puesto físico de Caja): esta es la
+        // sucursal que el usuario tiene configurada en su perfil, para default de selectores de
+        // "Sucursal" en pantallas sin caja asociada (Etiquetas, reportes...).
+        if (idSucursalPredeterminada is not null) claims.Add(new("idSucursalPredeterminada", idSucursalPredeterminada.ToString()!));
         // Un claim "modulo" por cada módulo habilitado (ver ModuloAutorizadoAttribute) — así el
         // tilde de "Permisos por rol" habilita el acceso real, no solo la tarjeta del menú.
         foreach (var m in modulos) claims.Add(new("modulo", m));

@@ -114,6 +114,7 @@ public class AuthController : ControllerBase
                 rol = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
                 idSucursal = User.FindFirst("idSucursal")?.Value,
                 idCaja = User.FindFirst("idCaja")?.Value,
+                idSucursalPredeterminada = User.FindFirst("idSucursalPredeterminada")?.Value,
                 modulos,
                 // IP actual del request (no la del login original) — así el usuario ve dónde
                 // está parado AHORA, útil si abre la app desde otra PC con la misma sesión.

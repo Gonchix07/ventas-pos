@@ -4,6 +4,7 @@ import {
   type TipoPago, type MedioPago, type Cluster,
 } from "../../shared/api/admin";
 import { PlanesCuotaModal } from "./PlanesCuotaModal";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
 
 // Familia "Tarjetas" en FUENTES_PAGO (ver PosEnums.FuentePago en el backend).
 const FUENTE_TARJETA = 2;
@@ -64,7 +65,7 @@ export function PagosPage() {
     setTFuente(t.fuente); setTCanal(t.canal);
   };
 
-  const mediosDe = (idTipo: number) => medios.filter((m) => m.idTipoPago === idTipo);
+  const tipoDe = (idTipo: number) => tipos.find((t) => t.idTipoPago === idTipo);
 
   // Solo activos: un medio desactivado no se ofrece en el cobro, así que tampoco puede ser el default.
   const mediosActivos = medios.filter((m) => m.activo);
@@ -161,8 +162,9 @@ export function PagosPage() {
                   </td>
                   <td className="mono">{t.cantidadMedios}</td>
                   <td className="row-actions">
-                    <button onClick={() => editar(t)}>Editar</button>
-                    <button className="danger" onClick={() => run(() => pagos.removeTipo(t.idTipoPago))}>Eliminar</button>
+                    <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => editar(t)}><IconEditar /></button>
+                    <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                      onClick={() => run(() => pagos.removeTipo(t.idTipoPago))}><IconEliminar /></button>
                   </td>
                 </tr>
               ))}
@@ -234,85 +236,83 @@ export function PagosPage() {
 
           {tipos.length === 0 && <p className="muted">Primero creá un tipo de pago.</p>}
 
-          {/* Agrupado por tipo: deja a la vista que un tipo puede tener muchos medios. */}
-          {tipos.map((t) => {
-            const suyos = mediosDe(t.idTipoPago);
-            return (
-              <div key={t.idTipoPago} style={{ marginBottom: 14 }}>
-                <h4 style={{ margin: "10px 0 2px" }}>
-                  {t.descripcion}{" "}
-                  <span className={`badge ${t.canal === 2 ? "on" : "off"}`}>{t.canalDescripcion}</span>
-                </h4>
-                <table className="grid" style={{ marginTop: 4 }}>
-                  <thead>
-                    <tr>
-                      <th>Medio</th><th>Habilitado para</th><th>Imprime comprobante</th>
-                      {t.fuente === FUENTE_TARJETA && <th>Código interfase</th>}
-                      <th>Estado</th><th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {suyos.map((m) => (
-                      <tr key={m.idMedioPago} className={m.activo ? "" : "inactive"}>
-                        <td className="stack">
-                          {m.descripcion}
-                          {m.esPredeterminado && <small>predeterminado en caja</small>}
-                        </td>
-                        {/* Con un cluster asignado, el medio solo se ofrece en caja a los clientes
-                            que pertenecen a él (el backend además lo revalida al facturar). */}
-                        <td>
-                          <select className={m.idCluster ? "" : "sin-valor"} value={m.idCluster ?? 0}
-                            onChange={(e) => cambiarCluster(m, Number(e.target.value))}>
-                            <option value={0}>(todos los clientes)</option>
-                            {cls.map((c) => <option key={c.idCluster} value={c.idCluster}>{c.descripcion}</option>)}
-                          </select>
-                        </td>
-                        <td>
-                          <label className="check-box">
-                            <input type="checkbox" checked={m.imprimeComprobante}
-                              onChange={(e) => cambiarImprimeComprobante(m, e.target.checked)} />
-                          </label>
-                        </td>
-                        {/* Código de tarjeta del sistema contable externo (ej. "00003" Visa
-                            Crédito) — alimenta cupones.tarjeta en la interfase MySQL. Solo se
-                            pide para medios de Tarjeta, el resto no lo necesita. */}
-                        {t.fuente === FUENTE_TARJETA && (
-                          <td>
-                            <input className="mono" style={{ width: 60 }} maxLength={5}
-                              defaultValue={m.codigoTarjetaInterfase ?? ""}
-                              placeholder="00000"
-                              onBlur={(e) => {
-                                if (e.target.value.trim() !== (m.codigoTarjetaInterfase ?? "")) {
-                                  cambiarCodigoTarjeta(m, e.target.value);
-                                }
-                              }} />
-                          </td>
-                        )}
-                        <td>{m.activo
-                          ? <span className="badge on">Activo</span>
-                          : <span className="badge off">Inactivo</span>}</td>
-                        <td className="row-actions">
-                          {t.fuente === FUENTE_TARJETA && (
-                            <button onClick={() => setPlanesMedio(m)}>Planes</button>
-                          )}
-                          <button onClick={() => run(() => pagos.updateMedio(m.idMedioPago,
-                            { ...inputDesdeMedio(m), activo: !m.activo }))}>
-                            {m.activo ? "Desactivar" : "Activar"}
-                          </button>
-                          <button className="danger" onClick={() => run(() => pagos.removeMedio(m.idMedioPago))}>
-                            Eliminar
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {suyos.length === 0 && (
-                      <tr><td colSpan={t.fuente === FUENTE_TARJETA ? 6 : 5} className="muted">Sin medios en este tipo.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })}
+          {/* Una sola tabla con todos los medios (antes iba una tabla por tipo, con columnas que
+              aparecían/desaparecían según el tipo): la columna "Tipo" muestra a cuál pertenece, y
+              "Código interfase" siempre está pero solo se completa para medios de Tarjeta —
+              mismo criterio visual que ClientesPage (fuente chica, ícono de acciones). */}
+          <table className="grid tabla-compacta">
+            <thead>
+              <tr>
+                <th>Medio</th><th>Tipo</th><th>Habilitado para</th><th>Imprime<br />comprobante</th>
+                <th>Código<br />interfase</th><th>Estado</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {medios.map((m) => {
+                const t = tipoDe(m.idTipoPago);
+                const esTarjeta = t?.fuente === FUENTE_TARJETA;
+                return (
+                  <tr key={m.idMedioPago} className={m.activo ? "" : "inactive"}>
+                    <td className="stack">
+                      {m.descripcion}
+                      {m.esPredeterminado && <small>predeterminado en caja</small>}
+                    </td>
+                    <td className="stack">
+                      {m.tipoPagoDescripcion ?? "—"}
+                      {t && <small>{t.canalDescripcion}</small>}
+                    </td>
+                    {/* Con un cluster asignado, el medio solo se ofrece en caja a los clientes
+                        que pertenecen a él (el backend además lo revalida al facturar). */}
+                    <td>
+                      <select className={m.idCluster ? "" : "sin-valor"} value={m.idCluster ?? 0}
+                        onChange={(e) => cambiarCluster(m, Number(e.target.value))}>
+                        <option value={0}>(todos los clientes)</option>
+                        {cls.map((c) => <option key={c.idCluster} value={c.idCluster}>{c.descripcion}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <label className="check-box">
+                        <input type="checkbox" checked={m.imprimeComprobante}
+                          onChange={(e) => cambiarImprimeComprobante(m, e.target.checked)} />
+                      </label>
+                    </td>
+                    {/* Código de tarjeta del sistema contable externo (ej. "00003" Visa Crédito) —
+                        alimenta cupones.tarjeta en la interfase MySQL. Solo tiene sentido para
+                        medios de Tarjeta; el resto muestra un guion, sin input. */}
+                    <td style={{ textAlign: "center" }}>
+                      {esTarjeta ? (
+                        <input className="codigo-interfase" maxLength={5}
+                          defaultValue={m.codigoTarjetaInterfase ?? ""}
+                          placeholder="00000"
+                          onBlur={(e) => {
+                            if (e.target.value.trim() !== (m.codigoTarjetaInterfase ?? "")) {
+                              cambiarCodigoTarjeta(m, e.target.value);
+                            }
+                          }} />
+                      ) : <span className="muted">—</span>}
+                    </td>
+                    <td>{m.activo
+                      ? <span className="badge on">Activo</span>
+                      : <span className="badge off">Inactivo</span>}</td>
+                    <td className="row-actions" style={{ textAlign: "right" }}>
+                      {esTarjeta && (
+                        <button onClick={() => setPlanesMedio(m)}>Planes</button>
+                      )}
+                      <button onClick={() => run(() => pagos.updateMedio(m.idMedioPago,
+                        { ...inputDesdeMedio(m), activo: !m.activo }))}>
+                        {m.activo ? "Desactivar" : "Activar"}
+                      </button>
+                      <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                        onClick={() => run(() => pagos.removeMedio(m.idMedioPago))}><IconEliminar /></button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {medios.length === 0 && (
+                <tr><td colSpan={7} className="muted">Sin medios de pago.</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
       {planesMedio && <PlanesCuotaModal medio={planesMedio} onCerrar={() => setPlanesMedio(null)} />}

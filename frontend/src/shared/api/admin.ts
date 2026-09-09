@@ -521,15 +521,20 @@ export const cajaEstructura = {
 export interface Rol { idRol: number; descripcion: string; }
 // codigoSupervisor: el de 8 dígitos del control de supervisor (nota de crédito, anular artículo,
 // abrir caja en otro puesto). Solo tiene sentido cargado en usuarios Supervisor/Administrador.
+// idSucursalPredeterminada: sucursal que se propone sola en cualquier selector de "Sucursal" de
+// una pantalla que no la resuelve por otro medio (ver Usuario.IdSucursalPredeterminada backend).
 export interface Usuario {
   idUsuario: number; nombreUsuario: string; idRol: number; rol?: string | null; activo: boolean;
   codigoSupervisor?: string | null;
+  idSucursalPredeterminada?: number | null; sucursalPredeterminada?: string | null;
 }
 export interface UsuarioCreateInput {
   nombreUsuario: string; clave: string; idRol: number; activo: boolean; codigoSupervisor?: string | null;
+  idSucursalPredeterminada?: number | null;
 }
 export interface UsuarioUpdateInput {
   nombreUsuario: string; idRol: number; activo: boolean; codigoSupervisor?: string | null;
+  idSucursalPredeterminada?: number | null;
 }
 
 export const usuarios = {
@@ -650,6 +655,8 @@ export interface AltaTarjetaResultado { ok: boolean; anuladas: number; nroAnulad
 export const tarjetas = {
   tipos: () => unwrap<TipoTarjeta[]>(api.get(`/admin/tipos-tarjeta`)),
   createTipo: (descripcion: string, idListaPrecio: number | null) => unwrap<number>(api.post(`/admin/tipos-tarjeta`, { descripcion, idListaPrecio })),
+  updateTipo: (id: number, descripcion: string, idListaPrecio: number | null) =>
+    unwrap<boolean>(api.put(`/admin/tipos-tarjeta/${id}`, { descripcion, idListaPrecio })),
   removeTipo: (id: number) => unwrap<boolean>(api.delete(`/admin/tipos-tarjeta/${id}`)),
   deCliente: (idCliente: number) => unwrap<TarjetaCliente[]>(api.get(`/admin/clientes/${idCliente}/tarjetas`)),
   add: (idCliente: number, idTipoTarjeta: number, nroTarjeta: string) =>

@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getPuestoId } from "./device";
+import { notificarAdmin } from "../ui/toast";
 
 // Si no se fija VITE_API_URL, se usa el MISMO host desde el que se abrió el frontend (no un
 // "localhost" fijo) — así funciona igual si se entra por localhost, por la IP de LAN del
@@ -76,8 +77,21 @@ async function intentarRefrescar(): Promise<string | null> {
   }
 }
 
+// Notificación automática de guardado en el admin (ver toast.tsx): dispara sola en cualquier
+// POST/PUT/DELETE/PATCH a `/admin/*`, sin que cada pantalla tenga que acordarse de llamarla —
+// mismo espíritu que `unwrap()`, que ya centraliza el manejo de errores acá.
+const METODOS_MUTACION = ["post", "put", "delete", "patch"];
+function esMutacionAdmin(config?: { method?: string; url?: string }): boolean {
+  const metodo = config?.method?.toLowerCase();
+  const url = config?.url ?? "";
+  return !!metodo && METODOS_MUTACION.includes(metodo) && url.includes("/admin/");
+}
+
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (esMutacionAdmin(response.config)) notificarAdmin("Guardado");
+    return response;
+  },
   async (error) => {
     const original = error?.config;
     const url: string = original?.url ?? "";
@@ -100,6 +114,11 @@ api.interceptors.response.use(
       setToken(null);
       setRefreshToken(null);
       onSessionExpired?.();
+    } else if (esMutacionAdmin(original)) {
+      // No se avisa en el caso de arriba (401 sin refresh posible): ya redirige a /login solo,
+      // un toast de error ahí sería ruido justo antes de perder la pantalla.
+      const mensaje = error?.response?.data?.error?.message ?? "No se pudo guardar.";
+      notificarAdmin(mensaje, "error");
     }
     return Promise.reject(error);
   },

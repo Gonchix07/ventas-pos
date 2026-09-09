@@ -3,6 +3,7 @@ import {
   tarjetas, referencias, clientes,
   type TipoTarjeta, type TarjetaCliente, type Lookup, type Cliente,
 } from "../../shared/api/admin";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
 
 const formatearFecha = (iso?: string | null) => {
   if (!iso) return "";
@@ -17,6 +18,20 @@ export function TarjetasPage() {
   const [aviso, setAviso] = useState<string | null>(null);
 
   const [tDesc, setTDesc] = useState(""); const [tLista, setTLista] = useState<number | 0>(0);
+  const [editando, setEditando] = useState<number | null>(null); // IdTipoTarjeta en edición, o null = alta
+
+  const editarTipo = (t: TipoTarjeta) => {
+    setEditando(t.idTipoTarjeta);
+    setTDesc(t.descripcion);
+    setTLista(t.idListaPrecio ?? 0);
+  };
+  const cancelarEdicion = () => { setEditando(null); setTDesc(""); setTLista(0); };
+  const guardarTipo = () =>
+    run(async () => {
+      if (editando) await tarjetas.updateTipo(editando, tDesc.trim(), tLista || null);
+      else await tarjetas.createTipo(tDesc.trim(), tLista || null);
+      setEditando(null); setTDesc(""); setTLista(0);
+    });
 
   // tarjetas por cliente
   const [q, setQ] = useState(""); const [cli, setCli] = useState<Cliente[]>([]);
@@ -98,17 +113,25 @@ export function TarjetasPage() {
             {listas.map((l) => <option key={l.id} value={l.id}>{l.descripcion}</option>)}
           </select>
         </label>
-        <button className="primary" disabled={!tDesc.trim()}
-          onClick={() => run(async () => { await tarjetas.createTipo(tDesc.trim(), tLista || null); setTDesc(""); setTLista(0); })}>Agregar</button>
+        <button className="primary" disabled={!tDesc.trim()} onClick={guardarTipo}>
+          {editando ? "Guardar cambios" : "Agregar"}
+        </button>
+        {editando && <button onClick={cancelarEdicion}>Cancelar</button>}
       </div>
       <table className="grid">
-        <thead><tr><th style={{ width: 80 }}>ID</th><th>Descripción</th><th>Lista de precios</th><th style={{ width: 60 }}></th></tr></thead>
+        <thead><tr><th style={{ width: 80 }}>ID</th><th>Descripción</th><th>Lista de precios</th><th style={{ width: 110 }}></th></tr></thead>
         <tbody>
           {tipos.map((t) => (
-            <tr key={t.idTipoTarjeta}>
+            <tr key={t.idTipoTarjeta} className={editando === t.idTipoTarjeta ? "lote-sel" : ""}>
               <td className="mono">{t.idTipoTarjeta}</td><td>{t.descripcion}</td>
               <td>{t.listaCodigo ?? <span className="muted">(sin lista de precios)</span>}</td>
-              <td><button className="danger" onClick={() => run(() => tarjetas.removeTipo(t.idTipoTarjeta))}>×</button></td>
+              <td>
+                <div className="row-actions">
+                  <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => editarTipo(t)}><IconEditar /></button>
+                  <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                    onClick={() => run(() => tarjetas.removeTipo(t.idTipoTarjeta))}><IconEliminar /></button>
+                </div>
+              </td>
             </tr>
           ))}
           {tipos.length === 0 && <tr><td colSpan={4} className="muted">Sin tipos.</td></tr>}
@@ -216,10 +239,12 @@ export function TarjetasPage() {
                     {!t.activa && t.fechaBajaUtc && <small>{formatearFecha(t.fechaBajaUtc)}</small>}
                   </td>
                   <td>
-                    <button className="danger"
-                      onClick={() => run(() => tarjetas.remove(cliSel.idCliente, t.idTipoTarjeta, t.nroTarjeta), true)}>
-                      Quitar
-                    </button>
+                    <div className="row-actions">
+                      <button className="icon-btn icon-danger" title="Quitar" aria-label="Quitar"
+                        onClick={() => run(() => tarjetas.remove(cliSel.idCliente, t.idTipoTarjeta, t.nroTarjeta), true)}>
+                        <IconEliminar />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

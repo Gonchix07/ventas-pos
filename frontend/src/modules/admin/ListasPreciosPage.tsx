@@ -5,6 +5,8 @@ import {
   type ArticuloListItem, type Presentacion,
 } from "../../shared/api/admin";
 import { MonedaInput, formatearMoneda } from "../../shared/ui/moneda";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
+import { useAuth } from "../../shared/auth/auth";
 
 const TIPOS = [
   { v: 1, l: "Base" },
@@ -24,6 +26,7 @@ const MAX_PRECIOS = 50;
 const MAX_BUSQUEDA = 20;
 
 export function ListasPreciosPage() {
+  const { idSucursalPredeterminada } = useAuth();
   const [listas, setListas] = useState<ListaPrecio[]>([]);
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
   const [form, setForm] = useState<ListaPrecioInput | null>(null);
@@ -42,7 +45,7 @@ export function ListasPreciosPage() {
     referencias.sucursales().then(setSucursales).catch(() => {});
   }, []);
 
-  const nuevo = () => { setEditId(null); setForm({ ...VACIO, idSucursal: sucursales[0]?.id ?? 0 }); };
+  const nuevo = () => { setEditId(null); setForm({ ...VACIO, idSucursal: idSucursalPredeterminada ?? sucursales[0]?.id ?? 0 }); };
   const editar = (l: ListaPrecio) => {
     setEditId(l.idListaPrecio);
     setForm({
@@ -115,7 +118,7 @@ export function ListasPreciosPage() {
         </thead>
         <tbody>
           {listas.map((l) => (
-            <tr key={l.idListaPrecio}>
+            <tr key={l.idListaPrecio} className={editId === l.idListaPrecio ? "lote-sel" : ""}>
               <td className="mono">{l.codigoInterno}</td>
               <td>{l.sucursalDescripcion}</td>
               <td>{l.tipoDescripcion}</td>
@@ -124,8 +127,9 @@ export function ListasPreciosPage() {
               <td className="mono">{l.cantidadPrecios}</td>
               <td className="row-actions">
                 <button className="primary" onClick={() => setSelLista(l)}>Precios</button>
-                <button onClick={() => editar(l)}>Editar</button>
-                <button className="danger" onClick={() => eliminar(l.idListaPrecio)}>Eliminar</button>
+                <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => editar(l)}><IconEditar /></button>
+                <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                  onClick={() => eliminar(l.idListaPrecio)}><IconEliminar /></button>
               </td>
             </tr>
           ))}
@@ -423,7 +427,10 @@ function PreciosEditor({ lista, onBack }: { lista: ListaPrecio; onBack: () => vo
               <td className="mono">{p.unidadXBulto}</td>
               <td className="money">{formatearMoneda(p.precioFinal)}</td>
               <td className="money">{formatearMoneda(p.impuestoInterno)}</td>
-              <td><button className="danger" onClick={() => eliminarPrecio(p.idPresentacion)}>Quitar</button></td>
+              <td className="row-actions">
+                <button className="icon-btn icon-danger" title="Quitar" aria-label="Quitar"
+                  onClick={() => eliminarPrecio(p.idPresentacion)}><IconEliminar /></button>
+              </td>
             </tr>
           ))}
           {precios.length === 0 && <tr><td colSpan={7} className="muted">Sin precios cargados.</td></tr>}

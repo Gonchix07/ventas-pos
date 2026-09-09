@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   padrones, type PadronIibb, type PadronExIva, type ImportacionPadron,
 } from "../../shared/api/admin";
+import { IconEliminar } from "../../shared/ui/icons";
 
 const miles = (n: number) => n.toLocaleString("es-AR");
 
@@ -90,7 +91,10 @@ export function PadronesPage() {
               {iibb.map((p) => (
                 <tr key={p.cuit}>
                   <td className="mono">{p.cuit}</td><td className="mono">{p.percepcion}%</td>
-                  <td><button className="danger" onClick={() => run(() => padrones.removeIibb(p.cuit))}>×</button></td>
+                  <td className="row-actions">
+                    <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                      onClick={() => run(() => padrones.removeIibb(p.cuit))}><IconEliminar /></button>
+                  </td>
                 </tr>
               ))}
               {iibb.length === 0 && <tr><td colSpan={3} className="muted">Sin registros.</td></tr>}
@@ -115,7 +119,10 @@ export function PadronesPage() {
               {exiva.map((p) => (
                 <tr key={p.cuit}>
                   <td className="mono">{p.cuit}</td>
-                  <td><button className="danger" onClick={() => run(() => padrones.removeExIva(p.cuit))}>×</button></td>
+                  <td className="row-actions">
+                    <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                      onClick={() => run(() => padrones.removeExIva(p.cuit))}><IconEliminar /></button>
+                  </td>
                 </tr>
               ))}
               {exiva.length === 0 && <tr><td colSpan={2} className="muted">Sin registros.</td></tr>}

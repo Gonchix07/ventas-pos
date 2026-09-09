@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { usuarios, type Usuario, type Rol, type UsuarioCreateInput } from "../../shared/api/admin";
+import { usuarios, referencias, type Usuario, type Rol, type UsuarioCreateInput, type Lookup } from "../../shared/api/admin";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
 
 export function UsuariosPage() {
   const [items, setItems] = useState<Usuario[]>([]);
   const [roles, setRoles] = useState<Rol[]>([]);
+  const [sucursales, setSucursales] = useState<Lookup[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<(UsuarioCreateInput & { idUsuario?: number }) | null>(null);
 
@@ -15,6 +17,7 @@ export function UsuariosPage() {
   useEffect(() => {
     void cargar();
     usuarios.roles().then(setRoles).catch(() => {});
+    referencias.sucursales().then(setSucursales).catch(() => {});
   }, []);
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -23,10 +26,13 @@ export function UsuariosPage() {
     catch (e) { setError(e instanceof Error ? e.message : "Error"); }
   };
 
-  const nuevo = () => setForm({ nombreUsuario: "", clave: "", idRol: roles[0]?.idRol ?? 1, activo: true, codigoSupervisor: "" });
+  const nuevo = () => setForm({
+    nombreUsuario: "", clave: "", idRol: roles[0]?.idRol ?? 1, activo: true, codigoSupervisor: "",
+    idSucursalPredeterminada: null,
+  });
   const editar = (u: Usuario) => setForm({
     idUsuario: u.idUsuario, nombreUsuario: u.nombreUsuario, clave: "", idRol: u.idRol, activo: u.activo,
-    codigoSupervisor: u.codigoSupervisor ?? "",
+    codigoSupervisor: u.codigoSupervisor ?? "", idSucursalPredeterminada: u.idSucursalPredeterminada ?? null,
   });
 
   const guardar = async () => {
@@ -34,9 +40,10 @@ export function UsuariosPage() {
     // Vacío se manda como null: no todos los usuarios tienen código, y "" rompería la unicidad
     // (dos usuarios sin código no deberían chocar entre sí).
     const codigoSupervisor = form.codigoSupervisor?.trim() || null;
+    const idSucursalPredeterminada = form.idSucursalPredeterminada || null;
     await run(async () => {
-      if (form.idUsuario) await usuarios.update(form.idUsuario, { nombreUsuario: form.nombreUsuario, idRol: form.idRol, activo: form.activo, codigoSupervisor });
-      else await usuarios.create({ nombreUsuario: form.nombreUsuario, clave: form.clave, idRol: form.idRol, activo: form.activo, codigoSupervisor });
+      if (form.idUsuario) await usuarios.update(form.idUsuario, { nombreUsuario: form.nombreUsuario, idRol: form.idRol, activo: form.activo, codigoSupervisor, idSucursalPredeterminada });
+      else await usuarios.create({ nombreUsuario: form.nombreUsuario, clave: form.clave, idRol: form.idRol, activo: form.activo, codigoSupervisor, idSucursalPredeterminada });
       setForm(null);
     });
   };
@@ -71,6 +78,14 @@ export function UsuariosPage() {
               </select>
             </label>
             <label className="check"><input type="checkbox" checked={form.activo} onChange={(e) => set({ activo: e.target.checked })} /> Activo</label>
+            <label>Sucursal predeterminada
+              <select className={form.idSucursalPredeterminada ? "" : "sin-valor"}
+                value={form.idSucursalPredeterminada ?? 0}
+                onChange={(e) => set({ idSucursalPredeterminada: Number(e.target.value) || null })}>
+                <option value={0}>(sin predeterminada)</option>
+                {sucursales.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
+              </select>
+            </label>
             <label>Código de supervisor
               <input value={form.codigoSupervisor ?? ""} maxLength={8} inputMode="numeric" pattern="[0-9]*"
                 placeholder="8 dígitos (opcional)"
@@ -85,22 +100,24 @@ export function UsuariosPage() {
       )}
 
       <table className="grid">
-        <thead><tr><th>ID</th><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+        <thead><tr><th>ID</th><th>Usuario</th><th>Rol</th><th>Sucursal predet.</th><th>Estado</th><th></th></tr></thead>
         <tbody>
           {items.map((u) => (
-            <tr key={u.idUsuario} className={u.activo ? "" : "inactive"}>
+            <tr key={u.idUsuario} className={form?.idUsuario === u.idUsuario ? "lote-sel" : u.activo ? "" : "inactive"}>
               <td className="mono">{u.idUsuario}</td>
               <td>{u.nombreUsuario}</td>
               <td>{u.rol}</td>
+              <td>{u.sucursalPredeterminada ?? <span className="muted">—</span>}</td>
               <td>{u.activo ? <span className="badge on">Activo</span> : <span className="badge off">Inactivo</span>}</td>
               <td className="row-actions">
-                <button onClick={() => editar(u)}>Editar</button>
+                <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => editar(u)}><IconEditar /></button>
                 <button onClick={() => resetClave(u)}>Reset clave</button>
-                <button className="danger" onClick={() => run(() => usuarios.remove(u.idUsuario))}>Eliminar</button>
+                <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                  onClick={() => run(() => usuarios.remove(u.idUsuario))}><IconEliminar /></button>
               </td>
             </tr>
           ))}
-          {items.length === 0 && <tr><td colSpan={5} className="muted">Sin usuarios.</td></tr>}
+          {items.length === 0 && <tr><td colSpan={6} className="muted">Sin usuarios.</td></tr>}
         </tbody>
       </table>
     </div>

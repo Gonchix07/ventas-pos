@@ -4,8 +4,11 @@ import {
   type CuentaCorrienteLimite, type Lookup, type Cliente,
 } from "../../shared/api/admin";
 import { MonedaInput, formatearMoneda } from "../../shared/ui/moneda";
+import { IconEliminar } from "../../shared/ui/icons";
+import { useAuth } from "../../shared/auth/auth";
 
 export function CuentaCorrientePage() {
+  const { idSucursalPredeterminada } = useAuth();
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
   const [suc, setSuc] = useState(0);
   const [items, setItems] = useState<CuentaCorrienteLimite[]>([]);
@@ -18,7 +21,12 @@ export function CuentaCorrientePage() {
   const [limite, setLimite] = useState<number | null>(null);
 
   useEffect(() => {
-    referencias.sucursales().then((s) => { setSucursales(s); if (s.length) setSuc(s[0].id); }).catch(() => {});
+    referencias.sucursales().then((s) => {
+      setSucursales(s);
+      if (idSucursalPredeterminada) setSuc(idSucursalPredeterminada);
+      else if (s.length) setSuc(s[0].id);
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cargar = async (s: number) => {
@@ -114,7 +122,10 @@ export function CuentaCorrientePage() {
               <td className="money">{formatearMoneda(c.limiteCredito)}</td>
               <td className="money">{formatearMoneda(c.saldoActual)}</td>
               <td className="money">{formatearMoneda(c.limiteCredito - c.saldoActual)}</td>
-              <td><button className="danger" onClick={() => run(() => cuentaCorriente.remove(suc, c.idCliente))}>Quitar</button></td>
+              <td className="row-actions">
+                <button className="icon-btn icon-danger" title="Quitar" aria-label="Quitar"
+                  onClick={() => run(() => cuentaCorriente.remove(suc, c.idCliente))}><IconEliminar /></button>
+              </td>
             </tr>
           ))}
           {items.length === 0 && <tr><td colSpan={5} className="muted">Sin cuentas corrientes habilitadas.</td></tr>}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { pagos, type MedioPago, type PlanCuota } from "../../shared/api/admin";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
 
 interface Props {
   medio: MedioPago;
@@ -78,8 +79,9 @@ export function PlanesCuotaModal({ medio, onCerrar }: Props) {
                 <td>{p.denominacion}</td>
                 <td className="mono">{p.cantidadCuotas}</td>
                 <td className="row-actions">
-                  <button onClick={() => editar(p)}>Editar</button>
-                  <button className="danger" onClick={() => run(() => pagos.removePlan(p.idPlan))}>Eliminar</button>
+                  <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => editar(p)}><IconEditar /></button>
+                  <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                    onClick={() => run(() => pagos.removePlan(p.idPlan))}><IconEliminar /></button>
                 </td>
               </tr>
             ))}

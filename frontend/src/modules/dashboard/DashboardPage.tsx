@@ -3,7 +3,11 @@ import { useAuth } from "../../shared/auth/auth";
 
 const MODULOS = [
   { key: "Caja", desc: "Operativa de cobros y armado de operación", to: "/caja" },
-  { key: "Clientes", desc: "Buscar cliente por documento/tarjeta e imprimir su ficha por comandera", to: "/clientes" },
+  // Permiso propio ("ClientesFicha"), distinto del módulo "Clientes" de abajo: éste busca por
+  // nombre/CUIT/documento igual que el ABM de Administración (solo lectura) e imprime el mismo
+  // ticket que el de autoservicio — pensado para que lo use un cajero/supervisor, no el cliente.
+  { key: "ClientesFicha", label: "Clientes", desc: "Buscar cliente por nombre/CUIT/documento e imprimir su ficha (solo lectura)", to: "/clientes-ficha" },
+  { key: "Clientes", label: "Autoservicio Clientes", desc: "Buscar cliente por documento/tarjeta e imprimir su ficha por comandera", to: "/clientes" },
   { key: "VerificarPrecios", label: "Verificar Precios", desc: "Kiosco de autoconsulta: escanear un producto y ver imagen, precios de lista y ofertas", to: "/verificar-precios" },
   { key: "Tesoreria", desc: "Cierres, validaciones y dashboard", to: "/tesoreria" },
   { key: "Etiquetas", desc: "Impresión de etiquetas de precios", to: "/etiquetas" },

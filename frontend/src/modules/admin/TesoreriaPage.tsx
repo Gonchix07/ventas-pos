@@ -8,6 +8,7 @@ import { formatearMoneda, MonedaInput } from "../../shared/ui/moneda";
 import { EntregaValoresModal } from "./EntregaValoresModal";
 import { ComprobantesLoteModal } from "./ComprobantesLoteModal";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "../../shared/ui/toast";
 
 const hoy = () => new Date();
 const fechaISO = (d: Date) => d.toISOString().slice(0, 10);
@@ -39,6 +40,7 @@ const textoEstadoCierre = (e: string) =>
 export function TesoreriaPage() {
   const { usuario, rol, logout } = useAuth();
   const navigate = useNavigate();
+  const notificar = useToast();
 
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
   const [idSucursal, setIdSucursal] = useState<number | 0>(0);
@@ -141,9 +143,15 @@ export function TesoreriaPage() {
     try {
       const r = await tesoreria.cerrarLotePendiente(l.idSucursal, l.idLote, declaraciones,
         idMotivoDif || null, idMotivoCierrePend, obsPend || null);
-      setAviso(`Lote ${l.idLote} cerrado (cierre N° ${r.numeroCierre}). Queda pendiente de validación.`);
+      const msg = `Lote ${l.idLote} cerrado (cierre N° ${r.numeroCierre}). Queda pendiente de validación.`;
+      setAviso(msg);
+      notificar(msg);
       await refrescarTodo(l);
-    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error";
+      setError(msg);
+      notificar(msg, "error");
+    }
     finally { setCerrando(false); }
   };
 
@@ -166,9 +174,15 @@ export function TesoreriaPage() {
     setValidando(true);
     try {
       await tesoreria.validar(l.idSucursal, l.idLote, idMotivoCierreValidar || null, obsValidar || null);
-      setAviso(`Lote ${l.idLote} validado.`);
+      const msg = `Lote ${l.idLote} validado.`;
+      setAviso(msg);
+      notificar(msg);
       await refrescarTodo(l);
-    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error";
+      setError(msg);
+      notificar(msg, "error");
+    }
     finally { setValidando(false); }
   };
 

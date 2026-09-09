@@ -37,7 +37,7 @@ public interface IJwtTokenGenerator
     /// — van como claims "modulo" en el token, para que los controllers puedan autorizar por
     /// módulo además de por rol fijo (ver Pos.Api.Common.ModuloAutorizadoAttribute).
     (string token, DateTime expiraUtc) Generar(UsuarioAutenticado usuario, int? idSucursal, int? idCaja,
-        IReadOnlyList<string> modulos);
+        IReadOnlyList<string> modulos, int? idSucursalPredeterminada = null);
 }
 
 /// <summary>

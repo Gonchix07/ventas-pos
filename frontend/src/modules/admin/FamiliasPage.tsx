@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { familias as api, lookups, type Familia, type Lookup } from "../../shared/api/admin";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
 
 /**
  * ABM de familias. No usa LookupPage porque la familia cuelga de un sector: el nombre se repite
@@ -155,7 +156,7 @@ export function FamiliasPage() {
           </thead>
           <tbody>
             {items.map((it) => (
-              <tr key={it.id}>
+              <tr key={it.id} className={editId === it.id ? "lote-sel" : ""}>
                 <td className="mono">{it.id}</td>
                 <td>
                   {editId === it.id ? (
@@ -191,15 +192,17 @@ export function FamiliasPage() {
                   ) : (
                     <>
                       <button
+                        className="icon-btn" title="Editar" aria-label="Editar"
                         onClick={() => {
                           setEditId(it.id);
                           setEditText(it.descripcion);
                           setEditSector(it.idSector ?? "");
                         }}
                       >
-                        Editar
+                        <IconEditar />
                       </button>
-                      <button className="danger" onClick={() => eliminar(it.id)}>Eliminar</button>
+                      <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                        onClick={() => eliminar(it.id)}><IconEliminar /></button>
                     </>
                   )}
                 </td>

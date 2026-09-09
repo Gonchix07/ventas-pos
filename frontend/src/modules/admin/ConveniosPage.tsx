@@ -3,8 +3,11 @@ import {
   convenios, referencias, clientes,
   type Convenio, type Lookup, type Cliente,
 } from "../../shared/api/admin";
+import { IconEliminar } from "../../shared/ui/icons";
+import { useAuth } from "../../shared/auth/auth";
 
 export function ConveniosPage() {
+  const { idSucursalPredeterminada } = useAuth();
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
   const [listas, setListas] = useState<Lookup[]>([]);
   const [suc, setSuc] = useState(0);
@@ -17,8 +20,13 @@ export function ConveniosPage() {
   const [idLista, setIdLista] = useState<number | 0>(0);
 
   useEffect(() => {
-    referencias.sucursales().then((s) => { setSucursales(s); if (s.length) setSuc(s[0].id); }).catch(() => {});
+    referencias.sucursales().then((s) => {
+      setSucursales(s);
+      if (idSucursalPredeterminada) setSuc(idSucursalPredeterminada);
+      else if (s.length) setSuc(s[0].id);
+    }).catch(() => {});
     referencias.listasPrecios().then(setListas).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cargar = async (s: number) => {
@@ -90,7 +98,10 @@ export function ConveniosPage() {
               <td>{c.clienteDescripcion}</td>
               <td className="mono">{c.descuento}%</td>
               <td>{c.listaCodigo ?? "—"}</td>
-              <td><button className="danger" onClick={() => run(() => convenios.remove(suc, c.idConvenio))}>Eliminar</button></td>
+              <td className="row-actions">
+                <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                  onClick={() => run(() => convenios.remove(suc, c.idConvenio))}><IconEliminar /></button>
+              </td>
             </tr>
           ))}
           {items.length === 0 && <tr><td colSpan={5} className="muted">Sin convenios.</td></tr>}

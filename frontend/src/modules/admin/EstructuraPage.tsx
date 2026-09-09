@@ -3,6 +3,7 @@ import {
   estructura, caea, type CaeaCargado, type CaeaCargadoInput, type CertificadoCae, type Empresa,
   type EmpresaInput, type ProbarConexionAfip, type Sucursal, type SucursalInput,
 } from "../../shared/api/admin";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
 
 const caeaVacio = (idEmpresa: number): CaeaCargadoInput => ({
   idEmpresa, anio: new Date().getFullYear(), mes: new Date().getMonth() + 1, orden: 1,
@@ -391,18 +392,19 @@ export function EstructuraPage() {
                 <thead><tr><th>Período</th><th>Quincena</th><th>Valor</th><th>Vigencia</th><th>Estado</th><th></th></tr></thead>
                 <tbody>
                   {caeas.map((c) => (
-                    <tr key={c.idCaea}>
+                    <tr key={c.idCaea} className={editCaea === c.idCaea ? "lote-sel" : ""}>
                       <td className="mono">{c.anio}-{String(c.mes).padStart(2, "0")}</td>
                       <td>{c.orden === 1 ? "1 al 15" : "16 a fin de mes"}</td>
                       <td className="mono">{c.valor}</td>
                       <td className="mono">{c.vigenciaDesde.slice(0, 10)} a {c.vigenciaHasta.slice(0, 10)}</td>
                       <td><span className={`badge ${c.vigenteHoy ? "on" : "muted"}`}>{c.vigenteHoy ? "Vigente hoy" : "—"}</span></td>
-                      <td>
-                        <button onClick={() => { setEditCaea(c.idCaea); setFormCaea({
+                      <td className="row-actions">
+                        <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => { setEditCaea(c.idCaea); setFormCaea({
                           idEmpresa: c.idEmpresa, anio: c.anio, mes: c.mes, orden: c.orden,
                           valor: c.valor, vigenciaDesde: c.vigenciaDesde.slice(0, 10), vigenciaHasta: c.vigenciaHasta.slice(0, 10),
-                        }); }}>Editar</button>
-                        <button className="danger" onClick={() => eliminarCaea(c.idCaea)}>×</button>
+                        }); }}><IconEditar /></button>
+                        <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                          onClick={() => eliminarCaea(c.idCaea)}><IconEliminar /></button>
                       </td>
                     </tr>
                   ))}
@@ -472,7 +474,7 @@ export function EstructuraPage() {
         </thead>
         <tbody>
           {empresas.map((e) => (
-            <tr key={e.idEmpresa}>
+            <tr key={e.idEmpresa} className={editEmpresa === e.idEmpresa ? "lote-sel" : ""}>
               <td className="mono">{e.codigoInterno}</td>
               <td>{e.descripcion}</td>
               <td className="mono">{e.cuit ?? <span className="muted">—</span>}</td>
@@ -489,8 +491,10 @@ export function EstructuraPage() {
                 <small>{[e.localidad, e.provincia].filter(Boolean).join(" - ")}</small>
               </td>
               <td className="row-actions">
-                <button onClick={() => { setEditEmpresa(e.idEmpresa); setFormEmpresa(desdeEmpresa(e)); }}>Editar</button>
-                <button className="danger" onClick={() => run(() => estructura.removeEmpresa(e.idEmpresa))}>Eliminar</button>
+                <button className="icon-btn" title="Editar" aria-label="Editar"
+                  onClick={() => { setEditEmpresa(e.idEmpresa); setFormEmpresa(desdeEmpresa(e)); }}><IconEditar /></button>
+                <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                  onClick={() => run(() => estructura.removeEmpresa(e.idEmpresa))}><IconEliminar /></button>
               </td>
             </tr>
           ))}
@@ -505,7 +509,7 @@ export function EstructuraPage() {
         </thead>
         <tbody>
           {sucursales.map((s) => (
-            <tr key={s.idSucursal}>
+            <tr key={s.idSucursal} className={editSucursal === s.idSucursal ? "lote-sel" : ""}>
               <td className="mono">{s.idSucursal}</td>
               <td>{s.descripcion}</td>
               <td>{s.empresaDescripcion}</td>
@@ -514,8 +518,10 @@ export function EstructuraPage() {
                 <small>{[s.localidad, s.provincia].filter(Boolean).join(" - ")}</small>
               </td>
               <td className="row-actions">
-                <button onClick={() => { setEditSucursal(s.idSucursal); setFormSucursal(desdeSucursal(s)); }}>Editar</button>
-                <button className="danger" onClick={() => run(() => estructura.removeSucursal(s.idSucursal))}>Eliminar</button>
+                <button className="icon-btn" title="Editar" aria-label="Editar"
+                  onClick={() => { setEditSucursal(s.idSucursal); setFormSucursal(desdeSucursal(s)); }}><IconEditar /></button>
+                <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                  onClick={() => run(() => estructura.removeSucursal(s.idSucursal))}><IconEliminar /></button>
               </td>
             </tr>
           ))}

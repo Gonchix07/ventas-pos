@@ -3,6 +3,10 @@ import {
   articulos, familias as familiasApi, lookups, referencias,
   type ArticuloListItem, type ArticuloInput, type Familia, type Lookup, type Presentacion,
 } from "../../shared/api/admin";
+import { IconEditar, IconBaja } from "../../shared/ui/icons";
+
+// Debe coincidir con ArticuloService.MaxResultados (backend).
+const MAX_RESULTADOS = 50;
 
 const VACIO: ArticuloInput = {
   codigoInterno: "", descripcion: "",
@@ -257,20 +261,20 @@ export function ArticulosPage() {
         </div>
       )}
 
-      <div className="filter-bar">
+      <div className="filter-bar filtros-articulos">
         <label className="grow">Buscar (código, descripción o código de barra)
           <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Escribí o escaneá un producto…" />
-        </label>
-        <label>Sector
-          <select value={fSector} onChange={(e) => setFSector(Number(e.target.value))}>
-            <option value={0}>(todos)</option>
-            {sectores.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
-          </select>
         </label>
         <label>Línea
           <select value={fLinea} onChange={(e) => setFLinea(Number(e.target.value))}>
             <option value={0}>(todas)</option>
             {lineas.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
+          </select>
+        </label>
+        <label>Sector
+          <select value={fSector} onChange={(e) => setFSector(Number(e.target.value))}>
+            <option value={0}>(todos)</option>
+            {sectores.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
           </select>
         </label>
         <label>Familia
@@ -293,13 +297,13 @@ export function ArticulosPage() {
           </select>
         </label>
         {hayFiltros && <button onClick={limpiarFiltros}>Limpiar</button>}
-        <span className="filter-count">
-          {buscando ? "Buscando…" : `${items.length} artículo${items.length === 1 ? "" : "s"}${items.length === 500 ? " (máx.)" : ""}`}
-        </span>
       </div>
+      <p className="resultado-count">
+        {buscando ? "Buscando…" : `${items.length} artículo${items.length === 1 ? "" : "s"}${items.length === MAX_RESULTADOS ? " (máx.) — refiná la búsqueda" : ""}`}
+      </p>
 
       <div className="table-scroll">
-        <table className="grid">
+        <table className="grid tabla-compacta">
           <thead>
             <tr>
               <th style={{ width: 70 }}>Imagen</th><th>Código</th><th>Descripción</th>
@@ -327,8 +331,9 @@ export function ArticulosPage() {
                 <td>{a.modoIvaDescripcion ?? "—"}</td>
                 <td>{a.activo ? <span className="badge on">Activo</span> : <span className="badge off">Baja</span>}</td>
                 <td className="row-actions">
-                  <button className="primary" onClick={() => editar(a.idArticulo)}>Editar</button>
-                  <button className="danger-solid" onClick={() => eliminar(a.idArticulo)}>Baja</button>
+                  <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => editar(a.idArticulo)}><IconEditar /></button>
+                  <button className="icon-btn icon-danger" title="Dar de baja" aria-label="Dar de baja"
+                    onClick={() => eliminar(a.idArticulo)}><IconBaja /></button>
                 </td>
               </tr>
             ))}

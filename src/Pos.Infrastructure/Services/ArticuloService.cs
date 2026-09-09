@@ -11,7 +11,7 @@ namespace Pos.Infrastructure.Services;
 public class ArticuloService : IArticuloService
 {
     /// <summary>Tope duro de filas del listado (el frontend lo avisa cuando se topea).</summary>
-    public const int MaxResultados = 500;
+    public const int MaxResultados = 50;
 
     private readonly PosDbContext _db;
     private readonly IImageBank _images;

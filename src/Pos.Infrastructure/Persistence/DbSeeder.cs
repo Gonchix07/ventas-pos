@@ -180,6 +180,28 @@ public static class DbSeeder
         }
         await db.SaveChangesAsync(ct);
 
+        // Módulo "ClientesFicha" (2026-09-09): búsqueda manual de cliente (por nombre/fantasía/
+        // código/CUIT/documento, igual que el ABM de Administración) de solo lectura + impresión
+        // del mismo ticket que el módulo "Clientes" (autoservicio por DNI). Se llama distinto de
+        // "Clientes" porque expone más datos (CUIT, condición de IVA, cuenta corriente) y conviene
+        // poder habilitarlo aparte — mismo criterio de acceso que "Clientes".
+        var moduloClientesFicha = await db.Modulos.FirstOrDefaultAsync(m => m.Descripcion == "ClientesFicha", ct);
+        if (moduloClientesFicha is null)
+        {
+            moduloClientesFicha = new Modulo { Descripcion = "ClientesFicha" };
+            db.Modulos.Add(moduloClientesFicha);
+            await db.SaveChangesAsync(ct);
+        }
+        foreach (var descripcionRol in new[] { "Administrador", "Cajero", "Supervisor", "Tesorero" })
+        {
+            var rol = await db.Roles.FirstOrDefaultAsync(r => r.Descripcion == descripcionRol, ct);
+            if (rol is null) continue;
+            if (!await db.Permisos.AnyAsync(p => p.IdRol == rol.IdRol && p.IdModulo == moduloClientesFicha.IdModulo, ct))
+                db.Permisos.Add(new Permiso { IdRol = rol.IdRol, IdModulo = moduloClientesFicha.IdModulo,
+                    PuedeVer = true, PuedeEditar = true });
+        }
+        await db.SaveChangesAsync(ct);
+
         // Cada medio Tarjeta necesita al menos un plan de cuotas (obligatorio elegir uno al cobrar,
         // ver FacturacionService): alta pedida después de que ya existían medios Tarjeta sin
         // ninguno cargado, por eso el backfill acá — PagoAdminService.AsegurarPlanPorDefectoAsync

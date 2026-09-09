@@ -3,6 +3,8 @@ import {
   cajaEstructura, referencias, TIPOS_TERMINAL,
   type Lookup, type TipoPuntoVenta, type PuntoVenta, type TerminalTarjeta,
 } from "../../shared/api/admin";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
+import { useAuth } from "../../shared/auth/auth";
 
 /**
  * Catálogo de tipos de punto de venta (fijo), alta/edición de los puntos de venta concretos de
@@ -10,6 +12,7 @@ import {
  * punto de venta se asigna en "Asignación de cajas".
  */
 export function EstructuraCajaPage() {
+  const { idSucursalPredeterminada } = useAuth();
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
   const [suc, setSuc] = useState<number>(0);
   const [tipos, setTipos] = useState<TipoPuntoVenta[]>([]);
@@ -30,7 +33,12 @@ export function EstructuraCajaPage() {
   const cancelarTerminal = () => { setTEditId(null); setTNumero(""); setTTipo(TIPOS_TERMINAL[0].v); setTCajaAsignada(null); };
 
   useEffect(() => {
-    referencias.sucursales().then((s) => { setSucursales(s); if (s.length) setSuc(s[0].id); }).catch(() => {});
+    referencias.sucursales().then((s) => {
+      setSucursales(s);
+      if (idSucursalPredeterminada) setSuc(idSucursalPredeterminada);
+      else if (s.length) setSuc(s[0].id);
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cargar = async (s: number) => {
@@ -122,15 +130,16 @@ export function EstructuraCajaPage() {
         <thead><tr><th>ID</th><th>Tipo</th><th>Nº ARCA</th><th>Controlador</th><th></th></tr></thead>
         <tbody>
           {pvs.map((p) => (
-            <tr key={p.idPuntoVenta}>
+            <tr key={p.idPuntoVenta} className={pvEditId === p.idPuntoVenta ? "lote-sel" : ""}>
               <td className="mono">{p.idPuntoVenta}</td><td>{p.tipoDescripcion}</td><td className="mono">{p.numeroPuntoVenta}</td>
               <td className="mono">{p.ipControlador ?? <span className="muted">—</span>}</td>
               <td className="row-actions">
-                <button onClick={() => {
+                <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => {
                   setPvEditId(p.idPuntoVenta); setPvTipo(p.idTipoPuntoVenta);
                   setPvNum(p.numeroPuntoVenta); setPvIp(p.ipControlador ?? "");
-                }}>✎</button>
-                <button className="danger" onClick={() => run(() => cajaEstructura.removePv(suc, p.idPuntoVenta))}>×</button>
+                }}><IconEditar /></button>
+                <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                  onClick={() => run(() => cajaEstructura.removePv(suc, p.idPuntoVenta))}><IconEliminar /></button>
               </td>
             </tr>
           ))}
@@ -162,12 +171,14 @@ export function EstructuraCajaPage() {
         <thead><tr><th>ID</th><th>Nro. de terminal</th><th>Tipo</th><th>Caja asignada</th><th></th></tr></thead>
         <tbody>
           {terminales.map((t) => (
-            <tr key={t.idTerminal}>
+            <tr key={t.idTerminal} className={tEditId === t.idTerminal ? "lote-sel" : ""}>
               <td className="mono">{t.idTerminal}</td><td className="mono">{t.numeroTerminal}</td><td>{t.tipoDescripcion}</td>
               <td className="muted">{t.cajaDescripcion ?? "sin asignar"}</td>
               <td className="row-actions">
-                <button onClick={() => { setTEditId(t.idTerminal); setTNumero(t.numeroTerminal); setTTipo(t.tipo); setTCajaAsignada(t.idCajaAsignada ?? null); }}>✎</button>
-                <button className="danger" onClick={() => run(() => cajaEstructura.removeTerminal(suc, t.idTerminal))}>×</button>
+                <button className="icon-btn" title="Editar" aria-label="Editar"
+                  onClick={() => { setTEditId(t.idTerminal); setTNumero(t.numeroTerminal); setTTipo(t.tipo); setTCajaAsignada(t.idCajaAsignada ?? null); }}><IconEditar /></button>
+                <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                  onClick={() => run(() => cajaEstructura.removeTerminal(suc, t.idTerminal))}><IconEliminar /></button>
               </td>
             </tr>
           ))}

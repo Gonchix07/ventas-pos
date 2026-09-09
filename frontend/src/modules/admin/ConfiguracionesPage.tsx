@@ -3,6 +3,7 @@ import {
   configuraciones, conexionExterna, conexionPuntosApp, conexionGiftcardsApp,
   type Configuracion, type ConexionExternaMySql, type ConexionPuntosApp, type ConexionGiftcardsApp,
 } from "../../shared/api/admin";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
 
 export function ConfiguracionesPage() {
   const [items, setItems] = useState<Configuracion[]>([]);
@@ -49,7 +50,7 @@ export function ConfiguracionesPage() {
         <thead><tr><th>Clave</th><th>Descripción</th><th>Valor</th><th></th></tr></thead>
         <tbody>
           {items.map((c) => (
-            <tr key={c.idConfiguracion}>
+            <tr key={c.idConfiguracion} className={editId === c.idConfiguracion ? "lote-sel" : ""}>
               <td className="mono">{c.clave}</td>
               <td>{c.descripcion}</td>
               <td>
@@ -65,8 +66,10 @@ export function ConfiguracionesPage() {
                   </>
                 ) : (
                   <>
-                    <button onClick={() => { setEditId(c.idConfiguracion); setEditVal(c.valor ?? ""); }}>Editar valor</button>
-                    <button className="danger" onClick={() => run(() => configuraciones.remove(c.idConfiguracion))}>Eliminar</button>
+                    <button className="icon-btn" title="Editar valor" aria-label="Editar valor"
+                      onClick={() => { setEditId(c.idConfiguracion); setEditVal(c.valor ?? ""); }}><IconEditar /></button>
+                    <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                      onClick={() => run(() => configuraciones.remove(c.idConfiguracion))}><IconEliminar /></button>
                   </>
                 )}
               </td>

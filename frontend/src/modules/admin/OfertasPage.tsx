@@ -5,6 +5,8 @@ import {
   type OfertaListItem, type OfertaInput, type Lookup, type Accion, type Alcance, type Cluster,
   type Familia, type TipoOferta, type ItemCanasta, type ArticuloListItem,
 } from "../../shared/api/admin";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
+import { useAuth } from "../../shared/auth/auth";
 
 // Fecha en hora LOCAL: con toISOString() (UTC) después de las 21 hs la oferta nueva arrancaba
 // mañana y no aplicaba en el día, que es justo cuando el operador la carga para usarla ya.
@@ -86,6 +88,7 @@ function BuscadorArticulo({ idArticulo, descripcion, onElegir, onLimpiar }: {
 }
 
 export function OfertasPage() {
+  const { idSucursalPredeterminada } = useAuth();
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
   const [suc, setSuc] = useState(0);
   const [items, setItems] = useState<OfertaListItem[]>([]);
@@ -99,12 +102,17 @@ export function OfertasPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    referencias.sucursales().then((s) => { setSucursales(s); if (s.length) setSuc(s[0].id); }).catch(() => {});
+    referencias.sucursales().then((s) => {
+      setSucursales(s);
+      if (idSucursalPredeterminada) setSuc(idSucursalPredeterminada);
+      else if (s.length) setSuc(s[0].id);
+    }).catch(() => {});
     ofertas.tipos().then(setTipos).catch(() => {});
     lookups.list("sectores").then(setSectores).catch(() => {});
     lookups.list("lineas").then(setLineas).catch(() => {});
     familiasApi.list().then(setFamilias).catch(() => {});
     clustersApi.list().then(setCls).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const codigoDe = (idTipo: number) => tipos.find((t) => t.id === idTipo)?.codigo ?? 0;
@@ -362,7 +370,7 @@ export function OfertasPage() {
         <thead><tr><th>ID</th><th>Descripción</th><th>Vigencia</th><th>Acum.</th><th>Alcances</th><th>Acciones</th><th></th></tr></thead>
         <tbody>
           {items.map((o) => (
-            <tr key={o.idOferta}>
+            <tr key={o.idOferta} className={editId === o.idOferta ? "lote-sel" : ""}>
               <td className="mono">{o.idOferta}</td>
               <td>{o.descripcion}</td>
               <td>{o.fechaInicio.slice(0, 10)} → {o.fechaFin.slice(0, 10)}</td>
@@ -370,11 +378,11 @@ export function OfertasPage() {
               <td className="mono">{o.cantAlcances}</td>
               <td className="mono">{o.cantAcciones}</td>
               <td className="row-actions">
-                <button onClick={() => editar(o.idOferta)}>Editar</button>
-                <button className="danger" onClick={() => {
+                <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => editar(o.idOferta)}><IconEditar /></button>
+                <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar" onClick={() => {
                   if (!confirm(`¿Eliminar la oferta «${o.descripcion}»?`)) return;
                   void run(() => ofertas.remove(suc, o.idOferta));
-                }}>Eliminar</button>
+                }}><IconEliminar /></button>
               </td>
             </tr>
           ))}

@@ -27,6 +27,10 @@
   }
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth;}
+  /* NO overflow-x:hidden acá: en html/body rompe el `position:sticky` del índice (deja de
+     "pegarse" y se desplaza con el resto de la página) — efecto colateral conocido de fijarle
+     overflow a un ancestro del elemento sticky. Alcanza con que las tablas y el topbar (más abajo)
+     no generen desborde por su cuenta, sin necesitar esta red de seguridad. */
   body{
     margin:0;
     font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
@@ -59,7 +63,10 @@
   }
 
   /* ---------- Layout ---------- */
-  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  /* Sin max-width + centrado: en un monitor ancho dejaba franjas enormes vacías a los costados
+     (más las que ya sumaba el max-width de `main` de abajo). Ahora el layout ocupa toda la
+     pantalla salvo 1cm de margen real a cada lado (unidad física, no un % que dependa del ancho). */
+  .layout{display:flex; padding:0 1cm;}
   nav.toc{
     width:290px; flex:0 0 290px;
     position:sticky; top:57px; align-self:flex-start;
@@ -89,9 +96,10 @@
   nav.toc a.activo{background:var(--azul-100); font-weight:700; color:var(--azul-800);}
 
   main{
+    /* Sin tope de ancho: que aproveche todo lo que quede al lado del índice, en vez de dejar una
+       columna angosta de 900px con espacio vacío a la derecha en pantallas anchas. */
     flex:1; min-width:0;
     padding:32px 44px 100px;
-    max-width:900px;
   }
 
   /* ---------- Portada ---------- */
@@ -148,16 +156,20 @@
   ul{padding-left:22px; margin:0 0 14px;}
   li{margin-bottom:5px;}
 
-  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.8px;}
-  th,td{padding:8px 10px; text-align:left; border-bottom:1px solid var(--borde); vertical-align:top;}
+  /* table-layout:fixed + word-break: las celdas envuelven el texto largo (rutas de API, nombres
+     de tipos) en vez de estirar la tabla más ancha que la pantalla — así no hace falta el scroll
+     horizontal de .tabla-wrap salvo en pantallas realmente angostas. */
+  table{width:100%; table-layout:fixed; border-collapse:collapse; margin:14px 0 20px; font-size:13.8px;}
+  th,td{padding:8px 10px; text-align:left; border-bottom:1px solid var(--borde); vertical-align:top; overflow-wrap:break-word;}
   th{background:var(--azul-50); color:var(--azul-800); font-weight:700; font-size:12.8px; text-transform:uppercase; letter-spacing:.3px;}
   tr:hover td{background:#fafcff;}
-  .tabla-wrap{overflow-x:auto;}
+  .tabla-wrap{overflow-x:auto; max-width:100%;}
 
   code, .kbd{
     font-family:var(--mono); background:#eef2f7; border:1px solid #dde5ee; border-radius:5px;
-    padding:1px 6px; font-size:.87em; color:#2a3a4c;
+    padding:1px 6px; font-size:.87em; color:#2a3a4c; overflow-wrap:break-word;
   }
+  .endpoint{overflow-wrap:anywhere;}
   .kbd{box-shadow:0 1px 0 #cfd8e3;}
 
   .callout{
@@ -174,6 +186,18 @@
 
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:16px 0;}
   @media (max-width:760px){.grid2{grid-template-columns:1fr;}}
+
+  /* ---------- Referencia de API ---------- */
+  .metodo{display:inline-block; font-family:var(--mono); font-size:11.5px; font-weight:800;
+    padding:2px 7px; border-radius:5px; color:#fff; letter-spacing:.3px;}
+  .metodo.get{background:#1a4d8f;}
+  .metodo.post{background:#1e7a3c;}
+  .metodo.put{background:#b8790a;}
+  .metodo.delete{background:#b3261e;}
+  .endpoint{font-family:var(--mono); font-size:13px;}
+  table.api td:first-child{white-space:nowrap;}
+  table.api td{font-size:13px;}
+  .api-grupo{margin:0 0 8px; color:var(--azul-800);}
   .card{background:var(--card); border:1px solid var(--borde); border-radius:12px; padding:16px 18px;}
   .card h4{margin-top:0;}
 
@@ -195,7 +219,7 @@
   .volver:hover{color:var(--azul-700);}
 
   footer{
-    max-width:900px; margin:0 auto; padding:30px 44px 60px; color:var(--texto-sec); font-size:12.5px;
+    padding:30px 44px 60px; color:var(--texto-sec); font-size:12.5px;
     border-top:1px solid var(--borde);
   }
 
@@ -210,9 +234,18 @@
     }
     nav.toc.abierto{transform:translateX(0);}
     #btnMenu{display:inline-block;}
+    /* Con el índice flotante (position:fixed) el layout ya no necesita el 1cm de acá — el padding
+       lo pone `main` solo, si no se sumaban los dos y achicaban de más el ancho útil en celular. */
+    .layout{padding:0;}
     main{padding:24px 20px 90px;}
     .grid2{grid-template-columns:1fr;}
   }
+  /* Topbar: "Manual de Usuario" + "Sistema de Venta POS · Hergo" + el botón ☰ no entraban todos
+     en una fila angosta (celular) y desbordaban horizontal — se van sacando de a uno, del menos
+     importante al más importante, a medida que hay menos ancho. */
+  @media (max-width:700px){ .topbar .rightbit{display:none;} }
+  @media (max-width:520px){ .topbar h1{display:none;} }
+  @media (max-width:380px){ .topbar .sep{display:none;} .topbar .mark span{display:none;} }
 
   @media print{
     nav.toc, .topbar, #btnMenu{display:none !important;}
@@ -288,6 +321,7 @@
     <a href="#supervisor">15. Código de supervisor</a>
     <a href="#glosario">16. Glosario</a>
     <a href="#mapa-sistema">17. Mapa del sistema</a>
+    <a href="#api">18. Referencia de API</a>
   </div>
 </nav>
 
@@ -830,6 +864,188 @@
       </g>
     </svg>
   </div>
+</section>
+
+<section id="api">
+  <h2>18. Referencia de API</h2>
+  <p class="lead">Listado técnico de todos los endpoints REST del sistema — pensado para quien integra o depura, no para el uso diario. Todo lo que hace el frontend pasa por acá.</p>
+
+  <div class="callout info">
+    <span class="ico">ℹ️</span>
+    <div><b>Convenciones generales.</b>
+      <ul style="margin:6px 0 0; padding-left:18px;">
+        <li><b>Base URL:</b> <code>/api/v1</code> (ej. <code>http://servidor:5038/api/v1</code>).</li>
+        <li><b>Autenticación:</b> header <code>Authorization: Bearer &lt;token&gt;</code>, obtenido en <code>POST /auth/login</code>. Todos los endpoints la exigen salvo <code>/auth/login</code>, <code>/auth/refresh</code> y <code>/auth/logout</code>.</li>
+        <li><b>Autorización:</b> además del rol, cada endpoint exige tener habilitado el módulo correspondiente (claim <code>modulo</code> del JWT) — ver <a href="#permisos">sección 14</a>. Sin uno de los dos, responde <code>403</code>.</li>
+        <li><b>Sobre de respuesta.</b> Todas las respuestas (éxito o error de negocio) tienen la misma forma: <code>{ ok: boolean, data: T | null, error: { code, message } | null }</code>. Un <code>ok:false</code> normalmente viaja con un status HTTP de error (400/404/409) y <code>error.code</code> identifica el motivo (ej. <code>NO_ENCONTRADO</code>, <code>CODIGO_DUPLICADO</code>).</li>
+        <li><b>Columna "Parámetros".</b> Los de ruta y query van con su nombre y tipo tal cual el backend los espera; el <b>Body</b> se referencia por el nombre de su tipo (record) del backend — son los mismos datos que carga el formulario equivalente descripto en el resto del manual.</li>
+        <li>En desarrollo, Swagger (<code>/swagger</code>) expone esta misma lista de forma interactiva, con el detalle campo por campo de cada tipo.</li>
+      </ul>
+    </div>
+  </div>
+
+  <section class="sub" id="api-auth">
+    <h3 class="api-grupo">18.1 Autenticación</h3>
+    <div class="tabla-wrap"><table class="api">
+      <tr><th>Endpoint</th><th>Parámetros</th><th>Respuesta</th></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/auth/login</span></td><td>Body: <code>{ usuario, clave }</code>. Header <code>X-Puesto-Id</code> opcional (GUID del equipo, para resolver caja).</td><td><code>LoginResult</code>: token, expiraUtc, usuario, rol, idSucursal/idCaja (si resolvió puesto), idSucursalPredeterminada, modulos[], refreshToken, refreshExpiraUtc, ip.</td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/auth/refresh</span></td><td>Body: <code>{ refreshToken }</code></td><td>Mismo <code>LoginResult</code> que login, con token y refreshToken nuevos (rotación de un solo uso).</td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/auth/logout</span></td><td>Body: <code>{ refreshToken }</code></td><td><code>bool</code> — revoca el refresh token del lado del servidor.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/auth/me</span></td><td>—</td><td>Datos de la sesión actual reconstruidos desde los claims del JWT: usuario, rol, idSucursal, idCaja, idSucursalPredeterminada, modulos[], ip (calculada en vivo).</td></tr>
+    </table></div>
+  </section>
+
+  <section class="sub" id="api-caja">
+    <h3 class="api-grupo">18.2 Caja (venta)</h3>
+    <div class="tabla-wrap"><table class="api">
+      <tr><th>Endpoint</th><th>Parámetros</th><th>Respuesta</th></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/caja/apertura</span></td><td>Body: <code>AperturaRequest</code></td><td><code>LoteDto</code> — el lote (turno) recién abierto.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/lote-actual</span></td><td>Query: <code>idSucursal</code>, <code>idCaja</code></td><td><code>LoteDto</code>, o 404 <code>SIN_LOTE</code> si no hay un lote abierto hoy.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/mis-turnos</span></td><td>Query: <code>idSucursal</code></td><td><code>IReadOnlyList&lt;TurnoAbiertoDto&gt;</code> — turnos del usuario logueado abiertos en otras cajas.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/cajas</span></td><td>Query: <code>idSucursal</code></td><td><code>IReadOnlyList&lt;CajaDisponibleDto&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/descripcion</span></td><td>Query: <code>idSucursal</code>, <code>idCaja</code></td><td><code>DescripcionCajaDto</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/medios-pago</span></td><td>Query: <code>idCliente</code> (opcional, filtra por cluster del cliente)</td><td><code>IReadOnlyList&lt;MedioPagoResumen&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/medios-pago/{idMedioPago}/planes</span></td><td>Ruta: <code>idMedioPago</code></td><td><code>IReadOnlyList&lt;PlanCuotaResumen&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/ofertas-medio-pago</span></td><td>Query: <code>idSucursal</code></td><td><code>IReadOnlyList&lt;OfertaMedioPagoVigenteDto&gt;</code> vigentes hoy.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/bancos</span></td><td>—</td><td><code>IReadOnlyList&lt;BancoResumen&gt;</code> (para pagos con cheque).</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/clientes/buscar</span></td><td>Query: <code>idSucursal</code>, <code>q</code></td><td><code>IReadOnlyList&lt;ClienteResumen&gt;</code> — con convenio/precio ya resueltos para esa sucursal.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/articulos/buscar</span></td><td>Query: <code>idSucursal</code>, <code>codigo</code></td><td><code>ArticuloEncontrado</code> (un solo artículo, por código exacto o de barra) o 404.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/articulos/buscar-lista</span></td><td>Query: <code>idSucursal</code>, <code>texto</code></td><td><code>IReadOnlyList&lt;ArticuloEncontrado&gt;</code> — búsqueda por texto, varios resultados.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/operaciones/pendientes</span></td><td>Query: <code>idSucursal</code>, <code>idCaja</code></td><td><code>IReadOnlyList&lt;OperacionPendienteDto&gt;</code></td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/caja/operaciones</span></td><td>Body: <code>CrearOperacionRequest</code></td><td><code>OperacionDto</code> — la operación (venta) recién creada.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/operaciones/{idOperacion}</span></td><td>Ruta: <code>idOperacion</code>. Query: <code>idSucursal</code></td><td><code>OperacionDto</code> o 404.</td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/caja/operaciones/{idOperacion}/lineas</span></td><td>Ruta: <code>idOperacion</code>. Query: <code>idSucursal</code>. Body: línea a agregar (código/cantidad)</td><td><code>OperacionDto</code> — recalcula todas las ofertas de la operación.</td></tr>
+      <tr><td><span class="metodo put">PUT</span> <span class="endpoint">/caja/operaciones/{idOperacion}/lineas/{idDetalle}/cantidad</span></td><td>Ruta: <code>idOperacion</code>, <code>idDetalle</code>. Query: <code>idSucursal</code></td><td><code>OperacionDto</code></td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/caja/operaciones/{idOperacion}/lineas/{idDetalle}/anular</span></td><td>Ruta: <code>idOperacion</code>, <code>idDetalle</code>. Query: <code>idSucursal</code></td><td><code>OperacionDto</code></td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/caja/operaciones/{idOperacion}/finalizar</span></td><td>Ruta: <code>idOperacion</code>. Query: <code>idSucursal</code></td><td><code>OperacionDto</code> — bloquea la edición (pasa a Facturación).</td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/caja/operaciones/{idOperacion}/reabrir</span></td><td>Ruta: <code>idOperacion</code>. Query: <code>idSucursal</code></td><td><code>OperacionDto</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/redondeo</span></td><td>Query: <code>total</code> (decimal)</td><td><code>RedondeoDto</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/giftcard/validar</span></td><td>Query: <code>codigo</code></td><td><code>GiftcardConsulta</code>, o 404 <code>GIFTCARD_NO_VALIDA</code>.</td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/caja/giftcard/usar</span></td><td>Body: <code>UsarGiftcardRequest</code></td><td><code>ResultadoUsoGiftcard</code>, o 400 <code>GIFTCARD_RECHAZADA</code>.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/campanias</span></td><td>Query: <code>dni</code></td><td><code>ResultadoCampanias</code> (integración puntos-app).</td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/caja/retiro-efectivo</span></td><td>Query: <code>idSucursal</code>, <code>idCaja</code>. Body: motivo/importe</td><td><code>RetiroEfectivoResponse</code></td></tr>
+    </table></div>
+  </section>
+
+  <section class="sub" id="api-cierres">
+    <h3 class="api-grupo">18.3 Cierres de caja</h3>
+    <div class="tabla-wrap"><table class="api">
+      <tr><th>Endpoint</th><th>Parámetros</th><th>Respuesta</th></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/motivos-diferencia</span></td><td>—</td><td><code>IReadOnlyList&lt;MotivoDto&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caja/arqueo-x</span></td><td>Query: <code>idSucursal</code>, <code>idCaja</code>, <code>imprimir</code> (bool)</td><td><code>ArqueoXResponse</code> — foto del estado actual, sin cerrar.</td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/caja/cerrar-turno</span></td><td>Query: <code>idSucursal</code>, <code>idCaja</code>. Body: declaración por medio de pago + motivo</td><td><code>CerrarTurnoResponse</code> — irreversible.</td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/caja/cierre-z-fiscal</span></td><td>Query: <code>idSucursal</code>, <code>idCaja</code>. Body: código de supervisor</td><td><code>CierreZFiscalResponse</code> — número fiscal y hora del cierre Z.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="sub" id="api-facturacion">
+    <h3 class="api-grupo">18.4 Facturación y Notas de Crédito</h3>
+    <div class="tabla-wrap"><table class="api">
+      <tr><th>Endpoint</th><th>Parámetros</th><th>Respuesta</th></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/facturacion/emitir</span></td><td>Body: <code>EmitirComprobanteRequest</code> (operación, medios de pago, modo)</td><td><code>EmitirComprobanteResponse</code> — CAE/CAEA, número, estado.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/facturacion/{idComprobante}</span></td><td>Ruta: <code>idComprobante</code>. Query: <code>idSucursal</code></td><td><code>ComprobanteDetailDto</code> o 404.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/facturacion/{idComprobante}/impresion</span></td><td>Ruta: <code>idComprobante</code>. Query: <code>idSucursal</code></td><td><code>ComprobanteImpresionDto</code> — datos listos para el ticket.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/facturacion/letra</span></td><td>Query: <code>idSucursal</code>, <code>idOperacion</code></td><td><code>string</code> — letra (A/B) que corresponde según la condición de IVA del cliente.</td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/facturacion/{idComprobante}/reimprimir</span></td><td>Ruta: <code>idComprobante</code>. Query: <code>idSucursal</code></td><td><code>ReimpresionResponse</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/notas-credito/comprobantes</span></td><td>Query: <code>idSucursal</code>, <code>texto</code> (opcional)</td><td><code>IReadOnlyList&lt;ComprobanteAnulableDto&gt;</code> — facturas de la sucursal que se pueden anular.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/notas-credito/comprobantes/{idComprobante}</span></td><td>Ruta: <code>idComprobante</code>. Query: <code>idSucursal</code></td><td><code>ComprobanteAnulableDetalleDto</code></td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/notas-credito/emitir</span></td><td>Body: <code>EmitirNotaCreditoRequest</code> (total / por artículos / por diferencia)</td><td><code>NotaCreditoResponse</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caea-lote/pendientes</span></td><td>—</td><td><code>IReadOnlyList&lt;LoteCaeaPendienteDto&gt;</code> — CAEA usados sin informar a ARCA.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/caea-lote/pendientes/comprobantes</span></td><td>Query: <code>idSucursal</code>, <code>idPuntoVenta</code></td><td><code>IReadOnlyList&lt;ComprobanteCaeaDto&gt;</code></td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/caea-lote/informar</span></td><td>Body: <code>InformarLoteCaeaRequest</code></td><td><code>InformarLoteCaeaResponse</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/precios/resolver</span></td><td>Query: <code>idSucursal</code>, <code>idPresentacion</code></td><td><code>ResolverPrecioResponse</code> — el precio vigente (Folder &gt; Temporal &gt; Base).</td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/ofertas/articulos</span></td><td>Body: <code>AplicarOfertasRequest</code></td><td><code>AplicarOfertasResponse</code></td></tr>
+    </table></div>
+  </section>
+
+  <section class="sub" id="api-clientes">
+    <h3 class="api-grupo">18.5 Clientes</h3>
+    <div class="tabla-wrap"><table class="api">
+      <tr><th>Endpoint</th><th>Parámetros</th><th>Respuesta</th></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/clientes/buscar-por-dni</span></td><td>Query: <code>dni</code></td><td><code>IReadOnlyList&lt;ClienteTicketDto&gt;</code> — cuenta propia + cuentas donde es autorizado (módulo Autoservicio Clientes).</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/clientes-ficha/buscar</span></td><td>Query: <code>q</code> (nombre/fantasía/código/CUIT/documento/domicilio)</td><td><code>IReadOnlyList&lt;ClienteDto&gt;</code> — mismo listado que el ABM, de solo lectura.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/clientes-ficha/{id}</span></td><td>Ruta: <code>id</code></td><td><code>ClienteDto</code> (con Autorizados) o 404.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/clientes-ficha/{id}/ticket</span></td><td>Ruta: <code>id</code></td><td><code>ClienteTicketDto</code> — para imprimir el mismo ticket que Autoservicio.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="sub" id="api-etiquetas">
+    <h3 class="api-grupo">18.6 Etiquetas</h3>
+    <div class="tabla-wrap"><table class="api">
+      <tr><th>Endpoint</th><th>Parámetros</th><th>Respuesta</th></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/etiquetas/clasificaciones</span></td><td>—</td><td><code>ClasificacionesDto</code> (sectores/líneas/familias).</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/etiquetas/sucursales</span></td><td>—</td><td><code>IReadOnlyList&lt;LookupSimpleDto&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/etiquetas/buscar</span></td><td>Query: <code>q</code></td><td><code>IReadOnlyList&lt;ArticuloParaEtiquetaDto&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/etiquetas/por-clasificacion</span></td><td>Query: <code>idSector</code>, <code>idLinea</code>, <code>idFamilia</code> (todos opcionales)</td><td><code>IReadOnlyList&lt;ArticuloParaEtiquetaDto&gt;</code></td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/etiquetas/generar</span></td><td>Body: <code>GenerarRequest</code> (idSucursal, lista de idsPresentacion)</td><td><code>IReadOnlyList&lt;EtiquetaDto&gt;</code> — precio base + por tarjeta + por unidad de medida + compra mínima.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="sub" id="api-verificar-precios">
+    <h3 class="api-grupo">18.7 Verificar Precios</h3>
+    <div class="tabla-wrap"><table class="api">
+      <tr><th>Endpoint</th><th>Parámetros</th><th>Respuesta</th></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/verificar-precios</span></td><td>Query: <code>idSucursal</code>, <code>codigo</code></td><td><code>ConsultaPrecioResult</code> (imagen + precios AZUL/ROJA + oferta vigente) o 404.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="sub" id="api-tesoreria">
+    <h3 class="api-grupo">18.8 Tesorería, Cupones y Reimpresión</h3>
+    <div class="tabla-wrap"><table class="api">
+      <tr><th>Endpoint</th><th>Parámetros</th><th>Respuesta</th></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/lotes</span></td><td>Query: <code>idSucursal</code>, <code>desde</code>, <code>hasta</code> (opcionales)</td><td><code>IReadOnlyList&lt;LoteResumenDto&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/lotes/{idLote}/detalle</span></td><td>Ruta: <code>idLote</code>. Query: <code>idSucursal</code></td><td><code>LoteDetalleDto</code> — rendición por medio de pago.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/lotes/{idLote}/comprobantes</span></td><td>Ruta: <code>idLote</code>. Query: <code>idSucursal</code></td><td><code>IReadOnlyList&lt;ComprobanteLoteDto&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/motivos-cierre</span></td><td>—</td><td><code>IReadOnlyList&lt;MotivoCierreDto&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/motivos-diferencia</span></td><td>—</td><td><code>IReadOnlyList&lt;MotivoDto&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/dashboard</span></td><td>Query: <code>idSucursal</code> (opcional)</td><td><code>DashboardResponse</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/cierres</span></td><td>Query: <code>idSucursal</code>, <code>cajero</code> (opcionales)</td><td><code>IReadOnlyList&lt;CierreListItemDto&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/lotes-pendientes</span></td><td>Query: <code>idSucursal</code> (opcional)</td><td><code>IReadOnlyList&lt;LotePendienteDto&gt;</code> — lotes Abiertos de días anteriores.</td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/tesoreria/lotes-pendientes/{idLote}/cerrar</span></td><td>Ruta: <code>idLote</code>. Query: <code>idSucursal</code>. Body: declaraciones + motivo</td><td><code>CerrarTurnoResponse</code> — cierre manual desde Tesorería.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/medios-pago</span></td><td>—</td><td><code>IReadOnlyList&lt;MedioPagoLookupDto&gt;</code></td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/tesoreria/lotes/{idLote}/correccion</span></td><td>Ruta: <code>idLote</code>. Query: <code>idSucursal</code></td><td><code>CorreccionDto</code></td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/tesoreria/cierres/{idLote}/validar</span></td><td>Ruta: <code>idLote</code>. Query: <code>idSucursal</code>. Body: motivo/observación opcionales</td><td><code>bool</code></td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/tesoreria/cierres/{idLote}/reabrir</span></td><td>Ruta: <code>idLote</code>. Query: <code>idSucursal</code></td><td><code>bool</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/efectividad</span></td><td>Query: <code>idSucursal</code>, <code>desde</code>, <code>hasta</code></td><td><code>EfectividadResponse</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/cupones</span></td><td>Query: <code>idSucursal</code>, <code>desde</code>, <code>hasta</code> (opcionales)</td><td><code>IReadOnlyList&lt;CuponDto&gt;</code></td></tr>
+      <tr><td><span class="metodo put">PUT</span> <span class="endpoint">/tesoreria/cupones/{idMovPagos}</span></td><td>Ruta: <code>idMovPagos</code>. Query: <code>idSucursal</code></td><td><code>CuponDto</code> — corrige el cupón (tarjeta/plan mal tipeado).</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/cupones/{idMovPagos}/historial</span></td><td>Ruta: <code>idMovPagos</code>. Query: <code>idSucursal</code></td><td><code>IReadOnlyList&lt;CorreccionCuponDto&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/tesoreria/cupones/{idMovPagos}/planes</span></td><td>Ruta: <code>idMovPagos</code>. Query: <code>idSucursal</code></td><td><code>IReadOnlyList&lt;PlanCuotaResumen&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/reimpresion/comprobantes</span></td><td>Query: <code>idSucursal</code>, <code>texto</code> (opcional)</td><td><code>IReadOnlyList&lt;ComprobanteReimpresionDto&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/reimpresion/{idComprobante}/impresion</span></td><td>Ruta: <code>idComprobante</code>. Query: <code>idSucursal</code></td><td><code>ComprobanteImpresionDto</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/reimpresion/rendiciones</span></td><td>Query: <code>idSucursal</code>, <code>texto</code> (opcional)</td><td><code>IReadOnlyList&lt;RendicionReimpresionDto&gt;</code></td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/reimpresion/rendiciones/{idLote}</span></td><td>Ruta: <code>idLote</code>. Query: <code>idSucursal</code></td><td><code>RendicionImpresionDto</code> o 404.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="sub" id="api-admin">
+    <h3 class="api-grupo">18.9 Administración</h3>
+    <p>Todos bajo <code>/admin/...</code>, exigen rol <strong>Administrador</strong> (o el módulo correspondiente habilitado) y siguen el mismo patrón CRUD: <span class="metodo get">GET</span> lista/detalle, <span class="metodo post">POST</span> crea (responde el <code>int</code> del nuevo id), <span class="metodo put">PUT</span> actualiza y <span class="metodo delete">DELETE</span> borra (responden <code>bool</code>) — todos devuelven 404 <code>NO_ENCONTRADO</code> si el id no existe. Los campos de entrada de cada <code>...Input</code> son los mismos que su formulario en la sección 13.</p>
+    <div class="tabla-wrap"><table class="api">
+      <tr><th>Recurso</th><th>Base</th><th>Verbos / rutas extra</th><th>Tipos</th></tr>
+      <tr><td>Artículos</td><td class="endpoint">/admin/articulos</td><td>GET (?texto,idSector,idLinea,idFamilia,activo), GET /{id}, POST, PUT /{id}, DELETE /{id}</td><td><code>ArticuloListItem</code> / <code>ArticuloDetail</code> / <code>ArticuloInput</code></td></tr>
+      <tr><td>Clientes (ABM)</td><td class="endpoint">/admin/clientes</td><td>GET (?q,soloCuentaCorriente), GET /{id}, POST, PUT /{id}, DELETE /{id} (baja lógica)</td><td><code>ClienteDto</code> / <code>ClienteInput</code></td></tr>
+      <tr><td>Familias</td><td class="endpoint">/admin/familias</td><td>GET (?idSector), GET /{id}, POST, PUT /{id}, DELETE /{id}</td><td><code>FamiliaDto</code> / <code>FamiliaInput</code></td></tr>
+      <tr><td>Lookups simples<br><small class="muted">sectores, líneas, tipos-oferta, motivos-diferencia, motivos-cierre, bancos</small></td><td class="endpoint">/admin/{recurso}</td><td>GET, GET /{id}, POST, PUT /{id}, DELETE /{id} (tipos-oferta es solo lectura)</td><td><code>LookupDto</code> / <code>LookupInput</code></td></tr>
+      <tr><td>Listas de precios</td><td class="endpoint">/admin/listas-precios</td><td>GET, GET /{id}, POST, PUT /{id}, DELETE /{id}; GET /{id}/precios (?texto,idsArticulos), PUT/DELETE /{id}/precios/{idPresentacion}, PUT /{id}/articulos/{idArticulo}/precio</td><td><code>ListaPrecioDto</code> / <code>PrecioDto</code></td></tr>
+      <tr><td>Tipos / medios de pago</td><td class="endpoint">/admin/tipos-pago, /admin/medios-pago</td><td>GET, POST, PUT /{id}, DELETE /{id}; GET/POST /medios-pago/{id}/planes, PUT/DELETE /planes/{id}</td><td><code>TipoPagoDto</code> / <code>MedioPagoDto</code> / <code>PlanCuotaDto</code></td></tr>
+      <tr><td>Ofertas por artículo</td><td class="endpoint">/admin/sucursales/{idSucursal}/ofertas</td><td>GET, GET /{idOferta}, POST, PUT /{idOferta}, DELETE /{idOferta}</td><td><code>OfertaListItem</code> / <code>OfertaDetail</code> / <code>OfertaInput</code></td></tr>
+      <tr><td>Ofertas por medio de pago</td><td class="endpoint">/admin/sucursales/{idSucursal}/ofertas-medio-pago</td><td>GET, POST, PUT /{id}, DELETE /{id}</td><td><code>OfertaMedioPagoDto</code></td></tr>
+      <tr><td>Convenios</td><td class="endpoint">/admin/sucursales/{idSucursal}/convenios</td><td>GET, POST, PUT /{id}, DELETE /{id}</td><td><code>ConvenioDto</code></td></tr>
+      <tr><td>Clusters</td><td class="endpoint">/admin/clusters</td><td>GET, POST, PUT /{idCluster} (renombrar), DELETE /{idCluster}; GET /{idCluster}/miembros, POST/PUT (set masivo) /{idCluster}/miembros, DELETE /{idCluster}/miembros/{idCliente}</td><td><code>ClusterDto</code> / <code>ClusterMiembroDto</code></td></tr>
+      <tr><td>Tipos de tarjeta / tarjetas por cliente</td><td class="endpoint">/admin/tipos-tarjeta, /admin/clientes/{idCliente}/tarjetas</td><td>GET, POST, PUT /{id}, DELETE /{id}; POST/DELETE tarjetas por cliente</td><td><code>TipoTarjetaDto</code> / <code>TarjetaClienteDto</code></td></tr>
+      <tr><td>Cuenta corriente (límites)</td><td class="endpoint">/admin/sucursales/{idSucursal}/cuenta-corriente</td><td>GET, PUT /{idCliente} (upsert límite), DELETE /{idCliente}</td><td><code>CuentaCorrienteLimiteDto</code></td></tr>
+      <tr><td>Padrones (IIBB / exención IVA)</td><td class="endpoint">/admin/padrones/{iibb|excepcion-iva}</td><td>GET (?q), PUT/POST, DELETE /{cuit}; POST /iibb/importar y /excepcion-iva/importar (multipart, reemplaza todo el padrón)</td><td><code>PadronIibbDto</code> / <code>PadronExIvaDto</code> / <code>ImportacionPadronDto</code></td></tr>
+      <tr><td>Empresas / Sucursales</td><td class="endpoint">/admin/empresas, /admin/sucursales</td><td>GET, POST, PUT /{id}, DELETE /{id}</td><td><code>EmpresaDto</code> / <code>SucursalDto</code></td></tr>
+      <tr><td>Certificado fiscal (CAE) y CAEA</td><td class="endpoint">/admin/empresas/{id}/certificado, /caea</td><td>GET/POST/DELETE certificado (multipart); GET probar-conexion, POST probar-cae; GET/POST /caea, PUT/DELETE /caea/{idCaea}</td><td><code>CertificadoCaeDto</code> / <code>CaeaCargadoDto</code></td></tr>
+      <tr><td>Estructura de caja<br><small class="muted">tipos de punto de venta, puntos de venta, puestos, cajas, terminales</small></td><td class="endpoint">/admin/sucursales/{idSucursal}/...</td><td>GET tipos-punto-venta (solo lectura); GET/POST puntos-venta, PUT/DELETE /{id}; ídem puestos (+ POST /{id}/vincular-equipo), cajas y terminales-tarjeta</td><td><code>PuntoVentaDto</code> / <code>PuestoDto</code> / <code>CajaDto</code> / <code>TerminalTarjetaDto</code></td></tr>
+      <tr><td>Usuarios / Roles / Permisos</td><td class="endpoint">/admin/usuarios, /admin/roles, /admin/permisos</td><td>GET roles (solo lectura); GET/POST/PUT usuarios, POST /{id}/reset-clave, DELETE /{id}; GET/PUT permisos (matriz completa)</td><td><code>UsuarioDto</code> / <code>RolDto</code> / <code>MatrizPermisosDto</code></td></tr>
+      <tr><td>Configuraciones</td><td class="endpoint">/admin/configuraciones</td><td>GET, POST, PUT /{id}, DELETE /{id}</td><td><code>ConfiguracionDto</code></td></tr>
+      <tr><td>Conexiones externas<br><small class="muted">MySQL, puntos-app, giftcards-app</small></td><td class="endpoint">/admin/conexion-externa, -puntos-app, -giftcards-app</td><td>GET, PUT, POST /probar (prueba real sin guardar)</td><td><code>ConexionExternaMySqlDto</code> / <code>ConexionPuntosAppDto</code> / <code>ConexionGiftcardsAppDto</code> / <code>ProbarConexionResultado</code></td></tr>
+      <tr><td>Referencias (lookups de solo lectura)</td><td class="endpoint">/admin/referencias/{modos-iva|sucursales|listas-precios|condiciones-iva}</td><td>GET</td><td><code>LookupDto</code></td></tr>
+      <tr><td>Estadísticas de ventas</td><td class="endpoint">/admin/estadisticas/ventas</td><td>GET (?periodo, idSucursal)</td><td><code>EstadisticasVentasResponse</code></td></tr>
+    </table></div>
+  </section>
 </section>
 
 </main>

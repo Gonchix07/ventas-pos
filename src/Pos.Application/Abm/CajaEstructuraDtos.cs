@@ -73,9 +73,15 @@ public record RolDto(int IdRol, string Descripcion);
 // CodigoSupervisor: el de 8 dígitos del control de supervisor (ver ISupervisorAuthService). Solo
 // tiene sentido cargado en usuarios Supervisor/Administrador, pero no se restringe por rol acá —
 // el que sí importa es el rol de a quién pertenece el código al momento de USARLO.
-public record UsuarioDto(int IdUsuario, string NombreUsuario, int IdRol, string? Rol, bool Activo, string? CodigoSupervisor);
-public record UsuarioCreateInput(string NombreUsuario, string Clave, int IdRol, bool Activo, string? CodigoSupervisor = null);
-public record UsuarioUpdateInput(string NombreUsuario, int IdRol, bool Activo, string? CodigoSupervisor = null);
+// IdSucursalPredeterminada: sucursal que el frontend propone sola en cualquier selector de
+// "Sucursal" de una pantalla que no la resuelve por otro medio (ver Usuario.IdSucursalPredeterminada
+// en el dominio) — pura comodidad de UI, no una restricción de acceso.
+public record UsuarioDto(int IdUsuario, string NombreUsuario, int IdRol, string? Rol, bool Activo,
+    string? CodigoSupervisor, int? IdSucursalPredeterminada, string? SucursalPredeterminada);
+public record UsuarioCreateInput(string NombreUsuario, string Clave, int IdRol, bool Activo,
+    string? CodigoSupervisor = null, int? IdSucursalPredeterminada = null);
+public record UsuarioUpdateInput(string NombreUsuario, int IdRol, bool Activo,
+    string? CodigoSupervisor = null, int? IdSucursalPredeterminada = null);
 public record ResetClaveInput(string NuevaClave);
 
 public interface IUsuarioAdminService

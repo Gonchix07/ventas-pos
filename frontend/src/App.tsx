@@ -28,6 +28,7 @@ import { CajaPage } from "./modules/caja/CajaPage";
 // Alias: ya existe un ClientesPage (ABM de Administración) importado abajo con el mismo nombre de
 // componente — este es la ficha/ticket de mostrador del módulo "Clientes" del menú principal.
 import { ClientesPage as ClientesModuloPage } from "./modules/clientes/ClientesPage";
+import { ClientesFichaPage } from "./modules/clientesFicha/ClientesFichaPage";
 import { VerificarPreciosPage } from "./modules/verificarPrecios/VerificarPreciosPage";
 import { TesoreriaPage } from "./modules/admin/TesoreriaPage";
 import { CuponesPage } from "./modules/admin/CuponesPage";
@@ -36,6 +37,7 @@ import { EtiquetasPage } from "./modules/etiquetas/EtiquetasPage";
 import { ReimpresionPage } from "./modules/reimpresion/ReimpresionPage";
 import { VentasPage } from "./modules/ventas/VentasPage";
 import { FacturacionCaeaPage } from "./modules/caea/FacturacionCaeaPage";
+import { ToastProvider, ToastBridge } from "./shared/ui/toast";
 import "./App.css";
 
 const queryClient = new QueryClient();
@@ -86,6 +88,9 @@ function AnimatedRoutes() {
         } />
         <Route path="/clientes" element={
           <RequireAuth roles={["Cajero", "Supervisor", "Tesorero", "Administrador"]} modulo="Clientes"><ClientesModuloPage /></RequireAuth>
+        } />
+        <Route path="/clientes-ficha" element={
+          <RequireAuth roles={["Cajero", "Supervisor", "Tesorero", "Administrador"]} modulo="ClientesFicha"><ClientesFichaPage /></RequireAuth>
         } />
         <Route path="/verificar-precios" element={
           <RequireAuth roles={["Cajero", "Supervisor", "Tesorero", "Repositor", "Administrador"]} modulo="VerificarPrecios">
@@ -151,11 +156,14 @@ function AnimatedRoutes() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <AnimatedRoutes />
-        </BrowserRouter>
-      </AuthProvider>
+      <ToastProvider>
+        <ToastBridge />
+        <AuthProvider>
+          <BrowserRouter>
+            <AnimatedRoutes />
+          </BrowserRouter>
+        </AuthProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

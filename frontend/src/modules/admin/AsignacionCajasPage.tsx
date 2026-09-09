@@ -3,6 +3,8 @@ import {
   cajaEstructura, referencias,
   type Lookup, type PuntoVenta, type Puesto, type CajaFisica, type TerminalTarjeta,
 } from "../../shared/api/admin";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
+import { useAuth } from "../../shared/auth/auth";
 
 // ModalidadPuntoVenta.Presupuesto en el backend: no se asigna a una caja como su PV principal — es
 // un único punto de venta compartido por toda la sucursal, que el servidor resuelve solo al
@@ -15,6 +17,7 @@ const TIPO_PV_PRESUPUESTO = 3;
  * "Estructura de caja" — acá solo se referencian para armar el selector.
  */
 export function AsignacionCajasPage() {
+  const { idSucursalPredeterminada } = useAuth();
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
   const [suc, setSuc] = useState<number>(0);
   const [pvs, setPvs] = useState<PuntoVenta[]>([]);
@@ -40,7 +43,12 @@ export function AsignacionCajasPage() {
   const [cEditId, setCEditId] = useState<number | null>(null);
 
   useEffect(() => {
-    referencias.sucursales().then((s) => { setSucursales(s); if (s.length) setSuc(s[0].id); }).catch(() => {});
+    referencias.sucursales().then((s) => {
+      setSucursales(s);
+      if (idSucursalPredeterminada) setSuc(idSucursalPredeterminada);
+      else if (s.length) setSuc(s[0].id);
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cargar = async (s: number) => {
@@ -109,7 +117,7 @@ export function AsignacionCajasPage() {
             <thead><tr><th>ID</th><th>Nombre</th><th>Equipo (GUID)</th><th></th><th></th></tr></thead>
             <tbody>
               {puestos.map((p) => (
-                <tr key={p.idPuestoAsignado}>
+                <tr key={p.idPuestoAsignado} className={puEditId === p.idPuestoAsignado ? "lote-sel" : ""}>
                   <td className="mono">{p.idPuestoAsignado}</td><td>{p.nombrePc}</td>
                   <td className="mono">
                     {p.identificadorEquipo ?? <span className="muted">Sin vincular</span>}
@@ -128,8 +136,10 @@ export function AsignacionCajasPage() {
                     </button>
                   </td>
                   <td className="row-actions">
-                    <button onClick={() => { setPuEditId(p.idPuestoAsignado); setPuNombre(p.nombrePc); setPuEditIpActual(p.ip ?? null); }}>✎</button>
-                    <button className="danger" onClick={() => run(() => cajaEstructura.removePuesto(suc, p.idPuestoAsignado))}>×</button>
+                    <button className="icon-btn" title="Editar" aria-label="Editar"
+                      onClick={() => { setPuEditId(p.idPuestoAsignado); setPuNombre(p.nombrePc); setPuEditIpActual(p.ip ?? null); }}><IconEditar /></button>
+                    <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                      onClick={() => run(() => cajaEstructura.removePuesto(suc, p.idPuestoAsignado))}><IconEliminar /></button>
                   </td>
                 </tr>
               ))}
@@ -185,7 +195,7 @@ export function AsignacionCajasPage() {
                 const disponibles = terminales.filter((t) => t.idCajaAsignada == null);
                 const selId = terminalSel[c.idCaja] ?? disponibles[0]?.idTerminal ?? 0;
                 return (
-                  <tr key={c.idCaja}>
+                  <tr key={c.idCaja} className={cEditId === c.idCaja ? "lote-sel" : ""}>
                     <td className="mono">{c.idCaja}</td><td>{c.descripcion}</td>
                     <td className="mono">{pv ? `${pv.tipoDescripcion ?? "PV"} ${pv.numeroPuntoVenta}` : c.idPuntoVenta}</td>
                     <td className="mono">{c.nombrePc}</td>
@@ -219,9 +229,10 @@ export function AsignacionCajasPage() {
                         )}
                       </div>
                     </td>
-                    <td>
-                      <button onClick={() => editarCaja(c)}>✎</button>
-                      <button className="danger" onClick={() => run(() => cajaEstructura.removeCaja(suc, c.idCaja))}>×</button>
+                    <td className="row-actions">
+                      <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => editarCaja(c)}><IconEditar /></button>
+                      <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                        onClick={() => run(() => cajaEstructura.removeCaja(suc, c.idCaja))}><IconEliminar /></button>
                     </td>
                   </tr>
                 );

@@ -28,8 +28,11 @@ public class UsuarioAdminService : IUsuarioAdminService
             from u in _db.Usuarios.AsNoTracking()
             join r in _db.Roles.AsNoTracking() on u.IdRol equals r.IdRol into rj
             from r in rj.DefaultIfEmpty()
+            join s in _db.Sucursales.AsNoTracking() on u.IdSucursalPredeterminada equals (int?)s.IdSucursal into sj
+            from s in sj.DefaultIfEmpty()
             orderby u.NombreUsuario
-            select new UsuarioDto(u.IdUsuario, u.NombreUsuario, u.IdRol, r != null ? r.Descripcion : null, u.Activo, u.CodigoSupervisor);
+            select new UsuarioDto(u.IdUsuario, u.NombreUsuario, u.IdRol, r != null ? r.Descripcion : null, u.Activo,
+                u.CodigoSupervisor, u.IdSucursalPredeterminada, s != null ? s.Descripcion : null);
         return await query.ToListAsync(ct);
     }
 
@@ -61,7 +64,8 @@ public class UsuarioAdminService : IUsuarioAdminService
             ClaveHash = _hasher.Hash(input.Clave),
             IdRol = input.IdRol,
             Activo = input.Activo,
-            CodigoSupervisor = codigoSupervisor
+            CodigoSupervisor = codigoSupervisor,
+            IdSucursalPredeterminada = input.IdSucursalPredeterminada
         };
         _db.Usuarios.Add(u);
         await _db.SaveChangesAsync(ct);
@@ -79,6 +83,7 @@ public class UsuarioAdminService : IUsuarioAdminService
         u.IdRol = input.IdRol;
         u.Activo = input.Activo;
         u.CodigoSupervisor = await ValidarCodigoSupervisorAsync(input.CodigoSupervisor, id, ct);
+        u.IdSucursalPredeterminada = input.IdSucursalPredeterminada;
         await _db.SaveChangesAsync(ct);
         return true;
     }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { lookups, type Lookup } from "../../shared/api/admin";
+import { IconEditar, IconEliminar } from "../../shared/ui/icons";
 
 interface Props {
   resource: string;
@@ -84,7 +85,7 @@ export function LookupPage({ resource, title }: Props) {
           </thead>
           <tbody>
             {items.map((it) => (
-              <tr key={it.id}>
+              <tr key={it.id} className={editId === it.id ? "lote-sel" : ""}>
                 <td className="mono">{it.id}</td>
                 <td>
                   {editId === it.id ? (
@@ -101,8 +102,10 @@ export function LookupPage({ resource, title }: Props) {
                     </>
                   ) : (
                     <>
-                      <button onClick={() => { setEditId(it.id); setEditText(it.descripcion); }}>Editar</button>
-                      <button className="danger" onClick={() => eliminar(it.id)}>Eliminar</button>
+                      <button className="icon-btn" title="Editar" aria-label="Editar"
+                        onClick={() => { setEditId(it.id); setEditText(it.descripcion); }}><IconEditar /></button>
+                      <button className="icon-btn icon-danger" title="Eliminar" aria-label="Eliminar"
+                        onClick={() => eliminar(it.id)}><IconEliminar /></button>
                     </>
                   )}
                 </td>

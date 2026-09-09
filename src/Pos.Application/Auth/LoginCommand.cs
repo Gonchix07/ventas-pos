@@ -6,8 +6,13 @@ using Pos.Domain.Services;
 
 namespace Pos.Application.Auth;
 
+// IdSucursal: la resuelta por el puesto físico (caja) — el frontend la usa para operar la caja
+// asignada a esa PC. IdSucursalPredeterminada: la que el usuario tiene configurada en su perfil,
+// para default de pantallas con un selector de "Sucursal" (Etiquetas, reportes...) que no dependen
+// de una caja física. Son conceptos distintos y pueden no coincidir.
 public record LoginResult(string Token, DateTime ExpiraUtc, string Usuario, string Rol,
-                          int? IdSucursal, int? IdCaja, IReadOnlyList<string> Modulos,
+                          int? IdSucursal, int? IdCaja, int? IdSucursalPredeterminada,
+                          IReadOnlyList<string> Modulos,
                           string RefreshToken, DateTime RefreshExpiraUtc, string? Ip);
 
 /// <summary>
@@ -80,7 +85,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResult<Login
         var auth = new UsuarioAutenticado(usuario.IdUsuario, usuario.NombreUsuario,
             usuario.IdRol, usuario.Rol?.Descripcion ?? "");
         var modulos = await _permisos.ModulosPorRolAsync(usuario.IdRol, ct);
-        var (token, expira) = _jwt.Generar(auth, caja?.IdSucursal, caja?.IdCaja, modulos);
+        var (token, expira) = _jwt.Generar(auth, caja?.IdSucursal, caja?.IdCaja, modulos, usuario.IdSucursalPredeterminada);
 
         var (refreshToken, refreshHash) = _refreshGen.Generar();
         var refreshExpira = ahora.AddDays(_refreshOpt.Dias);
@@ -89,6 +94,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResult<Login
 
         return ApiResult<LoginResult>.Success(new LoginResult(
             token, expira, usuario.NombreUsuario, auth.Rol,
-            caja?.IdSucursal, caja?.IdCaja, modulos, refreshToken, refreshExpira, request.Ip));
+            caja?.IdSucursal, caja?.IdCaja, usuario.IdSucursalPredeterminada,
+            modulos, refreshToken, refreshExpira, request.Ip));
     }
 }

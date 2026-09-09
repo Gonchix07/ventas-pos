@@ -209,6 +209,7 @@ public class PosDbContext : DbContext
     private static void ConfigureRelations(ModelBuilder b)
     {
         b.Entity<Usuario>().HasOne(x => x.Rol).WithMany(r => r.Usuarios).HasForeignKey(x => x.IdRol);
+        b.Entity<Usuario>().HasOne(x => x.SucursalPredeterminada).WithMany().HasForeignKey(x => x.IdSucursalPredeterminada);
         b.Entity<Permiso>().HasOne(x => x.Rol).WithMany(r => r.Permisos).HasForeignKey(x => x.IdRol);
         b.Entity<Permiso>().HasOne(x => x.Modulo).WithMany(m => m.Permisos).HasForeignKey(x => x.IdModulo);
         b.Entity<RefreshToken>().HasOne(x => x.Usuario).WithMany().HasForeignKey(x => x.IdUsuario);

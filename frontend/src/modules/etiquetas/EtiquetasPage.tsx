@@ -5,12 +5,15 @@ import {
   etiquetas, type ArticuloParaEtiqueta, type Clasificaciones, type LookupSimple,
 } from "../../shared/api/etiquetas";
 import { abrirPestañaParaPdf, generarYAbrirPdf, type FormatoEtiqueta } from "./EtiquetaPdf";
+import { IconAgregar } from "../../shared/ui/icons";
+import { useToast } from "../../shared/ui/toast";
 
 type Formato = FormatoEtiqueta;
 
 export function EtiquetasPage() {
-  const { usuario, rol, logout } = useAuth();
+  const { usuario, rol, logout, idSucursalPredeterminada } = useAuth();
   const navigate = useNavigate();
+  const notificar = useToast();
   const [sucursales, setSucursales] = useState<LookupSimple[]>([]);
   const [idSucursal, setIdSucursal] = useState<number>(0);
   const [clasif, setClasif] = useState<Clasificaciones | null>(null);
@@ -18,6 +21,7 @@ export function EtiquetasPage() {
   const [idLinea, setIdLinea] = useState<number>(0);
   const [idFamilia, setIdFamilia] = useState<number>(0);
 
+  const [modoBusqueda, setModoBusqueda] = useState<"articulo" | "clasificacion">("articulo");
   const [q, setQ] = useState("");
   const [resultados, setResultados] = useState<ArticuloParaEtiqueta[]>([]);
   const [lista, setLista] = useState<ArticuloParaEtiqueta[]>([]);
@@ -26,8 +30,13 @@ export function EtiquetasPage() {
   const [cargando, setCargando] = useState(false);
 
   useEffect(() => {
-    etiquetas.sucursales().then((s) => { setSucursales(s); if (s.length) setIdSucursal(s[0].id); }).catch(() => {});
+    etiquetas.sucursales().then((s) => {
+      setSucursales(s);
+      if (idSucursalPredeterminada) setIdSucursal(idSucursalPredeterminada);
+      else if (s.length) setIdSucursal(s[0].id);
+    }).catch(() => {});
     etiquetas.clasificaciones().then(setClasif).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // La familia pertenece a un sector: al elegir sector el combo muestra solo sus familias (las que
@@ -40,25 +49,44 @@ export function EtiquetasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idSector, clasif]);
 
+  // El aviso va AFUERA del updater de setLista: en React StrictMode (dev) los updaters se llaman
+  // dos veces para detectar efectos impuros, y una notificación disparada adentro se duplicaría.
+  // Se agrega AL PRINCIPIO (no al final): al escanear en cadena, lo último agregado es lo que el
+  // operador quiere ver arriba para confirmar de un vistazo que entró bien.
+  const agregar = (a: ArticuloParaEtiqueta) => {
+    if (lista.some((x) => x.idPresentacion === a.idPresentacion)) return;
+    notificar(`${a.descripcion} agregado a la lista`);
+    setLista((l) => (l.some((x) => x.idPresentacion === a.idPresentacion) ? l : [a, ...l]));
+  };
+
   const buscar = async () => {
     setError(null);
     if (!q.trim()) return;
-    try { setResultados(await etiquetas.buscar(q.trim())); }
-    catch (e) { setError(e instanceof Error ? e.message : "Error"); }
-  };
-
-  const agregar = (a: ArticuloParaEtiqueta) => {
-    setLista((l) => (l.some((x) => x.idPresentacion === a.idPresentacion) ? l : [...l, a]));
+    try {
+      const r = await etiquetas.buscar(q.trim());
+      // Resultado único (típico al escanear un código de barra): va directo a la lista armada, sin
+      // el paso intermedio de "+ Agregar" — y limpia el campo para poder seguir escaneando ya
+      // mismo. Con más de un resultado (búsqueda por texto ambigua) se elige a mano, como antes.
+      if (r.length === 1) {
+        agregar(r[0]);
+        setResultados([]);
+        setQ("");
+      } else {
+        setResultados(r);
+      }
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
   };
 
   const agregarTodosPorClasificacion = async () => {
     setError(null);
     try {
       const items = await etiquetas.porClasificacion(idSector || undefined, idLinea || undefined, idFamilia || undefined);
-      setLista((l) => {
-        const existentes = new Set(l.map((x) => x.idPresentacion));
-        return [...l, ...items.filter((i) => !existentes.has(i.idPresentacion))];
-      });
+      const existentes = new Set(lista.map((x) => x.idPresentacion));
+      const nuevos = items.filter((i) => !existentes.has(i.idPresentacion));
+      notificar(nuevos.length > 0
+        ? `${nuevos.length} artículo${nuevos.length === 1 ? "" : "s"} agregado${nuevos.length === 1 ? "" : "s"} a la lista`
+        : "No hay artículos nuevos para agregar");
+      setLista((l) => [...nuevos, ...l]);
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
   };
 
@@ -104,67 +132,82 @@ export function EtiquetasPage() {
         </div>
       </header>
       {cargando && <PantallaBloqueada mensaje="Generando PDF…" />}
-      <div className="page-shell">
-        <h1>Etiquetas</h1>
+      <div className="page-shell etiquetas-compact">
         {error && <p className="error">{error}</p>}
+
+        <div className="field-row" style={{ marginTop: 0 }}>
+          <label className="inline-label">Sucursal
+            <select value={idSucursal} onChange={(e) => setIdSucursal(Number(e.target.value))}>
+              {sucursales.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
+            </select>
+          </label>
+        </div>
 
         <div className="two-col">
         <div className="card form">
-          <h3>Buscar o escanear</h3>
-          <div className="toolbar">
-            <input placeholder="Código, código de barra o descripción" value={q}
-              onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscar()} style={{ flex: 1 }} />
-            <button className="primary" onClick={buscar}>Buscar</button>
+          <div className="field-row" style={{ marginTop: 0 }}>
+            <label>Buscar por
+              <select value={modoBusqueda} onChange={(e) => setModoBusqueda(e.target.value as typeof modoBusqueda)}>
+                <option value="articulo">Artículo (código, código de barra o descripción)</option>
+                <option value="clasificacion">Clasificación completa (línea/sector/familia)</option>
+              </select>
+            </label>
           </div>
-          <table className="grid">
-            <thead><tr><th>Código</th><th>Artículo</th><th></th></tr></thead>
-            <tbody>
-              {resultados.map((a) => (
-                <tr key={a.idPresentacion}>
-                  <td className="mono">{a.codigoInterno}</td>
-                  <td>{a.descripcion}</td>
-                  <td><button onClick={() => agregar(a)}>+ Agregar</button></td>
-                </tr>
-              ))}
-              {resultados.length === 0 && (
-                <tr><td colSpan={3} className="muted">Buscá un artículo por código, código de barra o descripción.</td></tr>
-              )}
-            </tbody>
-          </table>
 
-          <h3 style={{ marginTop: 16 }}>O seleccionar por clasificación completa</h3>
-          <div className="form-grid">
-            <label>Línea
-              <select value={idLinea} onChange={(e) => setIdLinea(Number(e.target.value))}>
-                <option value={0}>(todas)</option>
-                {clasif?.lineas.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
-              </select>
-            </label>
-            <label>Sector
-              <select value={idSector} onChange={(e) => setIdSector(Number(e.target.value))}>
-                <option value={0}>(todos)</option>
-                {clasif?.sectores.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
-              </select>
-            </label>
-            <label>Familia
-              <select value={idFamilia} onChange={(e) => setIdFamilia(Number(e.target.value))}>
-                <option value={0}>(todas)</option>
-                {familiasDelSector.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
-              </select>
-            </label>
-            <button className="success-solid" onClick={agregarTodosPorClasificacion}>+ Agregar todos los que coincidan</button>
-          </div>
+          {modoBusqueda === "articulo" ? (
+            <>
+              <div className="toolbar">
+                <input placeholder="Código, código de barra o descripción" value={q}
+                  onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscar()} style={{ flex: 1 }} />
+                <button className="primary" onClick={buscar}>Buscar</button>
+              </div>
+              <table className="grid">
+                <thead><tr><th>Código</th><th>Artículo</th><th></th></tr></thead>
+                <tbody>
+                  {resultados.map((a) => (
+                    <tr key={a.idPresentacion}>
+                      <td className="mono">{a.codigoInterno}</td>
+                      <td>{a.descripcion}</td>
+                      <td>
+                        <button className="icon-btn icon-agregar" title="Agregar" aria-label="Agregar"
+                          onClick={() => agregar(a)}><IconAgregar /></button>
+                      </td>
+                    </tr>
+                  ))}
+                  {resultados.length === 0 && (
+                    <tr><td colSpan={3} className="muted">Buscá un artículo por código, código de barra o descripción.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </>
+          ) : (
+            <div className="form-grid">
+              <label>Línea
+                <select value={idLinea} onChange={(e) => setIdLinea(Number(e.target.value))}>
+                  <option value={0}>(todas)</option>
+                  {clasif?.lineas.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
+                </select>
+              </label>
+              <label>Sector
+                <select value={idSector} onChange={(e) => setIdSector(Number(e.target.value))}>
+                  <option value={0}>(todos)</option>
+                  {clasif?.sectores.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
+                </select>
+              </label>
+              <label>Familia
+                <select value={idFamilia} onChange={(e) => setIdFamilia(Number(e.target.value))}>
+                  <option value={0}>(todas)</option>
+                  {familiasDelSector.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
+                </select>
+              </label>
+              <button className="success-solid" onClick={agregarTodosPorClasificacion}>+ Agregar todos los que coincidan</button>
+            </div>
+          )}
         </div>
 
         <div>
           <div className="page-head">
-            <h3>Lista armada ({lista.length})</h3>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <label className="inline-label">Sucursal
-                <select value={idSucursal} onChange={(e) => setIdSucursal(Number(e.target.value))}>
-                  {sucursales.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
-                </select>
-              </label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
               <label className="inline-label">Formato
                 <select value={formato} onChange={(e) => setFormato(e.target.value as Formato)}>
                   <option value="Fleje">Fleje</option>
@@ -175,13 +218,19 @@ export function EtiquetasPage() {
               <button className="primary" disabled={lista.length === 0 || cargando} onClick={generar}>
                 {cargando ? "Generando PDF…" : "Generar PDF"}
               </button>
-              <button className="danger" disabled={lista.length === 0 || cargando} onClick={quitarTodo}>
-                Quitar todo
-              </button>
             </div>
           </div>
           <table className="grid">
-            <thead><tr><th>Código</th><th>Artículo</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>Código</th><th>Artículo</th>
+                <th>
+                  <button className="danger" disabled={lista.length === 0 || cargando} onClick={quitarTodo}>
+                    Limpiar
+                  </button>
+                </th>
+              </tr>
+            </thead>
             <tbody>
               {lista.map((a) => (
                 <tr key={a.idPresentacion}>

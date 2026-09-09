@@ -3,6 +3,7 @@ import {
   clientes, referencias,
   type Cliente, type ClienteInput, type AutorizadoInput, type Lookup,
 } from "../../shared/api/admin";
+import { IconEditar, IconBaja } from "../../shared/ui/icons";
 
 // Debe coincidir con ClienteService.MaxResultados (backend).
 const MAX_RESULTADOS = 50;
@@ -110,14 +111,14 @@ export function ClientesPage() {
       </div>
 
       <div className="toolbar">
-        <input placeholder="Buscar por nombre, fantasía, código, CUIT o documento"
+        <input placeholder="Buscar por nombre, fantasía, código, CUIT, documento o domicilio"
           value={q} onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && cargar()} style={{ flex: "1 1 320px", minWidth: 200 }} />
         <button onClick={cargar}>Buscar</button>
-        <span className="filter-count">
-          {`${items.length} cliente${items.length === 1 ? "" : "s"}${items.length === MAX_RESULTADOS ? " (máx.) — refiná la búsqueda" : ""}`}
-        </span>
       </div>
+      <p className="resultado-count">
+        {`${items.length} cliente${items.length === 1 ? "" : "s"}${items.length === MAX_RESULTADOS ? " (máx.) — refiná la búsqueda" : ""}`}
+      </p>
 
       {error && <p className="error">{error}</p>}
 
@@ -201,9 +202,9 @@ export function ClientesPage() {
       )}
 
       <div className="table-scroll">
-        <table className="grid">
+        <table className="grid tabla-compacta">
           <thead>
-            <tr><th>Código</th><th>Descripción</th><th>Fantasía</th><th>CUIT</th><th>Localidad</th><th>Cond. IVA</th><th>Presup.</th><th>Cta. cte.</th><th>Estado</th><th></th></tr>
+            <tr><th>Código</th><th>Descripción</th><th>Fantasía</th><th>CUIT</th><th>Cond. IVA</th><th>Presup.</th><th>Cta. cte.</th><th>Estado</th><th></th></tr>
           </thead>
           <tbody>
             {items.map((c) => (
@@ -212,14 +213,14 @@ export function ClientesPage() {
                 <td>{c.descripcion}</td>
                 <td>{c.nombreFantasia ?? <span className="muted">—</span>}</td>
                 <td className="mono">{c.cuit}</td>
-                <td>{c.localidad}</td>
                 <td>{c.condIvaDescripcion}</td>
                 <td>{c.permitePresupuesto ? "Sí" : "No"}</td>
                 <td>{c.admiteCuentaCorriente ? <span className="badge on">Sí</span> : <span className="muted">No</span>}</td>
                 <td>{c.activo ? <span className="badge on">Activo</span> : <span className="badge off">Baja</span>}</td>
                 <td className="row-actions">
-                  <button className="primary" onClick={() => editar(c)}>Editar</button>
-                  <button className="danger-solid" onClick={() => eliminar(c.idCliente)}>Baja</button>
+                  <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => editar(c)}><IconEditar /></button>
+                  <button className="icon-btn icon-danger" title="Dar de baja" aria-label="Dar de baja"
+                    onClick={() => eliminar(c.idCliente)}><IconBaja /></button>
                 </td>
               </tr>
             ))}

@@ -24,11 +24,14 @@ public class ClienteService : IClienteService
         {
             var f = filtro.Trim();
             // También por nombre de fantasía: en el mostrador al cliente se lo conoce por ahí
-            // ("LA VACA LOCA") mucho más que por su razón social.
+            // ("LA VACA LOCA") mucho más que por su razón social. Y por domicilio (pedido del
+            // usuario): útil en el módulo "Clientes" para ubicar a alguien cuando no se acuerda
+            // el nombre exacto pero sí la calle.
             q = q.Where(c => c.Descripcion.Contains(f) || c.CodigoInt.Contains(f)
                 || (c.NombreFantasia != null && c.NombreFantasia.Contains(f))
                 || (c.Cuit != null && c.Cuit.Contains(f))
-                || (c.Documento != null && c.Documento.Contains(f)));
+                || (c.Documento != null && c.Documento.Contains(f))
+                || (c.Domicilio != null && c.Domicilio.Contains(f)));
         }
 
         if (soloCuentaCorriente == true) q = q.Where(c => c.AdmiteCuentaCorriente);
@@ -221,6 +224,21 @@ public class ClienteService : IClienteService
             return new ClienteTicketDto(c.IdCliente, c.CodigoInt, c.Descripcion, c.Documento, nro, tipo, "Autorizado");
         }));
         return resultado;
+    }
+
+    public async Task<ClienteTicketDto?> GetTicketAsync(int idCliente, CancellationToken ct = default)
+    {
+        var c = await _db.Clientes.AsNoTracking().FirstOrDefaultAsync(x => x.IdCliente == idCliente, ct);
+        if (c is null) return null;
+
+        var tarjeta = await (
+            from t in _db.TarjetasClientes.AsNoTracking().Where(t => t.IdCliente == idCliente && t.Activa)
+            join tt in _db.TiposTarjeta.AsNoTracking() on t.IdTipoTarjeta equals tt.IdTipoTarjeta
+            select new { t.NroTarjeta, tt.Descripcion }
+        ).FirstOrDefaultAsync(ct);
+
+        return new ClienteTicketDto(c.IdCliente, c.CodigoInt, c.Descripcion, c.Documento,
+            tarjeta?.NroTarjeta, tarjeta?.Descripcion, "Titular");
     }
 
     private static ClienteDto Map(Cliente c) => new(

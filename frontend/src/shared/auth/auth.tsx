@@ -11,6 +11,10 @@ export interface LoginResult {
   rol: string;
   idSucursal: number | null;
   idCaja: number | null;
+  /** Sucursal configurada en el perfil del usuario (ABM Usuarios) — distinta de `idSucursal`
+   *  (esa la resuelve el puesto físico de Caja). Se usa para default de selectores de "Sucursal"
+   *  en pantallas sin caja asociada (Etiquetas, reportes, ABMs por sucursal...). */
+  idSucursalPredeterminada: number | null;
   modulos: string[];
   refreshToken: string;
   refreshExpiraUtc: string;
@@ -19,13 +23,14 @@ export interface LoginResult {
 }
 
 // Forma de /auth/me: mismo contenido que LoginResult salvo el token/expiraUtc (que no se
-// reemiten al rehidratar) y con idSucursal/idCaja como string (vienen de claims JWT). El ip acá
-// es el del request ACTUAL a /auth/me, no el del login original (útil si cambia).
+// reemiten al rehidratar) y con idSucursal/idCaja/idSucursalPredeterminada como string (vienen de
+// claims JWT). El ip acá es el del request ACTUAL a /auth/me, no el del login original (útil si cambia).
 interface MeResponse {
   usuario: string;
   rol: string;
   idSucursal: string | null;
   idCaja: string | null;
+  idSucursalPredeterminada: string | null;
   modulos: string[];
   ip: string | null;
 }
@@ -36,6 +41,7 @@ interface AuthState {
   modulos: string[];
   idSucursal: number | null;
   idCaja: number | null;
+  idSucursalPredeterminada: number | null;
   /** IP con la que el servidor ve esta sesión — para mostrarle al usuario "dónde está". */
   ip: string | null;
   isAuthenticated: boolean;
@@ -81,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           rol: me.rol,
           idSucursal: me.idSucursal ? Number(me.idSucursal) : null,
           idCaja: me.idCaja ? Number(me.idCaja) : null,
+          idSucursalPredeterminada: me.idSucursalPredeterminada ? Number(me.idSucursalPredeterminada) : null,
           modulos: me.modulos,
           refreshToken: getRefreshToken() ?? "",
           refreshExpiraUtc: "",
@@ -143,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       modulos: session?.modulos ?? [],
       idSucursal: session?.idSucursal ?? null,
       idCaja: session?.idCaja ?? null,
+      idSucursalPredeterminada: session?.idSucursalPredeterminada ?? null,
       ip: session?.ip ?? null,
       isAuthenticated: !!session,
       isLoading,

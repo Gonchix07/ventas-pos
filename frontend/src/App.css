@@ -51,9 +51,11 @@ body { margin: 0; background: var(--bg); color: var(--ink); overflow-x: hidden;
 code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
 /* ---- App shell ---- */
-.app-header { display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 24px; background: var(--surface); border-bottom: 1px solid var(--line); }
-.user-box { display: flex; align-items: center; gap: 14px; font-size: 14px; color: var(--muted); }
+/* flex-wrap: sin esto, brand + user-box no entraban en un celular angosto y el header desbordaba
+   horizontalmente (arrastrando a toda la página con él). */
+.app-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: 8px; padding: 14px 24px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.user-box { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; font-size: 14px; color: var(--muted); }
 .user-box button { border: 1px solid var(--line); background: transparent; border-radius: 8px;
   padding: 6px 12px; cursor: pointer; color: var(--ink); }
 /* Acceso al manual de usuario (icono "?"), junto a Salir en la barra de menús. */
@@ -178,6 +180,10 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
    solo). Alineada abajo para que el botón quede a la altura de los campos. */
 .field-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin: 10px 0 4px; }
 .field-row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+/* `.check-box` es un <label> con su propio layout horizontal (ícono + texto en una línea) — sin
+   esto, la regla de arriba (más específica: element+class) le ganaba y lo apilaba en 2 líneas
+   dentro de un .field-row (ej. "Imprime comprobante" en Medios de pago). */
+.field-row .check-box { flex-direction: row; }
 .field-row input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px;
   line-height: 1.25; }
 
@@ -307,6 +313,21 @@ button.success-solid { background: #1e7d32; color: #fff; border-color: #1e7d32; 
 button.success-solid:hover { background: #176327; }
 button.success-solid:disabled { background: #a8c8ae; border-color: #a8c8ae; color: #fff; cursor: not-allowed; }
 
+/* Acciones de fila como par de botones circulares con ícono (en vez de texto "Editar"/"×"): más
+   compacto en tablas angostas y separa visualmente editar (neutro) de eliminar (rojo) sin depender
+   del color de un link. Los íconos van inline en el JSX (no hace falta data-URI: el CSP solo
+   restringe recursos externos, y esto es markup, no una imagen cargada aparte). */
+.icon-btn { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center;
+  justify-content: center; border-radius: 8px; background: transparent; border: 1px solid transparent;
+  color: var(--muted); transition: background .12s, border-color .12s, color .12s; }
+.icon-btn svg { width: 16px; height: 16px; }
+.icon-btn:hover { background: #eef5f2; border-color: var(--line); color: var(--petrol); }
+.icon-btn.icon-danger:hover { background: #fbe9e7; border-color: #e3c4bf; color: #a3372e; }
+/* Agregar (ej. resultado de búsqueda en Etiquetas): a diferencia de editar/eliminar, que son grises
+   hasta el hover, éste va siempre en verde oscuro — es la acción positiva/principal de esa fila. */
+.icon-btn.icon-agregar { color: var(--petrol); border-color: var(--line); }
+.icon-btn.icon-agregar:hover { background: #eef5f2; border-color: var(--petrol); }
+
 /* Bloqueo de pantalla mientras se espera arqueo/cierre (varios requests + impresora fiscal, tarda
    unos segundos): tapa toda la vista con blur para que el cajero no piense que se colgó. */
 .pantalla-bloqueada {
@@ -330,14 +351,19 @@ button.success-solid:disabled { background: #a8c8ae; border-color: #a8c8ae; colo
 
 table.grid { width: 100%; border-collapse: collapse; margin-top: 12px; background: var(--surface);
   border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-table.grid th, table.grid td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 14px; }
+/* vertical-align: middle (el default del navegador es "baseline") — sin esto, una celda con texto
+   en dos líneas (ej. ".stack") corre hacia abajo la línea base y los botones de ícono de la celda
+   de al lado quedan más arriba que el resto de la fila. */
+table.grid th, table.grid td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: middle; }
 table.grid thead th { background: #eef1ef; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 table.grid tr.inactive { opacity: .55; }
-/* Fila seleccionada (la usan ClustersPage y el buscador de ListasPreciosPage). */
-table.grid tr.sel > td { background: #eef5f2; box-shadow: inset 3px 0 0 var(--petrol); }
-/* Lote expandido en Tesorería: mismo fondo de selección, pero sin la rayita verde por celda del
-   .sel de arriba (con 14 columnas se veía como una fila entera cuadriculada de verde). */
-table.grid tr.lote-sel > td { background: #eef5f2; }
+/* Fila seleccionada o en edición, en cualquier tabla del admin: un solo fondo parejo, sin rayita
+   por celda (la versión anterior ponía un box-shadow en cada <td>, que con varias columnas se veía
+   como toda la fila cuadriculada en verde oscuro). `.lote-sel` queda como alias histórico. */
+table.grid tr.sel > td, table.grid tr.lote-sel > td { background: #eef5f2; }
+/* Hover parejo en cualquier tabla del admin, mismo verde suave que la selección — el buscador
+   (.picker-table) y la ficha de cliente (.ident-table) ya lo tenían, esto lo generaliza al resto. */
+table.grid tbody tr:hover > td { background: #eef5f2; }
 
 /* Tabla usada como resultado de búsqueda: se limita el alto para que no empuje el formulario
    de abajo cuando hay muchos resultados. El alto entra ~8 filas y el resto se scrollea con el
@@ -351,13 +377,14 @@ table.grid.picker-table {
 }
 
 /* Matriz de Permisos por rol (PermisosPage): una columna por módulo (hay nombres largos y sin
-   espacios, ej. "FacturacionCaea", que no rompen línea solos) — con el padding/tamaño normal de
-   `table.grid` no entraban las ~9 columnas en el ancho de `.admin-content` y forzaba scroll
-   horizontal. Padding y fuente más chicos + word-break en el encabezado para que entre entero. */
-table.grid.permisos-table th, table.grid.permisos-table td { padding: 8px 6px; }
-table.grid.permisos-table th { text-align: center; word-break: break-word; }
+   espacios, ej. "FacturacionCaea"). Partirlos con word-break los hacía ilegibles ("CAJA" cortada
+   en "CAJ"/"A"), y con el padding/fuente normales de `table.grid` tampoco entraban las ~9 columnas
+   sin scroll horizontal. Encabezado sin romper línea + padding y fuente más chicos (solo acá, no
+   afecta el resto de las tablas) para que entre completa sin scroll. */
+table.grid.permisos-table th, table.grid.permisos-table td { padding: 8px 6px; white-space: nowrap; font-size: 12px; }
+table.grid.permisos-table th { text-align: center; }
 table.grid.permisos-table th:first-child, table.grid.permisos-table td:first-child {
-  text-align: left; padding-left: 14px; white-space: nowrap;
+  text-align: left; padding-left: 14px;
 }
 table.grid.permisos-table td { text-align: center; }
 /* Checkbox más visible que el default del navegador, mismo verde que el resto de los toggles
@@ -366,6 +393,10 @@ table.grid.permisos-table input[type="checkbox"] {
   accent-color: var(--petrol); width: 18px; height: 18px; cursor: pointer;
 }
 table.grid.permisos-table input[type="checkbox"]:disabled { cursor: not-allowed; opacity: .5; }
+/* Tablas con padrón grande / muchas columnas (Clientes, Artículos): fuente más chica para que
+   entren mejor (pedido del usuario), igual criterio que .permisos-table. Nombre genérico porque
+   ya se usa en más de una pantalla, no solo Clientes. */
+table.grid.tabla-compacta th, table.grid.tabla-compacta td { font-size: 12.5px; padding: 8px 12px; }
 .picker-table thead, .picker-table tbody { display: table; width: 100%; table-layout: fixed; }
 .picker-table thead th { position: sticky; top: 0; z-index: 1; background: #eef1ef; }
 .picker-table tbody tr:hover > td { background: #f4f7f5; }
@@ -393,8 +424,16 @@ table.grid.permisos-table input[type="checkbox"]:disabled { cursor: not-allowed;
 .search-box .search-clear:hover { background: #eef1ef; color: var(--ink); }
 .search-hint { font-size: 12px; color: var(--muted); }
 .precio-editor { border-top: 1px dashed var(--line); margin-top: 12px; }
-td.row-actions { vertical-align: middle; }
 .row-actions { display: flex; gap: 6px; align-items: center; }
+/* `.row-actions` en un <div> (dentro de un <td>, o en un formulario) usa flex normalmente. Pero
+   puesta DIRECTO en un <td> (patrón usado en casi todas las tablas del admin), `display: flex`
+   saca a esa celda del algoritmo de alto de fila de la tabla — Chrome ya no la estira a la altura
+   de las demás celdas de la fila, y el borde inferior de la celda queda más arriba que el resto
+   ("la línea de la fila se corta"). Se vuelve a `table-cell` para el caso <td> y se logra el mismo
+   espaciado/centrado sin flex, con margin entre botones (son inline-block/inline-flex de por sí). */
+td.row-actions { display: table-cell; vertical-align: middle; white-space: nowrap; }
+td.row-actions > * { vertical-align: middle; }
+td.row-actions > * + * { margin-left: 6px; }
 .mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
 /* Botón que se ve como un link — para valores clickeables adentro de una tabla (ej. el nombre de un
    medio de pago que abre el detalle de comprobantes), sin el aspecto de botón que distraería ahí. */
@@ -433,7 +472,11 @@ td.row-actions { vertical-align: middle; }
 .form-con-imagen .form-grid { flex: 1; }
 .form-imagen { width: 160px; height: 160px; object-fit: contain; border: 1px solid var(--line);
   border-radius: 8px; background: #fff; flex-shrink: 0; }
-.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: end; }
+/* `min(220px, 100%)` en vez de `220px` a secas: ese piso fijo hacía que 2 columnas (440px) no
+   entraran en una pantalla angosta (ej. un celular de 375px) y todo el layout se corría con scroll
+   horizontal. Con `min(...)` la columna se achica hasta el 100% del contenedor si hace falta, así
+   que en mobile cada campo pasa a ocupar una fila entera en vez de desbordar. */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px; align-items: end; }
 .form-grid label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); }
 .form-grid label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--ink); font-size: 14px; }
 .presentaciones { border-top: 1px dashed var(--line); padding-top: 12px; }
@@ -455,10 +498,21 @@ td.row-actions { vertical-align: middle; }
   line-height: 1.25; }
 .filter-bar .grow { flex: 1; min-width: 220px; }
 .filter-bar .filter-count { margin-left: auto; font-size: 13px; color: var(--muted); }
+/* Contador de resultados debajo del buscador (ClientesPage): fuente chica y verde oscuro (mismo
+   petrol que el resto de la app) en vez de ir mezclado en la fila del buscador. */
+.resultado-count { margin: -8px 0 12px; font-size: 12px; color: var(--petrol); }
 /* Variante centrada (ver VentasPage): a diferencia de los filtros de un ABM (que van pegados a la
    izquierda, con el contador a la derecha), acá no hay nada que empujar — todo el grupo se centra
    en una sola línea. */
 .filter-bar-center { justify-content: center; }
+/* Filtros de Artículos (Línea/Sector/Familia/Estado): el buscador de texto crecía sin límite
+   (.grow) y los selects se ensanchaban solos hasta el ancho de su opción más larga (ej. "SIN
+   FAMILIA · ..."), así que las 5 columnas no entraban en una sola línea salvo en pantallas muy
+   anchas. Acá el buscador tiene un ancho razonable en vez de crecer indefinido, y los selects
+   quedan angostos y parejos — el navegador trunca la opción elegida si no entra, igual que
+   cualquier <select> angosto; el menú desplegado sigue mostrando el texto completo. */
+.filtros-articulos .grow { flex: 0 1 320px; min-width: 180px; }
+.filtros-articulos select { width: 150px; }
 td.stack { line-height: 1.35; }
 td.stack small { display: block; color: var(--muted); font-size: 12px; }
 
@@ -829,3 +883,57 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 /* Pantalla de bloqueo "Puesto no autorizado" (mismo criterio que CajaPage): un solo panel
    centrado, sin la columna de listas de precio al costado. */
 .vp-body--centrado { grid-template-columns: 1fr; max-width: 640px; margin: 0 auto; width: 100%; }
+
+/* Notificación emergente (toast) al confirmar guardados en el admin (ver toast.tsx + client.ts):
+   esquina inferior derecha, apilable si hay más de una, se auto-descarta sola a los 3s. */
+.toast-stack {
+  position: fixed; right: 20px; bottom: 20px; z-index: 1000;
+  display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+}
+.toast {
+  background: var(--petrol); color: #fff; padding: 12px 18px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  animation: toast-in .18s ease-out;
+}
+.toast--error { background: var(--danger); }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Código de tarjeta para la interfase contable (PagosPage, tabla de Medios): chip angosto,
+   centrado y monoespaciado, en vez de un <input> sin estilo (los inputs sueltos fuera de
+   .toolbar/.form-grid no heredan ningún estilo — quedaban con el borde gris default del navegador). */
+.codigo-interfase {
+  width: 64px; text-align: center; font-family: ui-monospace, Consolas, monospace; font-size: 13px;
+  padding: 5px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+}
+.codigo-interfase:focus { outline: none; border-color: var(--petrol); box-shadow: 0 0 0 3px rgba(12, 107, 99, 0.15); }
+
+/* Pantalla de Etiquetas: fuente más chica en todo (pedido del usuario) — cada elemento define su
+   font-size en px de forma fija (no heredan de un font-size en el padre), así que hay que bajarlos
+   uno por uno en vez de un solo `font-size` en `.etiquetas-compact`. */
+.etiquetas-compact { font-size: 13px; }
+.etiquetas-compact h3 { font-size: 14px; }
+.etiquetas-compact table.grid th, .etiquetas-compact table.grid td { font-size: 12.5px; padding: 8px 10px; }
+.etiquetas-compact .toolbar input, .etiquetas-compact .form-grid input, .etiquetas-compact .field-row input,
+.etiquetas-compact select { font-size: 12.5px; }
+.etiquetas-compact button { font-size: 12.5px; padding: 7px 10px; }
+.etiquetas-compact .inline-label, .etiquetas-compact .field-row label, .etiquetas-compact .form-grid label {
+  font-size: 11.5px;
+}
+.etiquetas-compact .muted { font-size: 12.5px; }
+/* Fila "Sucursal / Formato / Generar PDF / Quitar todo": el padding y el gap por default hacían
+   que no entrara en una sola línea dentro de la mitad de pantalla del panel derecho. Achicando el
+   padding lateral del select (el de la derecha es para la flechita, no puede bajar tanto como el
+   de la izquierda) y el gap entre los 4 controles alcanza sin tocar el resto de la app. */
+.etiquetas-compact .page-head select { padding: 6px 26px 6px 8px; }
+.etiquetas-compact .inline-label { gap: 5px; }
+/* Margen izquierdo del panel más chico que el resto del admin (pedido del usuario) — el resto de
+   `.page-shell` (32px) queda igual, esto solo achica el lado izquierdo acá. */
+.page-shell.etiquetas-compact { padding-left: 12px; }
+
+/* Panel de solo lectura de "Clientes" (ClientesFichaPage): más separación entre el nombre de cada
+   campo y su valor que el form-grid default (5px quedaba muy pegado al ser todo de solo lectura,
+   sin el foco/interacción que ayuda a distinguirlos en un formulario editable). */
+.ficha-lectura label { gap: 9px; }

@@ -30,6 +30,15 @@ public class Usuario : AuditableEntity
     public int IntentosFallidos { get; set; }
     /// <summary>Si tiene valor y es futuro, la cuenta está bloqueada por fuerza bruta hasta ese momento.</summary>
     public DateTime? BloqueadoHasta { get; set; }
+
+    /// <summary>
+    /// Sucursal que el frontend propone por defecto en cualquier selector de "Sucursal" de una
+    /// pantalla que no la resuelve por otro medio (ej. Caja/Reimpresión, que la sacan del puesto
+    /// físico vía IP). Puramente una comodidad de UI — nunca reemplaza ni restringe el control de
+    /// acceso real (roles/permisos), que sigue siendo el mismo sin importar este valor.
+    /// </summary>
+    public int? IdSucursalPredeterminada { get; set; }
+    public Sucursal? SucursalPredeterminada { get; set; }
 }
 
 /// <summary>

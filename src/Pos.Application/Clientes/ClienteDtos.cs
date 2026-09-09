@@ -50,4 +50,11 @@ public interface IClienteService
     /// aparecer en más de una cuenta (la propia + las que puede comprar en nombre de otro).
     /// </summary>
     Task<IReadOnlyList<ClienteTicketDto>> BuscarPorDniAsync(string dni, CancellationToken ct = default);
+
+    /// <summary>
+    /// Ticket de un cliente puntual (elegido por búsqueda manual, no por DNI escaneado) — mismo
+    /// formato que <see cref="BuscarPorDniAsync"/> (para reusar el mismo <c>TicketCliente</c> del
+    /// frontend), "Origen" siempre "Titular" porque acá no hay concepto de autorizado.
+    /// </summary>
+    Task<ClienteTicketDto?> GetTicketAsync(int idCliente, CancellationToken ct = default);
 }

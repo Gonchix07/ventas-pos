@@ -74,7 +74,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
         var auth = new UsuarioAutenticado(usuario.IdUsuario, usuario.NombreUsuario,
             usuario.IdRol, usuario.Rol?.Descripcion ?? "");
         var modulos = await _permisos.ModulosPorRolAsync(usuario.IdRol, ct);
-        var (token, expira) = _jwt.Generar(auth, existente.IdSucursal, existente.IdCaja, modulos);
+        var (token, expira) = _jwt.Generar(auth, existente.IdSucursal, existente.IdCaja, modulos, usuario.IdSucursalPredeterminada);
 
         var (nuevoRefresh, nuevoHash) = _refreshGen.Generar();
         var nuevaExpiraRefresh = ahora.AddDays(_refreshOpt.Dias);
@@ -86,6 +86,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
         // muestra la IP actual vía /auth/me, no la de este response.
         return ApiResult<LoginResult>.Success(new LoginResult(
             token, expira, usuario.NombreUsuario, auth.Rol,
-            existente.IdSucursal, existente.IdCaja, modulos, nuevoRefresh, nuevaExpiraRefresh, null));
+            existente.IdSucursal, existente.IdCaja, usuario.IdSucursalPredeterminada,
+            modulos, nuevoRefresh, nuevaExpiraRefresh, null));
     }
 }
