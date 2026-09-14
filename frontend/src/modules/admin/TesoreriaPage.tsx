@@ -202,7 +202,7 @@ export function TesoreriaPage() {
       <div className="page-shell">
       <div className="page-head">
         <h1>Tesorería</h1>
-        <button onClick={() => navigate("/tesoreria/efectividad")}>Efectividad</button>
+        <button className="btn-verde-hover" onClick={() => navigate("/tesoreria/efectividad")}>Efectividad</button>
         <button className="success-solid" onClick={() => navigate("/tesoreria/cupones")}>Cupones de tarjeta</button>
       </div>
 
@@ -290,7 +290,7 @@ export function TesoreriaPage() {
                           Cerrar Caja
                         </button>
                       ) : l.estadoCierre === "CierreTesoreria" ? (
-                        <button onClick={() => reabrirLote(l)} disabled={reabriendo === k}>
+                        <button className="btn-verde-hover" onClick={() => reabrirLote(l)} disabled={reabriendo === k}>
                           {reabriendo === k ? "Reabriendo…" : "Reabrir lote"}
                         </button>
                       ) : (
@@ -355,7 +355,7 @@ export function TesoreriaPage() {
                                   )}
                                 </tbody>
                               </table>
-                              <button style={{ marginTop: 6 }}
+                              <button className="btn-verde-hover" style={{ marginTop: 6 }}
                                 onClick={() => setComprobantes({ idSucursal: l.idSucursal, idLote: l.idLote })}>
                                 Ver todos los comprobantes del lote
                               </button>
