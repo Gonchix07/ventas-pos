@@ -90,6 +90,16 @@ public class Articulo : AuditableEntity
     /// </summary>
     public bool VentaPorPeso { get; set; }
 
+    /// <summary>
+    /// Cantidad mínima que se carga al carrito al leer este artículo por EAN o código interno
+    /// individual en Caja (1 = comportamiento de siempre, una unidad por lectura). Si el cajero
+    /// escanea con una cantidad tipeada, esta se multiplica por esa cantidad (ver
+    /// CajaPage.procesarCola) — no la reemplaza. Pensado para productos que técnicamente se leen de
+    /// a uno pero SIEMPRE se venden en un múltiplo fijo (ej. un pack que no tiene presentación de
+    /// bulto propia cargada). Default 1 para todo el catálogo existente.
+    /// </summary>
+    public decimal MinimaUnidadVenta { get; set; } = 1m;
+
     public ICollection<Presentacion> Presentaciones { get; set; } = new List<Presentacion>();
 }
 

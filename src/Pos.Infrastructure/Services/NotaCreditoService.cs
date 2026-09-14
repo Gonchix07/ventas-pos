@@ -310,6 +310,11 @@ public class NotaCreditoService : INotaCreditoService
                     IdPresentacion = l.IdPresentacion, DescripcionTicket = l.Descripcion,
                     Cantidad = l.Cantidad, PrecioUnit = l.PrecioUnitario, Descuento = 0,
                     AlicuotaIva = l.Alicuota, Importe = l.Importe,
+                    // Sin descuento adicional que discriminar en una NC: PrecioLista = PrecioUnit
+                    // (no "$0 de precio de lista", que el fallback de impresión leería como dato
+                    // viejo/ausente y volvería a mostrar el comportamiento previo, ver
+                    // FacturacionService.ArmarImpresionAsync).
+                    PrecioLista = l.PrecioUnitario,
                     IdDetalleOrigen = l.IdDetalleOrigen
                 });
             }

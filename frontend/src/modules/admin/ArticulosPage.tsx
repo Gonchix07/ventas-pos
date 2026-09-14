@@ -12,6 +12,7 @@ const VACIO: ArticuloInput = {
   codigoInterno: "", descripcion: "",
   idSector: 0, idLinea: 0, idFamilia: 0, idModoIva: 0,
   activo: true, unidadMedida: 0, contenidoNetoUnitario: null, unidadXBulto: 1, ventaPorPeso: false,
+  minimaUnidadVenta: 1,
   presentaciones: [],
 };
 
@@ -129,7 +130,7 @@ export function ArticulosPage() {
         codigoInterno: a.codigoInterno, descripcion: a.descripcion,
         idSector: a.idSector, idLinea: a.idLinea, idFamilia: a.idFamilia, idModoIva: a.idModoIva,
         activo: a.activo, unidadMedida: a.unidadMedida, contenidoNetoUnitario: a.contenidoNetoUnitario,
-        unidadXBulto: a.unidadXBulto, ventaPorPeso: a.ventaPorPeso,
+        unidadXBulto: a.unidadXBulto, ventaPorPeso: a.ventaPorPeso, minimaUnidadVenta: a.minimaUnidadVenta,
         presentaciones: a.presentaciones.length ? a.presentaciones : [nuevaPresentacion()],
       });
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
@@ -173,6 +174,7 @@ export function ArticulosPage() {
               <img className="form-imagen" src={formImagenUrl} alt=""
                 onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
             )}
+            <div style={{ flex: 1 }}>
             <div className="form-grid">
             <label>Código interno<input value={form.codigoInterno} onChange={(e) => set({ codigoInterno: e.target.value })} /></label>
             <label>Descripción<input value={form.descripcion} onChange={(e) => set({ descripcion: e.target.value })} /></label>
@@ -196,27 +198,41 @@ export function ArticulosPage() {
                 {modosIva.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
               </select>
             </label>
-            <label className="check-box"><input type="checkbox" checked={form.activo} onChange={(e) => set({ activo: e.target.checked })} /> Activo</label>
-            <label>Unidad de medida
-              <select value={form.unidadMedida} onChange={(e) => set({ unidadMedida: Number(e.target.value) })}>
-                {UNIDADES_MEDIDA.map((u) => <option key={u.v} value={u.v}>{u.l}</option>)}
-              </select>
-            </label>
-            {form.unidadMedida !== 0 && (
-              <label>Contenido neto unitario (ej. 1 = 1 Kg, 0.75 = 0,75 Lt)
-                <input type="number" step="0.001" value={form.contenidoNetoUnitario ?? ""}
-                  onChange={(e) => set({ contenidoNetoUnitario: e.target.value === "" ? null : Number(e.target.value) })} />
+            </div>
+            {/* Fila propia, más angosta que el form-grid (que fuerza mínimo 220px por columna y
+                acá solo entrarían 3): así los 4 campos quedan en una sola línea. */}
+            <div className="field-row" style={{ marginTop: 12 }}>
+              <label style={{ width: 150 }}>Unidad de medida
+                <select value={form.unidadMedida} onChange={(e) => set({ unidadMedida: Number(e.target.value) })}>
+                  {UNIDADES_MEDIDA.map((u) => <option key={u.v} value={u.v}>{u.l}</option>)}
+                </select>
               </label>
-            )}
-            <label>Unidad × bulto (ej. viene en cajas de 12)
-              <input type="number" min={1} step="1" value={form.unidadXBulto}
-                onChange={(e) => set({ unidadXBulto: Number(e.target.value) || 1 })} />
-            </label>
-            <label className="check-box">
-              <input type="checkbox" checked={form.ventaPorPeso}
-                onChange={(e) => set({ ventaPorPeso: e.target.checked })} />
-              Venta por peso (balanza)
-            </label>
+              {form.unidadMedida !== 0 && (
+                <label style={{ width: 110 }}>Contenido
+                  <input type="number" step="0.001" value={form.contenidoNetoUnitario ?? ""}
+                    onChange={(e) => set({ contenidoNetoUnitario: e.target.value === "" ? null : Number(e.target.value) })} />
+                </label>
+              )}
+              <label style={{ width: 110 }}>Unidad por Bulto
+                <input type="number" min={1} step="1" value={form.unidadXBulto}
+                  onChange={(e) => set({ unidadXBulto: Number(e.target.value) || 1 })} />
+              </label>
+              <label style={{ width: 150 }}>Mínima Unidad de Venta
+                <input type="number" min={1} step="1" value={form.minimaUnidadVenta}
+                  onChange={(e) => set({ minimaUnidadVenta: Number(e.target.value) || 1 })} />
+              </label>
+            </div>
+            <div className="field-row" style={{ marginTop: 12 }}>
+              <label className="check-box">
+                <input type="checkbox" checked={form.activo} onChange={(e) => set({ activo: e.target.checked })} />
+                Activo
+              </label>
+              <label className="check-box">
+                <input type="checkbox" checked={form.ventaPorPeso}
+                  onChange={(e) => set({ ventaPorPeso: e.target.checked })} />
+                Venta por peso (balanza)
+              </label>
+            </div>
             </div>
           </div>
 

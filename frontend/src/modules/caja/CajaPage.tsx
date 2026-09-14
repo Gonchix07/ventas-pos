@@ -154,6 +154,9 @@ export function CajaPage() {
   const [cola, setCola] = useState<ColaItem[]>([]);
   // Fila que acaba de cambiar (nueva o con cantidad acumulada): se destella y se limpia sola.
   const [lineaResaltada, setLineaResaltada] = useState<number | null>(null);
+  // Colapsa la lista de autorizados del cliente (puede ser larga) sin perder el dato de que
+  // existen — se ve la cantidad igual estando cerrada. Arranca contraída.
+  const [autorizadosAbierto, setAutorizadosAbierto] = useState(false);
   const [colaError, setColaError] = useState<{ codigo: string; mensaje: string } | null>(null);
   const procesando = useRef(false);
   const proxId = useRef(1);
@@ -340,20 +343,24 @@ export function CajaPage() {
   };
 
   // Siempre con cliente: no hay venta anónima desde caja (se quitó "Continuar sin cliente").
+  // Todas las consultas externas (medios de pago, campañas de puntos-app, ventas pendientes) se
+  // esperan juntas detrás del popup de carga: si alguna tarda, el cajero ve la pantalla bloqueada
+  // en vez de pasar al carrito con datos a medio cargar (p. ej. la campaña apareciendo tarde).
   const seleccionarCliente = async (c: ClienteResumen) => {
     setClienteSel(c);
     setCampanias([]);
-    void cargarCampanias(c.documento);
     setResultadosCliente([]);
     setError(null);
-    await cargarMediosPago(c.idCliente);
+    setBloqueando("Cargando cliente…");
     try {
+      await Promise.all([cargarMediosPago(c.idCliente), cargarCampanias(c.documento)]);
       // Si el cliente tiene ventas sin terminar en este turno (caída del sistema, F5, o el cajero
       // se cambió de cliente sin cobrar), se ofrece retomarlas antes de arrancar una nueva.
       const pend = await caja.operacionesPendientes(idSucursal, idCaja, c.idCliente);
       if (pend.length > 0) { setPendientes(pend); return; }
       await iniciarVenta(c);
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+    finally { setBloqueando(null); }
   };
 
   const iniciarVenta = async (c: ClienteResumen) => {
@@ -455,8 +462,12 @@ export function CajaPage() {
     try {
       const art = await caja.buscarArticulo(idSucursal, item.codigo, clienteSel?.idCliente ?? null);
       // Etiqueta de balanza: el peso viene DENTRO del código de barra y manda sobre la cantidad
-      // tipeada (el cajero no tiene por qué saber cuánto pesa el paquete).
-      const cantidad = art.cantidadDetectada ?? item.cantidad;
+      // tipeada (el cajero no tiene por qué saber cuánto pesa el paquete) — ahí no aplica la
+      // mínima unidad de venta, que es para lecturas "de a uno" (EAN/código individual).
+      // Fuera de ese caso, la cantidad tipeada MULTIPLICA a la mínima unidad de venta del
+      // artículo (1 = de a uno, el comportamiento de siempre): 2 lecturas de "cantidad 3" en un
+      // artículo con mínima 6 cargan 18, no reemplazan la mínima por 3.
+      const cantidad = art.cantidadDetectada ?? item.cantidad * art.minimaUnidadVenta;
       const op = await caja.agregarLinea(idSucursal, operacion.idOperacion, art.idPresentacion, cantidad);
       // Un artículo repetido no crea fila nueva (el backend acumula en la existente), así que se
       // resalta la fila que cambió para que el cajero vea el efecto del último escaneo.
@@ -503,9 +514,12 @@ export function CajaPage() {
   };
 
   // +/- de la tabla: el backend recalcula las ofertas de TODA la operación, no solo de esta línea.
-  const cambiarCantidad = async (l: OperacionLinea, delta: number) => {
+  // `paso` son "clicks" (±1, como venía); el efecto real sobre la cantidad se multiplica por la
+  // mínima unidad de venta del artículo (1 = de a uno, el comportamiento de siempre) — mismo
+  // criterio que al escanear, ver CajaPage.procesarCola.
+  const cambiarCantidad = async (l: OperacionLinea, paso: number) => {
     if (!operacion) return;
-    const nueva = l.cantidad + delta;
+    const nueva = l.cantidad + paso * l.minimaUnidadVenta;
     if (nueva < 1) return; // para sacar el artículo está Anular, así no se borra sin querer
     setError(null);
     try { aplicarOperacion(await caja.cambiarCantidad(idSucursal, operacion.idOperacion, l.idDetalle, nueva)); }
@@ -1772,12 +1786,24 @@ export function CajaPage() {
             presentan. Solo llegan los autorizados activos. */}
         {clienteSel?.autorizados && clienteSel.autorizados.length > 0 && (
           <div className="caja-autorizados">
-            <span className="tit">Autorizados:</span>
-            <ul>
-              {clienteSel.autorizados.map((a) => (
-                <li key={a.dni}>{a.descripcion} <span className="mono">· DNI {a.dni}</span></li>
-              ))}
-            </ul>
+            <button type="button" className="caja-autorizados-toggle"
+              onClick={() => setAutorizadosAbierto((v) => !v)}
+              aria-expanded={autorizadosAbierto}
+              title={autorizadosAbierto ? "Ocultar autorizados" : "Mostrar autorizados"}>
+              {autorizadosAbierto ? "◂" : "▸"}
+            </button>
+            <div>
+              <span className="tit">
+                Autorizados{!autorizadosAbierto && ` (${clienteSel.autorizados.length})`}:
+              </span>
+              {autorizadosAbierto && (
+                <ul>
+                  {clienteSel.autorizados.map((a) => (
+                    <li key={a.dni}>{a.descripcion} <span className="mono">· DNI {a.dni}</span></li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         )}
 
@@ -1804,7 +1830,7 @@ export function CajaPage() {
             <div className="note-aviso-limite__fila">
               <img src="/icons/aviso-limite.png" alt="" className="note-aviso-limite__icono" />
               <p>ARTICULO NO ENCONTRADO - REVISAR ANTES DE CONTINUAR</p>
-              <button className="danger" onClick={descartarError}>Descartar y continuar</button>
+              <button className="danger btn-destello" onClick={descartarError}>Descartar y continuar</button>
             </div>
           </div>
         )}
@@ -1839,22 +1865,35 @@ export function CajaPage() {
           </div>
         )}
 
-        <table className="grid">
+        <table className="grid caja-lineas">
           <thead><tr><th>Código</th><th>Artículo</th><th>Cant.</th><th>Precio</th><th>Descuento</th><th>Final</th><th>Ofertas</th><th></th></tr></thead>
           <tbody>
-            {/* El backend devuelve las líneas con la última escaneada primero. */}
-            {operacion?.lineas.map((l) => (
-              <tr key={l.idDetalle} className={l.idDetalle === lineaResaltada ? "linea-tocada" : ""}>
+            {/* El backend devuelve las líneas con la última escaneada primero: la fila 0 (la más
+                reciente) queda grande y el resto achicado, para que el cajero la ubique de un
+                vistazo apenas escanea. */}
+            {operacion?.lineas.map((l, i) => (
+              <tr key={l.idDetalle}
+                className={[i === 0 ? "linea-actual" : "linea-anterior", l.idDetalle === lineaResaltada ? "linea-tocada" : ""]
+                  .filter(Boolean).join(" ")}>
                 <td className="mono">{l.codigoInterno}</td>
                 <td>{l.descripcion}</td>
-                {/* Los +/- son de a una unidad: en un artículo pesado (cantidad con decimales,
-                    que sale del código de la balanza) no tienen sentido y no se muestran. */}
+                {/* Los +/- suman/restan de a "mínima unidad de venta" del artículo (1 = una unidad,
+                    el comportamiento de siempre; ver Articulo.MinimaUnidadVenta). En un artículo
+                    pesado (cantidad con decimales, que sale del código de la balanza) no tienen
+                    sentido y no se muestran. */}
                 {Number.isInteger(l.cantidad) ? (
                   <td className="cant-cell">
                     <button type="button" onClick={() => cambiarCantidad(l, -1)}
-                      disabled={l.cantidad <= 1} title="Una unidad menos">−</button>
+                      disabled={l.cantidad <= l.minimaUnidadVenta}
+                      title={l.minimaUnidadVenta > 1 ? `${l.minimaUnidadVenta} unidades menos` : "Una unidad menos"}>−</button>
                     <span className="mono">{l.cantidad}</span>
-                    <button type="button" onClick={() => cambiarCantidad(l, 1)} title="Una unidad más">+</button>
+                    <button type="button" onClick={() => cambiarCantidad(l, 1)}
+                      title={l.minimaUnidadVenta > 1 ? `${l.minimaUnidadVenta} unidades más` : "Una unidad más"}>+</button>
+                    {l.esBulto ? (
+                      <span className="badge-bulto" title="Leído por bulto (código de barra de bulto/DUN14)">Blt</span>
+                    ) : (
+                      <span className="badge-bulto" title="Leído por unidad">Uni</span>
+                    )}
                   </td>
                 ) : (
                   <td className="cant-cell"><span className="mono" title="Peso leído del código de barra">{formatearCantidad(l.cantidad)}</span></td>

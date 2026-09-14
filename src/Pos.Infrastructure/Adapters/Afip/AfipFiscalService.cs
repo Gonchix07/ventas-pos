@@ -152,18 +152,29 @@ public class AfipFiscalService : IFiscalService
         var (docTipo, docNro) = MapearDocumento(cmp.Cliente, cmp.CuitCliente);
         var condicionIva = MapearCondicionIva(cmp.Cliente?.Responsabilidad);
 
-        // Base imponible por línea (precio unitario × cantidad − descuento), para prorratear el
-        // Neto/IVA de la cabecera entre las alícuotas presentes — reutiliza la misma regla que ya
-        // usa el prorrateo de Notas de Crédito por monto, así la suma de los tramos cierra EXACTO
-        // contra cmp.Neto/cmp.Iva (WSFEv1 valida que ImpTotal = suma de todo, al centavo).
-        var lineasConIva = (cmp.Items ?? Array.Empty<ItemFiscal>())
-            .Select((it, idx) => new LineaOriginal(idx, it.PrecioUnitario * it.Cantidad - it.Descuento, it.AlicuotaIva, false))
-            .Where(l => l.Alicuota > 0m)
+        // Importe bruto (con IVA incluido) por línea, agrupado por alícuota.
+        //
+        // OJO: acá NO se prorratea cmp.Neto/cmp.Iva por un peso ajeno a la alícuota (como sí hace
+        // NotaCreditoReglas.Prorratear, pensado para repartir un monto suelto sin desglose propio).
+        // Cuando el comprobante mezcla 21% y 10,5%, ponderar por el bruto de cada línea y prorratear
+        // el Neto/IVA totales con ese mismo peso NO reproduce el desglose real: el bruto no guarda la
+        // misma proporción que el neto/IVA de cada alícuota entre sí (uno lleva menos IVA por peso que
+        // el otro), así que BaseImp e Importe del tramo dejan de cumplir Importe = BaseImp × alícuota
+        // y ARCA rechaza con el error 10051 ("Los importes informados en AlicIVA no se corresponden
+        // con los porcentajes") — bug real (2026-09-14), se reproducía con cualquier venta que
+        // combinara un artículo al 21% y otro al 10,5% en la misma factura.
+        //
+        // La corrección: cada línea YA sabe su propia alícuota, así que el tramo de cada una se
+        // desglosa directo con DesglioIva sobre la suma de brutos del grupo — no hace falta prorratear
+        // nada. La suma de los tramos sigue cerrando exacto contra cmp.Neto/cmp.Iva porque ambos se
+        // calculan con la misma regla (DesglioIva) sobre las mismas líneas, ver FacturacionService.
+        var itemsConIva = (cmp.Items ?? Array.Empty<ItemFiscal>())
+            .Where(it => it.AlicuotaIva > 0m)
             .ToList();
 
         List<AfipTramoIva> tramos;
         decimal impOpEx;
-        if (lineasConIva.Count == 0)
+        if (itemsConIva.Count == 0)
         {
             // Todo lo gravado a la venta quedó al 0% (o no hay ítems detallados): se declara como
             // operación exenta en vez de mandar un array de IVA vacío con ImpIVA>0 inconsistente.
@@ -172,11 +183,17 @@ public class AfipFiscalService : IFiscalService
         }
         else
         {
-            var bases = NotaCreditoReglas.Prorratear(cmp.Neto, lineasConIva);
-            var cuotas = NotaCreditoReglas.Prorratear(cmp.Iva, lineasConIva);
-            tramos = bases.Select(b => new AfipTramoIva(
-                AlicuotaId(b.Alicuota), b.Importe,
-                cuotas.FirstOrDefault(c => c.Alicuota == b.Alicuota)?.Importe ?? 0m)).ToList();
+            tramos = itemsConIva
+                .GroupBy(it => it.AlicuotaIva)
+                .Select(g =>
+                {
+                    var bruto = g.Sum(it => it.PrecioUnitario * it.Cantidad - it.Descuento);
+                    var (neto, iva) = DesglioIva.Calcular(bruto, g.Key);
+                    return new AfipTramoIva(AlicuotaId(g.Key), Math.Round(neto, 2, MidpointRounding.AwayFromZero),
+                        Math.Round(iva, 2, MidpointRounding.AwayFromZero));
+                })
+                .OrderBy(t => t.Id)
+                .ToList();
             impOpEx = 0m;
         }
 

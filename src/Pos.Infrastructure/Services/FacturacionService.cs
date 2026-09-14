@@ -655,7 +655,7 @@ public class FacturacionService : IFacturacionService
                     IdSucursal = req.IdSucursal, IdComprobante = idComprobante,
                     IdPresentacion = origen.IdPresentacion, DescripcionTicket = descTicket,
                     Cantidad = origen.Cantidad, PrecioUnit = origen.Precio, Descuento = origen.Descuento,
-                    AlicuotaIva = alicuota, Importe = importe
+                    AlicuotaIva = alicuota, Importe = importe, PrecioLista = origen.PrecioLista
                 });
             }
             _db.CabecerasComprobantes.Add(cabecera);
@@ -1011,14 +1011,28 @@ public class FacturacionService : IFacturacionService
             var (neto, iva) = DesglioIva.Calcular(d.Importe, d.AlicuotaIva);
             paraDiscriminar.Add((d.AlicuotaIva, neto, iva));
 
-            var (netoDesc, _) = DesglioIva.Calcular(d.Descuento, d.AlicuotaIva);
-            descuento += esA ? netoDesc : d.Descuento;
+            // Precio SIN ningún descuento (ni convenio, ni campaña de puntos-app, ni oferta) — ver
+            // DetalleComprobante.PrecioLista. Los comprobantes emitidos antes de que existiera esa
+            // columna quedan en 0 (dato viejo): ahí se cae al PrecioUnit de siempre, que solo permite
+            // discriminar el descuento de oferta (d.Descuento), como se hacía hasta ahora.
+            var precioBase = d.PrecioLista > 0 ? d.PrecioLista : d.PrecioUnit;
+            var descuentoConIva = d.PrecioLista > 0
+                ? Math.Max(0m, Round2(d.Cantidad * precioBase - d.Importe))
+                : Round2(d.Descuento);
+            var (descuentoNeto, _) = DesglioIva.Calcular(descuentoConIva, d.AlicuotaIva);
+            descuento += esA ? descuentoNeto : descuentoConIva;
+
+            // $ Unid. / $ Total de la línea van SIN descuento (precio de venta pleno × cantidad):
+            // el descuento se informa aparte, en el pie ("Descuento"), en vez de quedar absorbido
+            // en la línea y duplicado contra el Subtotal de abajo.
+            var precioUnitSinDescuento = esA ? Round2(SinIva(precioBase, d.AlicuotaIva)) : Round2(precioBase);
+            var totalSinDescuento = Round2(d.Cantidad * precioUnitSinDescuento);
 
             lineas.Add(new LineaComprobanteDto(
                 d.DescripcionTicket, d.Cantidad,
-                esA ? Round2(SinIva(d.PrecioUnit, d.AlicuotaIva)) : Round2(d.PrecioUnit),
-                esA ? Round2(netoDesc) : Round2(d.Descuento),
-                esA ? Round2(neto) : Round2(d.Importe),
+                precioUnitSinDescuento,
+                esA ? descuentoNeto : descuentoConIva,
+                totalSinDescuento,
                 d.AlicuotaIva));
         }
 

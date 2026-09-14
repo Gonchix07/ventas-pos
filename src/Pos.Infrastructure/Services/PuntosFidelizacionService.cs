@@ -43,7 +43,12 @@ public class PuntosFidelizacionService : IPuntosFidelizacionService
     // Mismo purpose que ConexionPuntosAppAdminService (ver AbmServices.cs) — tiene que ser idéntico
     // o Unprotect falla siempre, aunque el token esté bien guardado.
     private const string DataProtectionPurpose = "Pos.ConexionPuntosApp";
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(8);
+    // Subido de 8s a 15s (2026-09-14): un cold start de puntos-app (Vercel serverless) puede tardar
+    // más de 8s en responder y el POST se cortaba a mitad de la lectura TLS (TaskCanceledException /
+    // SocketException 995) aunque puntos-app terminara respondiendo bien poco después. Sigue siendo
+    // best-effort — nunca bloquea la venta — así que dar más margen acá no tiene contraindicación,
+    // solo demora un poco más el popup de fidelización en el peor caso.
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(15);
 
     private readonly PosDbContext _db;
     private readonly IDataProtector _protector;

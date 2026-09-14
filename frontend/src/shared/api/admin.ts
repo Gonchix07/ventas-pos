@@ -99,6 +99,10 @@ export interface ArticuloInput {
   /** Se vende suelto por peso (etiqueta de balanza) — la interfase contable codifica la cantidad
    *  distinto en ese caso (siempre 3 decimales: kilo entero + gramos). */
   ventaPorPeso: boolean;
+  /** Cantidad mínima que se carga al carrito en Caja al leer este artículo por EAN o código
+   *  interno individual (1 = de a uno, el comportamiento de siempre). La cantidad tipeada por el
+   *  cajero se MULTIPLICA por esto, no la reemplaza — ver CajaPage.procesarCola. */
+  minimaUnidadVenta: number;
   presentaciones: Presentacion[];
 }
 

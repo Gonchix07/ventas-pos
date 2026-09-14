@@ -58,6 +58,15 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .user-box { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; font-size: 14px; color: var(--muted); }
 .user-box button { border: 1px solid var(--line); background: transparent; border-radius: 8px;
   padding: 6px 12px; cursor: pointer; color: var(--ink); }
+/* Retiro de efectivo / Arqueo X / Cerrar turno / Módulos / Salir: los botones "neutros" de la barra
+   de caja (no los de acción crítica como Notas de Crédito o Cierre Z, que ya tienen su propio color)
+   se resaltan en verde claro al pasar el mouse. */
+.user-box button:not(.danger-solid):not(.warning-solid):hover,
+/* Mismo verde de Módulos/Salir, para botones fuera de .user-box que quieran el mismo lenguaje
+   (ej. "Reimprimir" y "Volver a la Búsqueda" del módulo de Reimpresión). */
+.btn-verde-hover:hover {
+  background: #e3f5e9; border-color: #a8dcb8; color: #1c6b3c;
+}
 /* Acceso al manual de usuario (icono "?"), junto a Salir en la barra de menús. */
 .ayuda-link { display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; border-radius: 50%; border: 1px solid #1a4d8f;
@@ -144,7 +153,10 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-user-usuario { color: var(--petrol-ink); font-weight: 600; }
 .admin-user-salir { width: 100%; border: 1px solid var(--line); background: transparent;
   border-radius: 8px; padding: 8px 10px; cursor: pointer; color: var(--ink); font-weight: 600; }
-.admin-user-salir:hover { background: #eef1ef; }
+/* Módulos / Salir del panel de Admin: mismo resalte verde claro al pasar el mouse que en Caja. */
+.admin-user > button:hover, .admin-user-salir:hover {
+  background: #e3f5e9; border-color: #a8dcb8; color: #1c6b3c;
+}
 .admin-content { padding: 28px 32px; max-width: 1100px; }
 .admin-content h1 { font-size: 22px; margin: 0 0 18px; }
 
@@ -455,10 +467,19 @@ td.row-actions > * + * { margin-left: 6px; }
 .cobro-destacado b { font-weight: 800; }
 /* Aviso de límite de efectivo en caja (ver CajaPage): ícono y texto en la misma línea, en vez del
    apilado default de .note (span + p bloque, cada uno en su propia línea). */
+.note-aviso-limite { margin-bottom: 24px; }
 .note-aviso-limite__fila { display: flex; align-items: center; gap: 10px; }
 .note-aviso-limite__icono { width: 28px; height: 28px; flex-shrink: 0; }
 .note-aviso-limite__fila p { margin: 0; font-weight: 600; flex: 1; }
-.note-aviso-limite__fila button { flex-shrink: 0; }
+.note-aviso-limite__fila button { flex-shrink: 0; margin-left: 24px; }
+
+/* Destello periódico para que el botón de acción de un aviso no pase desapercibido: un breve
+   resplandor cada 1s (no un parpadeo constante, que cansa la vista) hasta que el cajero actúa. */
+@keyframes destello {
+  0%, 80%, 100% { box-shadow: 0 0 0 0 rgba(217, 45, 32, 0); }
+  90% { box-shadow: 0 0 0 6px rgba(217, 45, 32, 0.35); }
+}
+.btn-destello { animation: destello 1s infinite; }
 /* Vuelto en el cobro: tiene que saltar a la vista de lejos (el cajero se lo dice al cliente en
    voz alta), por eso mucho más grande y en un color que no se confunda con error (rojo) ni con
    éxito (verde/petrol) — naranja, reservado solo para esto. */
@@ -565,7 +586,7 @@ td.money, th.money { text-align: right; font-family: ui-monospace, Consolas, mon
 .usuario-badge { font-size: 12px; font-weight: 600; color: var(--muted); background: #eef1ef;
   padding: 5px 12px; border-radius: 100px; }
 .caja-center { flex: 1; display: grid; place-items: center; padding: 24px; }
-.caja-body { max-width: 1200px; margin: 0 auto; padding: 24px; width: 100%; }
+.caja-body { max-width: 1200px; margin: 0 auto; padding: 24px 10px; width: 100%; }
 /* Pantalla a todo el ancho con márgenes estrechos: la usa la identificación de cliente, donde la
    tabla de resultados necesita todas las columnas del padrón visibles de una sola pasada. */
 .caja-wide { flex: 1; width: 100%; padding: 16px 20px; }
@@ -583,16 +604,26 @@ table.ident-table tbody tr:hover > td { background: #eef5f2; }
    animación (no con un color fijo) para que se apague sola sin depender del estado de React. */
 @keyframes destello-linea { from { background: #fbeec4; } to { background: transparent; } }
 table.grid tr.linea-tocada > td { animation: destello-linea 1.6s ease-out; }
+/* Carrito de Caja: la fila 0 (último artículo escaneado) se agranda y el resto se achica — así el
+   cajero encuentra de un vistazo lo que acaba de leer sin que el resto de la lista deje de leerse. */
+table.grid.caja-lineas tr.linea-actual > td { font-size: 17px; font-weight: 600; padding: 12px 14px; }
+table.grid.caja-lineas tr.linea-anterior > td { font-size: 12.5px; padding: 6px 14px; }
 /* Precio que salió de una lista de folder (promoción vigente), no del precio habitual. */
 td.precio-folder { color: #c2620d; font-weight: 700; }
 .caja-cliente { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 15px; }
 /* Autorizados del cliente: van pegados debajo del nombre, uno por línea y en un tono más claro
    para que se lean como dato de control y no compitan con el nombre del cliente. */
-.caja-autorizados { margin: -8px 0 12px; padding: 0 0 0 62px;
-  font-size: 13px; line-height: 1.5; color: var(--muted); }
+.caja-autorizados { display: flex; align-items: flex-start; gap: 6px; margin: -8px 0 12px;
+  padding-left: 36px; font-size: 13px; line-height: 1.5; color: var(--muted); }
 .caja-autorizados .tit { font-weight: 600; }
 .caja-autorizados ul { list-style: none; margin: 0; padding: 0; }
 .caja-autorizados .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+/* Flecha para plegar/desplegar la lista (puede ser larga) sin perder el dato de que hay
+   autorizados — colapsada muestra la cantidad al lado de "Autorizados". */
+.caja-autorizados-toggle { flex: 0 0 auto; width: 24px; height: 24px; margin-top: -2px;
+  border: none; background: transparent; padding: 0; cursor: pointer; color: #1c6b3c;
+  font-size: 20px; font-weight: 700; line-height: 24px; text-align: center; border-radius: 4px; }
+.caja-autorizados-toggle:hover { color: #124a29; background: #e3f5e9; }
 .caja-totales { display: flex; align-items: center; gap: 24px; justify-content: flex-end;
   margin-top: 16px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .caja-totales div { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 2px; }
@@ -639,6 +670,10 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 .cant-cell { white-space: nowrap; }
 .cant-cell button { min-width: 28px; padding: 2px 6px; font-size: 15px; line-height: 1.2; }
 .cant-cell span { display: inline-block; min-width: 34px; text-align: center; }
+.badge-bulto {
+  display: inline-block; min-width: auto !important; margin-left: 20px;
+  font-weight: 700; color: #0a5c2b;
+}
 
 /* ---- Modal genérico (buscador de artículos) ---- */
 .modal-fondo { position: fixed; inset: 0; background: rgba(15, 23, 21, .45); z-index: 50;

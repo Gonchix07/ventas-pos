@@ -68,16 +68,26 @@ public record ArticuloEncontrado(int IdArticulo, int IdPresentacion, string Codi
     decimal PrecioVigente, decimal PrecioConvenio, bool TieneConvenio,
     // Cantidad que venía en el propio código de barra (etiqueta de balanza: son kilos).
     // Cuando llega, manda sobre la cantidad que haya tipeado el cajero.
-    decimal? CantidadDetectada = null);
+    decimal? CantidadDetectada = null,
+    // Articulo.MinimaUnidadVenta: la cantidad tipeada por el cajero se multiplica por esto al
+    // agregar la línea (ver CajaPage.procesarCola) — 1 = comportamiento de siempre. No aplica si
+    // vino CantidadDetectada (balanza), que ya es la cantidad real a cargar.
+    decimal MinimaUnidadVenta = 1m);
 
 // ---- Operación ----
 public record CrearOperacionRequest(int IdSucursal, int IdCaja, int? IdCliente);
 /// <param name="ListaPrecio">Nombre de la lista de la que salió el precio (null en líneas viejas).</param>
 /// <param name="EsPrecioFolder">La lista es de tipo Folder: la caja lo destaca en pantalla porque es
 /// un precio de promoción, distinto del habitual del artículo.</param>
+/// <param name="EsBulto">La presentación leída equivale a más de una unidad (código DUN14 o de
+/// bulto): la caja marca la cantidad con una "B" para que el cajero note que no son unidades sueltas.</param>
 public record OperacionLineaDto(long IdDetalle, int IdPresentacion, string CodigoInterno,
     string Descripcion, decimal Cantidad, decimal PrecioUnit, decimal Bruto, decimal Descuento,
-    decimal Neto, List<string> OfertasAplicadas, string? ListaPrecio = null, bool EsPrecioFolder = false);
+    decimal Neto, List<string> OfertasAplicadas, string? ListaPrecio = null, bool EsPrecioFolder = false,
+    bool EsBulto = false,
+    // Articulo.MinimaUnidadVenta: el +/- de la fila en Caja suma/resta este paso en vez de 1 (ver
+    // CajaPage.cambiarCantidad) — 1 = comportamiento de siempre.
+    decimal MinimaUnidadVenta = 1m);
 /// <param name="Neto">Total de mercadería (bruto - descuento) — NO incluye percepciones.</param>
 /// <param name="PercepcionIva21">Percepción de IVA sobre el neto gravado al 21% (0 si no corresponde).</param>
 /// <param name="PercepcionIva105">Percepción de IVA sobre el neto gravado al 10,5% (0 si no corresponde).</param>

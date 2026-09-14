@@ -83,16 +83,22 @@ public class PricingService : IPricingService
         var infoPres = await (
             from pr in _db.Presentaciones.AsNoTracking().Where(x => idsPres.Contains(x.IdPresentacion))
             join a in _db.Articulos.AsNoTracking() on pr.IdArticulo equals a.IdArticulo
-            select new { pr.IdPresentacion, a.IdArticulo, a.IdSector, a.IdLinea, a.IdFamilia }
+            select new { pr.IdPresentacion, a.IdArticulo, a.IdSector, a.IdLinea, a.IdFamilia, pr.UnidadXBulto }
         ).ToDictionaryAsync(x => x.IdPresentacion, ct);
 
+        // El motor de ofertas (2x1, canasta, etc.) cuenta y compara unidades del ARTÍCULO, no de la
+        // presentación: si el mismo artículo se lee parte por bulto y parte suelto, hay que llevar
+        // todo a unidad base ANTES de armar la línea — si no, "1 bulto x12 + 1 unidad" contaría como
+        // "2" en vez de "13" y el 2x1/canasta no ve las unidades que vinieron por bulto. El bruto no
+        // cambia (Cantidad*PrecioUnit da lo mismo escalado o no), solo la unidad de conteo interna.
         var lineas = new List<LineaPedido>();
         for (int i = 0; i < req.Lineas.Count; i++)
         {
             var l = req.Lineas[i];
             if (!infoPres.TryGetValue(l.IdPresentacion, out var info)) continue;
+            var unidadXBulto = info.UnidadXBulto <= 0 ? 1m : info.UnidadXBulto;
             lineas.Add(new LineaPedido(i, info.IdArticulo, info.IdSector, info.IdLinea, info.IdFamilia,
-                l.IdPresentacion, l.Cantidad, l.PrecioUnit));
+                l.IdPresentacion, l.Cantidad * unidadXBulto, l.PrecioUnit / unidadXBulto));
         }
 
         // Ofertas vigentes de la sucursal, con alcances y acciones (con los items de canasta).

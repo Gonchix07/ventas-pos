@@ -108,7 +108,7 @@ export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolv
                 <th>Descripcion</th>
                 <th className="num">Unid</th>
                 <th className="num">$ Unid.</th>
-                <th className="num">$ Total</th>
+                <th className="num">$ Neto</th>
               </tr>
             </thead>
             <tbody>
@@ -145,7 +145,7 @@ export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolv
         )}
 
         <div className="cbte__totales">
-          <div><span>Descuento</span><span>${money(c.descuento)}</span></div>
+          <div className="descuento"><span>Descuento</span><span>{c.descuento > 0 ? "-" : ""}${money(c.descuento)}</span></div>
           {esA && (
             <>
               <div><span>Subtotal</span><span>${money(c.neto)}</span></div>
@@ -206,7 +206,11 @@ export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolv
 
       <div className="cbte__acciones cbte-no-print">
         <button className="primary" onClick={() => window.print()}>Imprimir</button>
-        {onCerrar && <button onClick={onCerrar}>{textoVolver ?? "Nueva venta"}</button>}
+        {onCerrar && (
+          <button className={esReimpresion ? "btn-verde-hover" : undefined} onClick={onCerrar}>
+            {textoVolver ?? "Nueva venta"}
+          </button>
+        )}
       </div>
     </>
   );

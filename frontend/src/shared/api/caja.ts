@@ -70,6 +70,10 @@ export interface ArticuloEncontrado {
   precioVigente: number; precioConvenio: number; tieneConvenio: boolean;
   /** Kilos leídos del propio código de barra (etiqueta de balanza). Manda sobre la cantidad tipeada. */
   cantidadDetectada?: number | null;
+  /** Articulo.MinimaUnidadVenta: la cantidad tipeada por el cajero se multiplica por esto al
+   *  agregar la línea (1 = de a uno, el comportamiento de siempre). No aplica si vino
+   *  cantidadDetectada (balanza), que ya es la cantidad real a cargar. */
+  minimaUnidadVenta: number;
 }
 
 export interface OperacionLinea {
@@ -77,6 +81,11 @@ export interface OperacionLinea {
   cantidad: number; precioUnit: number; bruto: number; descuento: number; neto: number;
   ofertasAplicadas: string[];
   listaPrecio?: string | null; esPrecioFolder: boolean;
+  /** La presentación leída equivale a más de una unidad (código DUN14 o de bulto). */
+  esBulto: boolean;
+  /** Articulo.MinimaUnidadVenta: el +/- de la fila suma/resta este paso en vez de 1 (1 = de a uno,
+   *  el comportamiento de siempre). Ver CajaPage.cambiarCantidad. */
+  minimaUnidadVenta: number;
 }
 
 export interface Operacion {

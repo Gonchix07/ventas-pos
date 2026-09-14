@@ -32,7 +32,7 @@
 .cbte__cliente div { display: flex; gap: 2mm; }
 .cbte__cliente span:first-child { min-width: 22mm; }
 
-.cbte__lineas { width: 100%; border-collapse: collapse; font-size: 8pt; }
+.cbte__lineas { width: 100%; border-collapse: collapse; font-size: 6.5pt; }
 .cbte__lineas th { border-bottom: 1px solid #000; text-align: left; padding: 1mm 0; font-weight: 600; }
 .cbte__lineas td { padding: 0.8mm 0; vertical-align: top; }
 .cbte__lineas .num { text-align: right; white-space: nowrap; }
@@ -44,6 +44,7 @@
 .cbte__totales { margin-top: 2mm; border-top: 1px solid #000; padding-top: 1.5mm; font-size: 8.5pt; }
 .cbte__totales div { display: flex; justify-content: space-between; }
 .cbte__totales .total { font-size: 13pt; font-weight: 700; margin-top: 1.5mm; }
+.cbte__totales .descuento { font-size: 10.5pt; font-weight: 700; }
 
 .cbte__pagos { margin-top: 1.5mm; font-size: 8pt; }
 .cbte__pagos div { display: flex; justify-content: space-between; }

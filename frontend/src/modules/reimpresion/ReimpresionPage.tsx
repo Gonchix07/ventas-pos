@@ -177,7 +177,7 @@ export function ReimpresionPage() {
                   <td>{c.clienteDescripcion ?? "Consumidor final"}</td>
                   <td className="mono">{formatearMoneda(c.total)}</td>
                   <td>{c.estado}</td>
-                  <td><button disabled={cargando} onClick={() => reimprimir(c)}>Reimprimir</button></td>
+                  <td><button className="btn-verde-hover" disabled={cargando} onClick={() => reimprimir(c)}>Reimprimir</button></td>
                 </tr>
               ))}
               {resultados.length === 0 && (
@@ -201,7 +201,7 @@ export function ReimpresionPage() {
                   <td>{new Date(r.fechaCierre).toLocaleString()}</td>
                   <td className="mono">{r.numeroCierre ? `T-${String(r.numeroCierre).padStart(6, "0")}` : "—"}</td>
                   <td className="mono">{formatearMoneda(r.total)}</td>
-                  <td><button disabled={cargando} onClick={() => reimprimirRendicion(r)}>Reimprimir</button></td>
+                  <td><button className="btn-verde-hover" disabled={cargando} onClick={() => reimprimirRendicion(r)}>Reimprimir</button></td>
                 </tr>
               ))}
               {resultadosRendicion.length === 0 && (

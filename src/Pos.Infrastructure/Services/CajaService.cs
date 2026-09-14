@@ -377,7 +377,7 @@ public class CajaService : ICajaService
             from a in _db.Articulos.AsNoTracking().Where(x => x.CodigoInterno == codigo)
             join pr in _db.Presentaciones.AsNoTracking() on a.IdArticulo equals pr.IdArticulo
             orderby pr.UnidadXBulto
-            select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo }
+            select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo, a.MinimaUnidadVenta }
         ).FirstOrDefaultAsync(ct);
 
         // orderby UnidadXBulto también acá: si el código coincide con más de una barra (no debería,
@@ -390,7 +390,7 @@ public class CajaService : ICajaService
                 join pr in _db.Presentaciones.AsNoTracking() on b.IdPresentacion equals pr.IdPresentacion
                 join a in _db.Articulos.AsNoTracking() on pr.IdArticulo equals a.IdArticulo
                 orderby pr.UnidadXBulto
-                select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo }
+                select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo, a.MinimaUnidadVenta }
             ).FirstOrDefaultAsync(ct);
         }
 
@@ -404,7 +404,7 @@ public class CajaService : ICajaService
                 from a in _db.Articulos.AsNoTracking().Where(x => codigos.Contains(x.CodigoInterno))
                 join pr in _db.Presentaciones.AsNoTracking() on a.IdArticulo equals pr.IdArticulo
                 orderby pr.UnidadXBulto
-                select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo }
+                select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo, a.MinimaUnidadVenta }
             ).FirstOrDefaultAsync(ct);
             if (match is not null) cantidadDetectada = pesada.Peso;
         }
@@ -416,7 +416,8 @@ public class CajaService : ICajaService
         return new ArticuloEncontrado(match.IdArticulo, match.IdPresentacion, match.CodigoInterno,
             match.Descripcion, match.DescripcionTicket, match.UnidadXBulto,
             _images.BuildImageUrl(match.CodigoInterno).ToString(),
-            precio.PrecioVigente, precio.PrecioConvenio, precio.TieneConvenio, cantidadDetectada);
+            precio.PrecioVigente, precio.PrecioConvenio, precio.TieneConvenio, cantidadDetectada,
+            match.MinimaUnidadVenta);
     }
 
     /// <summary>Cuántos artículos como mucho devuelve la búsqueda manual de la lupa.</summary>
@@ -438,7 +439,7 @@ public class CajaService : ICajaService
             where a.CodigoInterno.Contains(t) || a.Descripcion.Contains(t)
                 || pr.Barras.Any(b => b.CodigoBarra == t)
             orderby a.Descripcion, pr.UnidadXBulto
-            select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto }
+            select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.MinimaUnidadVenta }
         ).Take(MaxArticulosBusqueda).ToListAsync(ct);
 
         var resultado = new List<ArticuloEncontrado>(candidatos.Count);
@@ -451,7 +452,8 @@ public class CajaService : ICajaService
             resultado.Add(new ArticuloEncontrado(m.IdArticulo, m.IdPresentacion, m.CodigoInterno,
                 m.Descripcion, m.DescripcionTicket, m.UnidadXBulto,
                 _images.BuildImageUrl(m.CodigoInterno).ToString(),
-                precio.PrecioVigente, precio.PrecioConvenio, precio.TieneConvenio));
+                precio.PrecioVigente, precio.PrecioConvenio, precio.TieneConvenio,
+                MinimaUnidadVenta: m.MinimaUnidadVenta));
         }
         return resultado;
     }
@@ -789,7 +791,7 @@ public class CajaService : ICajaService
         var info = await (
             from pr in _db.Presentaciones.AsNoTracking().Where(p => idsPres.Contains(p.IdPresentacion))
             join a in _db.Articulos.AsNoTracking() on pr.IdArticulo equals a.IdArticulo
-            select new { pr.IdPresentacion, a.CodigoInterno, a.Descripcion }
+            select new { pr.IdPresentacion, a.CodigoInterno, a.Descripcion, pr.UnidadXBulto, a.MinimaUnidadVenta }
         ).ToDictionaryAsync(x => x.IdPresentacion, ct);
 
         string? clienteDesc = null;
@@ -833,7 +835,8 @@ public class CajaService : ICajaService
                 i?.CodigoInterno ?? "", i?.Descripcion ?? "", d.Cantidad, precioLista,
                 bruto, descuentoTotal, neto, ofertas,
                 tieneLista ? datosLista.Codigo : null,
-                tieneLista && datosLista.Tipo == TipoListaPrecio.Folder);
+                tieneLista && datosLista.Tipo == TipoListaPrecio.Folder,
+                (i?.UnidadXBulto ?? 1m) > 1m, i?.MinimaUnidadVenta ?? 1m);
         }).ToList();
 
         // Vista previa de percepciones: se recalcula en cada consulta de la operación (no se

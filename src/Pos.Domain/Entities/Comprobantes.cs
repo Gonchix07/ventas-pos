@@ -79,6 +79,15 @@ public class DetalleComprobante : AuditableEntity
     public decimal AlicuotaIva { get; set; }
     public decimal Importe { get; set; }
 
+    /// <summary>Precio de lista SIN ningún descuento (ni convenio, ni campaña de puntos-app, ni
+    /// oferta) — mismo criterio que <see cref="DetalleOperacion.PrecioLista"/>, copiado a este
+    /// detalle al emitir la factura. Sirve para que el ticket/factura impresa pueda mostrar
+    /// "$ Unid."/"$ Total" SIN descuento y discriminar TODO lo descontado (no solo la oferta, que es
+    /// lo único que <see cref="Descuento"/> guarda) en el renglón "Descuento" del pie. Si es 0 (datos
+    /// viejos, de antes de esta columna), el comprobante impreso cae de nuevo al comportamiento
+    /// previo — ver FacturacionService.ArmarImpresionAsync.</summary>
+    public decimal PrecioLista { get; set; }
+
     /// <summary>
     /// En una nota de crédito por artículos: la línea de la factura original que esta línea
     /// acredita. Es lo que permite saber qué queda por anular sin recalcular importes (la

@@ -78,7 +78,8 @@ public class ArticuloService : IArticuloService
         return new ArticuloDetail(a.IdArticulo, a.CodigoInterno, a.Descripcion,
             a.IdSector, a.IdLinea, a.IdFamilia, a.IdModoIva, a.Activo,
             _images.BuildImageUrl(a.CodigoInterno).ToString(),
-            (int)a.UnidadMedida, a.ContenidoNetoUnitario, a.UnidadXBulto, a.VentaPorPeso, presentaciones);
+            (int)a.UnidadMedida, a.ContenidoNetoUnitario, a.UnidadXBulto, a.VentaPorPeso,
+            a.MinimaUnidadVenta, presentaciones);
     }
 
     public async Task<int> CreateAsync(ArticuloInput input, CancellationToken ct = default)
@@ -100,6 +101,7 @@ public class ArticuloService : IArticuloService
             ContenidoNetoUnitario = input.ContenidoNetoUnitario,
             UnidadXBulto = input.UnidadXBulto <= 0 ? 1m : input.UnidadXBulto,
             VentaPorPeso = input.VentaPorPeso,
+            MinimaUnidadVenta = input.MinimaUnidadVenta <= 0 ? 1m : input.MinimaUnidadVenta,
             Presentaciones = MapPresentaciones(input.Presentaciones)
         };
         _db.Articulos.Add(articulo);
@@ -109,13 +111,36 @@ public class ArticuloService : IArticuloService
 
     public async Task<bool> UpdateAsync(int id, ArticuloInput input, CancellationToken ct = default)
     {
-        var articulo = await _db.Articulos.FirstOrDefaultAsync(a => a.IdArticulo == id, ct);
+        var articulo = await _db.Articulos.Include(a => a.Presentaciones).ThenInclude(p => p.Barras)
+            .FirstOrDefaultAsync(a => a.IdArticulo == id, ct);
         if (articulo is null) return false;
         await ValidarFamiliaDelSectorAsync(input.IdSector, input.IdFamilia, ct);
 
-        // Se actualiza SOLO la cabecera. Las presentaciones/barras no se reemplazan en el update
-        // porque pueden estar referenciadas por Precios/Comprobantes (FK). Su edición requiere un
-        // endpoint dedicado con merge por id (pendiente de Fase 1).
+        // Sync real de Presentaciones/Barras contra lo que llega del form (antes esto se ignoraba
+        // del todo: el update solo tocaba la cabecera, así que sacar una presentación en Admin >
+        // Artículos y guardar no hacía nada — bug real, 2026-09-14). Primero se valida TODO antes de
+        // tocar nada: una presentación que el form sacó pero que ya tiene precio, ventas u ofertas
+        // asociadas no se puede borrar sin perder trazabilidad, así que se corta acá con un error
+        // claro en vez de guardar a medias o reventar más abajo contra una FK.
+        var idsEntrantes = input.Presentaciones.Where(p => p.IdPresentacion is > 0)
+            .Select(p => p.IdPresentacion!.Value).ToHashSet();
+        var aEliminar = articulo.Presentaciones.Where(p => !idsEntrantes.Contains(p.IdPresentacion)).ToList();
+        foreach (var p in aEliminar)
+        {
+            var enUso = await _db.Precios.AnyAsync(x => x.IdPresentacion == p.IdPresentacion, ct)
+                || await _db.DetallesComprobantes.AnyAsync(x => x.IdPresentacion == p.IdPresentacion, ct)
+                || await _db.DetallesOperaciones.AnyAsync(x => x.IdPresentacion == p.IdPresentacion, ct)
+                || await _db.AccionesOfertas.AnyAsync(x => x.IdPresentacion == p.IdPresentacion, ct);
+            if (enUso)
+            {
+                var etiqueta = string.IsNullOrWhiteSpace(p.DescripcionTicket)
+                    ? $"x{p.UnidadXBulto:0.##}" : p.DescripcionTicket;
+                throw new DomainException("PRESENTACION_EN_USO",
+                    $"No se puede eliminar la presentación \"{etiqueta}\": ya tiene precios, ventas u ofertas " +
+                    "asociadas. Desactivá el artículo o quitale el precio en vez de borrar la presentación.");
+            }
+        }
+
         articulo.CodigoInterno = input.CodigoInterno.Trim();
         articulo.Descripcion = input.Descripcion.Trim();
         articulo.IdSector = input.IdSector;
@@ -127,8 +152,65 @@ public class ArticuloService : IArticuloService
         articulo.ContenidoNetoUnitario = input.ContenidoNetoUnitario;
         articulo.UnidadXBulto = input.UnidadXBulto <= 0 ? 1m : input.UnidadXBulto;
         articulo.VentaPorPeso = input.VentaPorPeso;
+        articulo.MinimaUnidadVenta = input.MinimaUnidadVenta <= 0 ? 1m : input.MinimaUnidadVenta;
+
+        // Ya validado que se puede: recién acá se muta la colección.
+        foreach (var p in aEliminar) articulo.Presentaciones.Remove(p);
+
+        foreach (var pi in input.Presentaciones)
+        {
+            if (pi.IdPresentacion is > 0)
+            {
+                var existente = articulo.Presentaciones.FirstOrDefault(p => p.IdPresentacion == pi.IdPresentacion);
+                if (existente is null) continue; // no debería pasar: ya se validó arriba
+                existente.UnidadXBulto = pi.UnidadXBulto <= 0 ? 1m : pi.UnidadXBulto;
+                existente.DescripcionTicket = pi.DescripcionTicket;
+                SincronizarBarras(existente, pi.Barras);
+            }
+            else
+            {
+                articulo.Presentaciones.Add(new Presentacion
+                {
+                    UnidadXBulto = pi.UnidadXBulto <= 0 ? 1m : pi.UnidadXBulto,
+                    DescripcionTicket = pi.DescripcionTicket,
+                    Barras = pi.Barras.Select(b => new Barra
+                    {
+                        CodigoBarra = b.CodigoBarra.Trim(),
+                        Tipo = Enum.IsDefined(typeof(TipoBarra), b.Tipo) ? (TipoBarra)b.Tipo : TipoBarra.Ean13
+                    }).ToList()
+                });
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
         return true;
+    }
+
+    /// <summary>Mismo criterio de sync que las Presentaciones: actualiza las que traen IdBarra,
+    /// agrega las nuevas (sin id) y borra las que ya no vienen. Los códigos de barra no tienen otra
+    /// FK que los referencie (a diferencia de Presentacion), así que acá no hace falta validar nada
+    /// antes de borrar.</summary>
+    private static void SincronizarBarras(Presentacion presentacion, List<BarraInput> barrasInput)
+    {
+        var idsEntrantes = barrasInput.Where(b => b.IdBarra is > 0).Select(b => b.IdBarra!.Value).ToHashSet();
+        foreach (var b in presentacion.Barras.Where(b => !idsEntrantes.Contains(b.IdBarra)).ToList())
+            presentacion.Barras.Remove(b);
+
+        foreach (var bi in barrasInput)
+        {
+            var tipo = Enum.IsDefined(typeof(TipoBarra), bi.Tipo) ? (TipoBarra)bi.Tipo : TipoBarra.Ean13;
+            if (bi.IdBarra is > 0)
+            {
+                var existente = presentacion.Barras.FirstOrDefault(b => b.IdBarra == bi.IdBarra);
+                if (existente is null) continue;
+                existente.CodigoBarra = bi.CodigoBarra.Trim();
+                existente.Tipo = tipo;
+            }
+            else
+            {
+                presentacion.Barras.Add(new Barra { CodigoBarra = bi.CodigoBarra.Trim(), Tipo = tipo });
+            }
+        }
     }
 
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)

@@ -1,10 +1,17 @@
 ﻿namespace Pos.Application.Catalogo;
 
 public record BarraDto(int IdBarra, string CodigoBarra, int Tipo);
-public record BarraInput(string CodigoBarra, int Tipo);
+/// <summary>IdBarra null/0 = código nuevo; con valor = el frontend lo trae de BarraDto tal cual se
+/// cargó (ver ArticulosPage.tsx), para que ArticuloService.UpdateAsync sepa qué códigos actualizar
+/// y cuáles borrar en vez de tratarlos siempre como altas nuevas.</summary>
+public record BarraInput(string CodigoBarra, int Tipo, int? IdBarra = null);
 
 public record PresentacionDto(int IdPresentacion, decimal UnidadXBulto, string? DescripcionTicket, List<BarraDto> Barras);
-public record PresentacionInput(decimal UnidadXBulto, string? DescripcionTicket, List<BarraInput> Barras);
+/// <summary>IdPresentacion null/0 = presentación nueva; con valor = ya existe y el frontend la trae
+/// de PresentacionDto (ver ArticulosPage.tsx) — permite a ArticuloService.UpdateAsync diferenciar
+/// "actualizar esta línea" de "el cajero la borró del formulario" en vez de ignorar el array entero.</summary>
+public record PresentacionInput(decimal UnidadXBulto, string? DescripcionTicket, List<BarraInput> Barras,
+    int? IdPresentacion = null);
 
 public record ArticuloListItem(
     int IdArticulo, string CodigoInterno, string Descripcion,
@@ -26,7 +33,7 @@ public record ArticuloDetail(
     int IdArticulo, string CodigoInterno, string Descripcion,
     int IdSector, int IdLinea, int IdFamilia, int IdModoIva,
     bool Activo, string ImagenUrl, int UnidadMedida, decimal? ContenidoNetoUnitario,
-    decimal UnidadXBulto, bool VentaPorPeso,
+    decimal UnidadXBulto, bool VentaPorPeso, decimal MinimaUnidadVenta,
     List<PresentacionDto> Presentaciones);
 
 public record ArticuloInput(
@@ -34,7 +41,7 @@ public record ArticuloInput(
     int IdSector, int IdLinea, int IdFamilia, int IdModoIva,
     bool Activo, int UnidadMedida, decimal? ContenidoNetoUnitario,
     decimal UnidadXBulto, bool VentaPorPeso,
-    List<PresentacionInput> Presentaciones);
+    List<PresentacionInput> Presentaciones, decimal MinimaUnidadVenta = 1m);
 
 public interface IArticuloService
 {
