@@ -189,7 +189,8 @@ public class CajaService : ICajaService
         return await _db.Cajas.AsNoTracking()
             .Where(c => c.IdSucursal == idSucursal)
             .OrderBy(c => c.Descripcion)
-            .Select(c => new CajaDisponibleDto(c.IdSucursal, c.IdCaja, c.Descripcion, c.IdPuntoVenta))
+            .Join(_db.PuntosVenta.AsNoTracking(), c => new { c.IdSucursal, c.IdPuntoVenta }, pv => new { pv.IdSucursal, IdPuntoVenta = pv.IdPuntoVenta },
+                (c, pv) => new CajaDisponibleDto(c.IdSucursal, c.IdCaja, c.Descripcion, c.IdPuntoVenta, pv.IdTipoPuntoVenta))
             .ToListAsync(ct);
     }
 

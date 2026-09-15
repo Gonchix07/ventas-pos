@@ -25,7 +25,13 @@ public record TurnoAbiertoDto(int IdSucursal, int IdLote, int IdCaja, string Des
     int IdPuntoVenta, DateTime FechaAperturaUtc, int VentasSinCobrar, bool EsLaCajaDeEstaPc);
 
 /// <summary>Caja de la sucursal, para elegir dónde abrir turno desde un puesto sin configurar.</summary>
-public record CajaDisponibleDto(int IdSucursal, int IdCaja, string Descripcion, int IdPuntoVenta);
+/// <summary>
+/// <paramref name="IdTipoPuntoVenta"/> es la modalidad del punto de venta de esta caja (ver
+/// <see cref="Pos.Domain.Services.ModalidadPuntoVenta"/>: 1 Electrónica, 2 Fiscal, 3 Presupuesto) —
+/// el frontend la usa para ofrecer operaciones exclusivas del controlador fiscal (Cierre Z) solo en
+/// cajas Fiscal, ya que Electrónica y Presupuesto no tienen un controlador físico que cerrar.
+/// </summary>
+public record CajaDisponibleDto(int IdSucursal, int IdCaja, string Descripcion, int IdPuntoVenta, int IdTipoPuntoVenta);
 
 /// <summary>Datos para el encabezado de la pantalla de pre-apertura (todavía sin lote): nombre de la
 /// sucursal y descripción de la caja, ambos ya resueltos por el login.</summary>

@@ -961,6 +961,11 @@ export function CajaPage() {
 
   // ---------- Render ----------
 
+  // Cierre Z: solo tiene sentido en cajas FISCAL (controlador físico Hasar) — Electrónica y
+  // Presupuesto no tienen equipo que cerrar (ver ModalidadPuntoVenta en el backend).
+  const MODALIDAD_FISCAL = 2;
+  const esCajaFiscal = cajas.find((c) => c.idCaja === idCaja)?.idTipoPuntoVenta === MODALIDAD_FISCAL;
+
   if (loadingLote) return <div className="caja-shell"><p className="muted">Cargando caja…</p></div>;
 
   // Esta PC no está vinculada a ningún puesto (ver ABM Estructura de caja > Puestos): sin eso no
@@ -1043,23 +1048,26 @@ export function CajaPage() {
           {/* Cierre Z del controlador fiscal: operación de máquina, no de negocio — no depende de
               ningún turno (puede haber cero, uno o varios cajeros con lote abierto en esta caja a
               la vez) y por eso se ofrece acá, ANTES de abrir uno. Así un supervisor no tiene que
-              abrir un turno de venta solo para poder ejecutar el Z. */}
-          <div className="card form" style={{ maxWidth: 560, marginTop: 16 }}>
-            <h3>Cierre Z (controlador fiscal)</h3>
-            <p className="muted">
-              Cierra la jornada fiscal del controlador de <b>Caja {descripcionCaja ?? idCaja}</b>.
-              No requiere un turno abierto ni afecta los turnos de los cajeros que estén operando.
-            </p>
-            {cierreZFiscalResultado && (
-              <p>
-                Cierre Z ejecutado a las {new Date(cierreZFiscalResultado.fechaHoraUtc).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-                {cierreZFiscalResultado.numeroFiscal && <> · Nº fiscal <b className="mono">{cierreZFiscalResultado.numeroFiscal}</b></>}
+              abrir un turno de venta solo para poder ejecutar el Z. Solo aplica a cajas FISCAL: las
+              Electrónica/Presupuesto no tienen un controlador físico que cerrar. */}
+          {esCajaFiscal && (
+            <div className="card form" style={{ maxWidth: 560, marginTop: 16 }}>
+              <h3>Cierre Z (controlador fiscal)</h3>
+              <p className="muted">
+                Cierra la jornada fiscal del controlador de <b>Caja {descripcionCaja ?? idCaja}</b>.
+                No requiere un turno abierto ni afecta los turnos de los cajeros que estén operando.
               </p>
-            )}
-            <button onClick={ejecutarCierreZFiscal} disabled={ejecutandoZFiscal}>
-              {ejecutandoZFiscal ? "Ejecutando…" : "Ejecutar Cierre Z"}
-            </button>
-          </div>
+              {cierreZFiscalResultado && (
+                <p>
+                  Cierre Z ejecutado a las {new Date(cierreZFiscalResultado.fechaHoraUtc).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                  {cierreZFiscalResultado.numeroFiscal && <> · Nº fiscal <b className="mono">{cierreZFiscalResultado.numeroFiscal}</b></>}
+                </p>
+              )}
+              <button onClick={ejecutarCierreZFiscal} disabled={ejecutandoZFiscal}>
+                {ejecutandoZFiscal ? "Ejecutando…" : "Ejecutar Cierre Z"}
+              </button>
+            </div>
+          )}
         </div>
         {modalSupervisor}
         {aperturaPendiente && (

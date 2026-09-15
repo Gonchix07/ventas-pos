@@ -109,8 +109,10 @@ export interface TurnoAbierto {
   idPuntoVenta: number; fechaAperturaUtc: string; ventasSinCobrar: number; esLaCajaDeEstaPc: boolean;
 }
 
+/** idTipoPuntoVenta: modalidad del punto de venta de esta caja — 1 Electrónica, 2 Fiscal, 3
+ * Presupuesto (ver ModalidadPuntoVenta en el backend). Solo Fiscal tiene controlador físico. */
 export interface CajaDisponible {
-  idSucursal: number; idCaja: number; descripcion: string; idPuntoVenta: number;
+  idSucursal: number; idCaja: number; descripcion: string; idPuntoVenta: number; idTipoPuntoVenta: number;
 }
 
 export interface OperacionPendiente {
