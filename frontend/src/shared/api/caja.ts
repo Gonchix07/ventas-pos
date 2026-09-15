@@ -254,9 +254,12 @@ export const caja = {
   anularLinea: (idSucursal: number, idOperacion: number, idDetalle: number, codigoSupervisor?: string | null) =>
     unwrap<Operacion>(api.post(`/caja/operaciones/${idOperacion}/lineas/${idDetalle}/anular`, null,
       { params: { idSucursal, codigoSupervisor } })),
-  /** Fija la cantidad de una línea (botones +/− de la tabla). Cantidad 0 = anular. */
-  cambiarCantidad: (idSucursal: number, idOperacion: number, idDetalle: number, cantidad: number) =>
-    unwrap<Operacion>(api.put(`/caja/operaciones/${idOperacion}/lineas/${idDetalle}/cantidad`, { cantidad }, { params: { idSucursal } })),
+  /** Fija la cantidad de una línea (botones +/− de la tabla). Cantidad 0 = anular. Bajar la
+   *  cantidad (aunque no llegue a 0) pide el mismo código de supervisor que anular la línea. */
+  cambiarCantidad: (idSucursal: number, idOperacion: number, idDetalle: number, cantidad: number,
+    codigoSupervisor?: string | null) =>
+    unwrap<Operacion>(api.put(`/caja/operaciones/${idOperacion}/lineas/${idDetalle}/cantidad`,
+      { cantidad, codigoSupervisor }, { params: { idSucursal } })),
   finalizar: (idSucursal: number, idOperacion: number) =>
     unwrap<Operacion>(api.post(`/caja/operaciones/${idOperacion}/finalizar`, null, { params: { idSucursal } })),
   /** Vuelve una operación Finalizada a EnCurso (botón "Volver" desde la pantalla de cobro). */

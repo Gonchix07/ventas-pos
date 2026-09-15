@@ -50,6 +50,15 @@ export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolv
 
   return (
     <>
+      <div className="cbte__acciones cbte-no-print">
+        <button className="primary" onClick={() => window.print()}>Imprimir</button>
+        {onCerrar && (
+          <button className={esReimpresion ? "btn-verde-hover" : undefined} onClick={onCerrar}>
+            {textoVolver ?? "Nueva venta"}
+          </button>
+        )}
+      </div>
+
       <div className={`cbte${esPresupuesto ? " cbte--presupuesto" : ""}`}>
         <div className="cbte__tipo">
           {esPresupuesto && <div className="cbte__x-grande">X</div>}
@@ -202,15 +211,6 @@ export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolv
             </div>
           )}
         </div>
-      </div>
-
-      <div className="cbte__acciones cbte-no-print">
-        <button className="primary" onClick={() => window.print()}>Imprimir</button>
-        {onCerrar && (
-          <button className={esReimpresion ? "btn-verde-hover" : undefined} onClick={onCerrar}>
-            {textoVolver ?? "Nueva venta"}
-          </button>
-        )}
       </div>
     </>
   );

@@ -23,6 +23,7 @@ import { PuntosCargadosPopup } from "./PuntosCargadosPopup";
 import { useLectorCodigo } from "../../shared/ui/useLectorCodigo";
 import { useSupervisorGate } from "../../shared/ui/SupervisorGate";
 import { MonedaInput, formatearMoneda } from "../../shared/ui/moneda";
+import { useToast } from "../../shared/ui/toast";
 
 // Hora en 24 h: es-AR resuelve a 12 h en Chrome ("01:15 p. m."), que en una caja se lee mal.
 // El valor llega en UTC (con "Z"), así que el navegador ya lo pasa a la hora local del puesto.
@@ -115,6 +116,7 @@ function PantallaBloqueada({ mensaje }: { mensaje: string }) {
 export function CajaPage() {
   const { usuario, logout, idSucursal: idSucursalAuth, idCaja: idCajaAuth } = useAuth();
   const { ejecutarConSupervisor, modal: modalSupervisor } = useSupervisorGate();
+  const notificar = useToast();
   const navigate = useNavigate();
 
   // Resolución de sucursal/caja: normalmente viene del login (IP de la PC → puesto → caja). El
@@ -157,6 +159,21 @@ export function CajaPage() {
   // Colapsa la lista de autorizados del cliente (puede ser larga) sin perder el dato de que
   // existen — se ve la cantidad igual estando cerrada. Arranca contraída.
   const [autorizadosAbierto, setAutorizadosAbierto] = useState(false);
+  // Foto del último artículo escaneado/agregado — queda puesta hasta el próximo, no se limpia
+  // entre lecturas (así el cajero puede volver a mirarla mientras sigue escaneando).
+  const [ultimaImagenUrl, setUltimaImagenUrl] = useState<string | null>(null);
+  // Foto que se está yendo (barrido de salida) cada vez que cambia ultimaImagenUrl: se queda
+  // dibujada ARRIBA de la nueva, encogiéndose de izquierda a derecha, en vez de desaparecer de
+  // golpe — ver el efecto en .art-foto-box (App.css) y onAnimationEnd más abajo, que la saca del
+  // DOM cuando termina.
+  const [fotoSaliente, setFotoSaliente] = useState<string | null>(null);
+  const fotoAnteriorRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (fotoAnteriorRef.current !== ultimaImagenUrl) {
+      setFotoSaliente(fotoAnteriorRef.current);
+      fotoAnteriorRef.current = ultimaImagenUrl;
+    }
+  }, [ultimaImagenUrl]);
   const [colaError, setColaError] = useState<{ codigo: string; mensaje: string } | null>(null);
   const procesando = useRef(false);
   const proxId = useRef(1);
@@ -346,7 +363,22 @@ export function CajaPage() {
   // Todas las consultas externas (medios de pago, campañas de puntos-app, ventas pendientes) se
   // esperan juntas detrás del popup de carga: si alguna tarda, el cajero ve la pantalla bloqueada
   // en vez de pasar al carrito con datos a medio cargar (p. ej. la campaña apareciendo tarde).
+  // El cajero no puede facturarle a un cliente sin tarjeta asignada NI lista de precios propia:
+  // sin ninguna de las dos no hay con qué determinar qué precio le corresponde. Se corta ACÁ, antes
+  // de tocar nada de estado — no alcanza con no dejarlo elegir, porque la fila también es
+  // clickeable entera (ver <tr onClick>).
+  const clienteInvalido = (c: ClienteResumen): string | null => {
+    const sinTarjeta = c.cantidadTarjetas === 0;
+    const sinLista = !c.listaPrecioDescripcion;
+    if (sinTarjeta && sinLista) return `${c.descripcion} no tiene tarjeta asignada ni lista de precios — no se puede facturar.`;
+    if (sinTarjeta) return `${c.descripcion} no tiene tarjeta asignada.`;
+    if (sinLista) return `${c.descripcion} no tiene lista de precios asignada.`;
+    return null;
+  };
+
   const seleccionarCliente = async (c: ClienteResumen) => {
+    const motivo = clienteInvalido(c);
+    if (motivo) { notificar(motivo, "error"); return; }
     setClienteSel(c);
     setCampanias([]);
     setResultadosCliente([]);
@@ -412,6 +444,7 @@ export function CajaPage() {
     setCola([]);
     setColaError(null);
     setCodigoInput("");
+    setUltimaImagenUrl(null);
   };
 
   // ---- Cola de artículos ----
@@ -461,6 +494,7 @@ export function CajaPage() {
     const item = cola[0];
     try {
       const art = await caja.buscarArticulo(idSucursal, item.codigo, clienteSel?.idCliente ?? null);
+      setUltimaImagenUrl(art.imagenUrl);
       // Etiqueta de balanza: el peso viene DENTRO del código de barra y manda sobre la cantidad
       // tipeada (el cajero no tiene por qué saber cuánto pesa el paquete) — ahí no aplica la
       // mínima unidad de venta, que es para lecturas "de a uno" (EAN/código individual).
@@ -517,13 +551,28 @@ export function CajaPage() {
   // `paso` son "clicks" (±1, como venía); el efecto real sobre la cantidad se multiplica por la
   // mínima unidad de venta del artículo (1 = de a uno, el comportamiento de siempre) — mismo
   // criterio que al escanear, ver CajaPage.procesarCola.
-  const cambiarCantidad = async (l: OperacionLinea, paso: number) => {
+  // Bajar cantidad (paso < 0) pide el mismo código de supervisor que Anular — es la misma clase de
+  // acción (sacarle mercadería al ticket ya escaneado). Subir no pide nada, equivale a escanear de
+  // nuevo. El backend vuelve a exigirlo igual (ver CajaService.CambiarCantidadLineaAsync): esto es
+  // solo para no hacerle escribir el código a quien no lo necesita.
+  const cambiarCantidad = (l: OperacionLinea, paso: number) => {
     if (!operacion) return;
     const nueva = l.cantidad + paso * l.minimaUnidadVenta;
     if (nueva < 1) return; // para sacar el artículo está Anular, así no se borra sin querer
-    setError(null);
-    try { aplicarOperacion(await caja.cambiarCantidad(idSucursal, operacion.idOperacion, l.idDetalle, nueva)); }
-    catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+
+    const aplicar = async (codigoSupervisor: string | null) => {
+      setError(null);
+      try {
+        aplicarOperacion(await caja.cambiarCantidad(idSucursal, operacion.idOperacion, l.idDetalle, nueva, codigoSupervisor));
+      } catch (e) {
+        const mensaje = e instanceof Error ? e.message : "Error";
+        setError(mensaje);
+        throw e;
+      }
+    };
+
+    if (paso < 0) ejecutarConSupervisor(aplicar);
+    else void aplicar(null);
   };
 
   // ---- Buscador manual (lupa) ----
@@ -563,6 +612,7 @@ export function CajaPage() {
     try {
       aplicarOperacion(await caja.agregarLinea(idSucursal, operacion.idOperacion, art.idPresentacion,
         cantidadPendiente || 1));
+      setUltimaImagenUrl(art.imagenUrl);
       setCantidadPendiente(1);
       cerrarBuscador();
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
@@ -832,6 +882,7 @@ export function CajaPage() {
     setOperacion(null); setClienteSel(null); setCampanias([]); setClienteConfirmado(false); setPendientes([]);
     setBusquedaCliente(""); setBusquedaEjecutada(""); setResultadosCliente([]);
     setCola([]); setColaError(null); setModoPresupuesto(false);
+    setUltimaImagenUrl(null);
     void cargarMediosPago();
   };
 
@@ -1257,7 +1308,7 @@ export function CajaPage() {
           <span className="brand"><span className="brand-mark">POS</span><span className="brand-sub">Caja</span></span>
           <div className="user-box"><span className="usuario-badge">{usuario}</span><button onClick={() => navigate("/")}>Módulos</button><button onClick={logout}>Salir</button></div>
         </header>
-        <div className="caja-center">
+        <div className="caja-center caja-center--arriba">
           {/* El comprobante se muestra en su formato real (A o B) y se imprime desde el navegador,
               igual que las etiquetas. Si no se pudo armar, queda el resumen simple de abajo. */}
           {impresion ? (
@@ -1587,11 +1638,11 @@ export function CajaPage() {
                     En Presupuesto el medio queda fijo en Efectivo, nunca aplica. */}
                 {!modoPresupuesto && esTarjeta(p.idMedioPago) && (
                   <>
-                    <label className="campo-cupon">Nº de cupón
+                    <label className="campo-cupon campo-grande">Nº de cupón
                       <input value={p.numeroCupon} maxLength={20} inputMode="numeric"
                         onChange={(e) => setPago(i, { numeroCupon: e.target.value })} />
                     </label>
-                    <label className="campo-cupon">Nº de lote
+                    <label className="campo-cupon campo-grande">Nº de lote
                       <input value={p.numeroLote} maxLength={20} inputMode="numeric"
                         onChange={(e) => setPago(i, { numeroLote: e.target.value })} />
                     </label>
@@ -1664,7 +1715,7 @@ export function CajaPage() {
                 {/* "+ Otro medio" va en la última fila, no en un renglón aparte: así toda la línea
                     del pago (medio, monto, cupón, lote y el botón) se lee de corrido. */}
                 {!modoPresupuesto && i === pagos.length - 1 && (
-                  <button onClick={agregarPago}>+ Otro medio de pago</button>
+                  <button className="btn-verde-hover" onClick={agregarPago}>+ Otro medio de pago</button>
                 )}
               </div>
               {/* Hasta que los pagos no cubran el total, "cubierto" es un valor a medio cargar (ej.
@@ -1681,7 +1732,7 @@ export function CajaPage() {
             })}
             {!modoPresupuesto && pagos.length === 0 && (
               <div className="row-actions">
-                <button onClick={agregarPago}>+ Otro medio de pago</button>
+                <button className="btn-verde-hover" onClick={agregarPago}>+ Otro medio de pago</button>
               </div>
             )}
             {diferenciaMostrada > 0.005 ? (
@@ -1714,7 +1765,7 @@ export function CajaPage() {
                 onClick={confirmarCobro}>
                 {emitiendo ? "Emitiendo…" : modoPresupuesto ? "Confirmar presupuesto" : "Confirmar cobro y facturar"}
               </button>
-              <button onClick={volverAlCarrito} disabled={emitiendo || volviendo}>
+              <button className="btn-verde-hover" onClick={volverAlCarrito} disabled={emitiendo || volviendo}>
                 {volviendo ? "Volviendo…" : "Volver"}
               </button>
             </div>
@@ -1779,7 +1830,12 @@ export function CajaPage() {
               {mejorCampania(campanias)!.descuentoPorcentaje}% dto.
             </span>
           )}
-          {operacion && <span className="muted">· Operación #{operacion.idOperacion}</span>}
+          {operacion && (
+            <span className="muted">
+              · Operación #{operacion.idOperacion}
+              {clienteSel?.condIvaDescripcion && ` | ${clienteSel.condIvaDescripcion.toUpperCase()}`}
+            </span>
+          )}
         </div>
 
         {/* Quién puede comprar en nombre de este cliente: el cajero lo controla contra el DNI que le
@@ -1807,22 +1863,63 @@ export function CajaPage() {
           </div>
         )}
 
-        <div className="toolbar">
-          {/* Enter en la cantidad pasa al campo de escaneo: el lector puede leer enseguida sin clic. */}
-          <input type="number" min={1} value={cantidadPendiente}
-            onChange={(e) => setCantidadPendiente(Number(e.target.value) || 1)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); inputCodigo.current?.focus(); } }}
-            style={{ width: 80 }} title="Cantidad" />
-          <div className="campo-lupa">
-            <input ref={inputCodigo} autoFocus placeholder="Escanear o escribir código de artículo…" value={codigoInput}
-              onChange={(e) => setCodigoInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && encolar(e.currentTarget.value)} />
-            {/* Para cuando el código no se puede leer: búsqueda manual por código o descripción. */}
-            <button type="button" className="lupa" title="Buscar artículo a mano" onClick={abrirBuscador}>
-              <span aria-hidden="true">🔍</span><span className="sr-only">Buscar artículo</span>
-            </button>
+        <div className="caja-toolbar-con-foto">
+          {/* Foto del último artículo escaneado/agregado — queda puesta hasta el próximo (no se
+              limpia entre lecturas). Sin foto propia cargada, o si la URL no resuelve (404), cae
+              al placeholder genérico. */}
+          <div className="art-foto-box">
+            {/* `key` fuerza a React a montar una <img> nueva en cada cambio de artículo — si se
+                reusara el mismo nodo (solo cambiando `src`) la animación de barrido no se reiniciaría. */}
+            <img key={ultimaImagenUrl ?? "sin-imagen"} src={ultimaImagenUrl ?? "/sin_imagen.png"} alt=""
+              onError={(e) => {
+                if (e.currentTarget.src.endsWith("/sin_imagen.png")) return; // evita loop si el propio placeholder falla
+                e.currentTarget.src = "/sin_imagen.png";
+              }} />
+            {/* La foto anterior queda dibujada encima mientras se encoge hacia la derecha (barrido
+                de salida), en vez de desaparecer de golpe cuando React la reemplaza. */}
+            {fotoSaliente !== null && (
+              <img key={`saliente-${fotoSaliente}`} className="art-foto-saliente" src={fotoSaliente} alt=""
+                onAnimationEnd={() => setFotoSaliente(null)} />
+            )}
           </div>
-          <button className="primary" onClick={() => encolar()}>Agregar</button>
+          <div className="caja-toolbar-card">
+            <div className="toolbar">
+              {/* Enter en la cantidad pasa al campo de escaneo: el lector puede leer enseguida sin clic. */}
+              <input type="number" min={1} value={cantidadPendiente}
+                onChange={(e) => setCantidadPendiente(Number(e.target.value) || 1)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); inputCodigo.current?.focus(); } }}
+                style={{ width: 80 }} title="Cantidad" />
+              <div className="campo-lupa">
+                <input ref={inputCodigo} autoFocus placeholder="Escanear o escribir código de artículo…" value={codigoInput}
+                  onChange={(e) => setCodigoInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && encolar(e.currentTarget.value)} />
+                {/* Para cuando el código no se puede leer: búsqueda manual por código o descripción. */}
+                <button type="button" className="lupa" title="Buscar artículo a mano" onClick={abrirBuscador}>
+                  <span aria-hidden="true">🔍</span><span className="sr-only">Buscar artículo</span>
+                </button>
+              </div>
+              <button className="primary" onClick={() => encolar()}>Agregar</button>
+            </div>
+            {/* Totales y Cobrar en la misma línea que la foto (no una barra aparte más abajo): el
+                cajero ve cantidad/código y el total a cobrar de un vistazo, sin bajar la vista. */}
+            {operacion && operacion.lineas.length > 0 && (
+              <div className="caja-totales">
+                <div><span>Bruto</span><b>{formatearMoneda(operacion.bruto)}</b></div>
+                <div><span>Descuento</span><b>-{formatearMoneda(operacion.descuento)}</b></div>
+                {operacion.percepcionIva21 > 0 && (
+                  <div><span>Percepción IVA 21%</span><b>{formatearMoneda(operacion.percepcionIva21)}</b></div>
+                )}
+                {operacion.percepcionIva105 > 0 && (
+                  <div><span>Percepción IVA 10,5%</span><b>{formatearMoneda(operacion.percepcionIva105)}</b></div>
+                )}
+                {operacion.percepcionIibb > 0 && (
+                  <div><span>Percepción IIBB ({operacion.alicuotaIibb.toFixed(2)}%)</span><b>{formatearMoneda(operacion.percepcionIibb)}</b></div>
+                )}
+                <div className="total"><span>Total</span><b>{formatearMoneda(operacion.totalACobrar)}</b></div>
+                <button className="primary" onClick={irACobrar}>Cobrar</button>
+              </div>
+            )}
+          </div>
         </div>
         {cola.length > 0 && <p className="muted">En cola: {cola.length}</p>}
         {colaError && (
@@ -1842,26 +1939,6 @@ export function CajaPage() {
               <p>Limite de efectivo superado, realizar un RETIRO</p>
               <button className="primary" onClick={() => setRetiroAbierto(true)}>Hacer retiro</button>
             </div>
-          </div>
-        )}
-
-        {/* Totales y Cobrar quedan pegados arriba, entre el escaneo y la lista: con muchos artículos
-            el cajero sigue viendo el total y el botón sin tener que bajar hasta el final. */}
-        {operacion && operacion.lineas.length > 0 && (
-          <div className="caja-totales caja-totales-fija">
-            <div><span>Bruto</span><b>{formatearMoneda(operacion.bruto)}</b></div>
-            <div><span>Descuento</span><b>-{formatearMoneda(operacion.descuento)}</b></div>
-            {operacion.percepcionIva21 > 0 && (
-              <div><span>Percepción IVA 21%</span><b>{formatearMoneda(operacion.percepcionIva21)}</b></div>
-            )}
-            {operacion.percepcionIva105 > 0 && (
-              <div><span>Percepción IVA 10,5%</span><b>{formatearMoneda(operacion.percepcionIva105)}</b></div>
-            )}
-            {operacion.percepcionIibb > 0 && (
-              <div><span>Percepción IIBB ({operacion.alicuotaIibb.toFixed(2)}%)</span><b>{formatearMoneda(operacion.percepcionIibb)}</b></div>
-            )}
-            <div className="total"><span>Total</span><b>{formatearMoneda(operacion.totalACobrar)}</b></div>
-            <button className="primary" onClick={irACobrar}>Cobrar</button>
           </div>
         )}
 

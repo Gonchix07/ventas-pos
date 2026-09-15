@@ -708,6 +708,18 @@ public class CajaService : ICajaService
 
         _currentUser.AsegurarSucursal(idSucursal);
 
+        // Bajar la cantidad (el "−" de la tabla) pide el mismo control de supervisor que anular la
+        // línea entera — es la misma clase de acción (sacarle mercadería al ticket ya escaneado), no
+        // algo que el cajero deba poder hacer solo porque todavía no llegó a 0. Aumentar (el "+") no
+        // pide nada: es equivalente a escanear el artículo de nuevo. Se valida ANTES de tomar el
+        // lock de la operación (mismo criterio que AnularLineaAsync), así una autorización inválida
+        // no se queda sosteniendo el lock para nada.
+        var cantidadActual = await _db.DetallesOperaciones.AsNoTracking()
+            .Where(d => d.IdSucursal == idSucursal && d.IdOperacion == idOperacion && d.IdDetalleOperacion == idDetalle)
+            .Select(d => (decimal?)d.Cantidad).FirstOrDefaultAsync(ct);
+        if (cantidadActual is decimal actual && cantidad < actual)
+            await _supervisorAuth.ExigirAsync(codigoSupervisor, ct);
+
         // Mismo lock que AnularLineaAsync (ver comentario ahí): evita el UPDATE sobre una línea que
         // otra acción concurrente sobre la misma operación ya borró/modificó.
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
