@@ -59,6 +59,7 @@ const GRUPOS: Grupo[] = [
       { to: "/admin/usuarios", label: "Usuarios" },
       { to: "/admin/permisos", label: "Permisos por rol" },
       { to: "/admin/configuraciones", label: "Configuraciones" },
+      { to: "/admin/version", label: "Versión" },
     ],
   },
 ];

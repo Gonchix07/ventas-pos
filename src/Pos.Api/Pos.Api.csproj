@@ -23,6 +23,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>pos-mayorista-a1e6f8b2-6d3c-4e6a-9f9a-9c1f6f6d0a11</UserSecretsId>
+    <!-- Versión de la app mostrada en Admin > Sistema > Versión (ver SistemaVersionService).
+         Bumpear a mano en cada release — el commit/fecha de acá al lado siempre se lee en vivo
+         del checkout, así que la versión no tiene que perseguir cada commit, solo los releases. -->
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
 </Project>

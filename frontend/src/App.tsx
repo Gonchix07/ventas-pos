@@ -13,6 +13,7 @@ import { ListasPreciosPage } from "./modules/admin/ListasPreciosPage";
 import { PagosPage } from "./modules/admin/PagosPage";
 import { EstructuraPage } from "./modules/admin/EstructuraPage";
 import { ConfiguracionesPage } from "./modules/admin/ConfiguracionesPage";
+import { VersionPage } from "./modules/admin/VersionPage";
 import { EstructuraCajaPage } from "./modules/admin/EstructuraCajaPage";
 import { AsignacionCajasPage } from "./modules/admin/AsignacionCajasPage";
 import { UsuariosPage } from "./modules/admin/UsuariosPage";
@@ -129,6 +130,7 @@ function AnimatedRoutes() {
           <Route path="pagos" element={<PagosPage />} />
           <Route path="estructura" element={<EstructuraPage />} />
           <Route path="configuraciones" element={<ConfiguracionesPage />} />
+          <Route path="version" element={<VersionPage />} />
           <Route path="estructura-caja" element={<EstructuraCajaPage />} />
           <Route path="asignacion-cajas" element={<AsignacionCajasPage />} />
           <Route path="usuarios" element={<UsuariosPage />} />

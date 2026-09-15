@@ -395,6 +395,19 @@ export const configuraciones = {
   remove: (id: number) => unwrap<boolean>(api.delete(`/admin/configuraciones/${id}`)),
 };
 
+// ---- Versión (Admin > Sistema > Versión) ----
+// Los campos gitXxx vienen null cuando el server no corre desde un checkout con `.git`
+// (ver SistemaVersionService en el backend).
+export interface VersionInfo {
+  versionApp: string; entorno: string; runtimeDotnet: string; efCoreVersion: string; servidor: string;
+  gitCommit?: string | null; gitCommitCorto?: string | null; gitFecha?: string | null;
+  gitMensaje?: string | null; gitRama?: string | null;
+}
+
+export const version = {
+  get: () => unwrap<VersionInfo>(api.get(`/admin/version`)),
+};
+
 // ---- Conexión a datos externa (MySQL) ----
 // Fila única: a futuro la app deposita acá datos para que los consuma otro sistema.
 // tieneContrasena reemplaza al valor real (nunca viaja descifrado); en el Input, password

@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<Pos.Application.Abm.IEstructuraService, Services.EstructuraService>();
         services.AddScoped<Pos.Application.Facturacion.ICaeaCargadoService, Services.CaeaCargadoService>();
         services.AddScoped<Pos.Application.Abm.IConfiguracionAdminService, Services.ConfiguracionAdminService>();
+        services.AddScoped<Pos.Application.Sistema.ISistemaVersionService, Services.SistemaVersionService>();
         services.AddScoped<Pos.Application.Abm.IConexionExternaAdminService, Services.ConexionExternaAdminService>();
         services.AddHttpClient<Pos.Application.Abm.IConexionPuntosAppAdminService, Services.ConexionPuntosAppAdminService>();
         services.AddHttpClient<Pos.Application.Abstractions.Fidelizacion.IPuntosFidelizacionService, Services.PuntosFidelizacionService>();
