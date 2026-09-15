@@ -166,6 +166,9 @@ export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolv
               ))}
             </>
           )}
+          {c.impuestoInterno > 0 && (
+            <div><span>Exento</span><span>${money(c.impuestoInterno)}</span></div>
+          )}
           {c.percepcionIva21 > 0 && (
             <div><span>Percepción IVA 21%</span><span>${money(c.percepcionIva21)}</span></div>
           )}

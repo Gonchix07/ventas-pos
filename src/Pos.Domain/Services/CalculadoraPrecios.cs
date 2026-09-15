@@ -49,8 +49,12 @@ public static class CalculadoraPrecios
 
     private static bool Vigente(CandidatoPrecio c, DateTime fecha)
     {
-        // Sólo las listas temporales están sujetas a vigencia.
-        if (c.Tipo != TipoListaPrecio.Temporal) return true;
+        // Bug real (2026-09-15): esto excluía la vigencia para todo lo que no fuera Temporal, así
+        // que un Folder con "Vigencia hasta" vencida (el ABM de Listas de precios permite cargarle
+        // fecha a CUALQUIER tipo, no solo Temporal — ver ListasPreciosPage.tsx) seguía ganando la
+        // resolución de precio para siempre. Un Folder vencido nunca debería poder ganarle a un
+        // convenio/precio base vigente. Ahora se respeta Desde/Hasta para cualquier tipo — si no se
+        // cargó ninguna fecha (el caso normal de Base y de la mayoría de los Folder), no cambia nada.
         if (c.Desde.HasValue && fecha.Date < c.Desde.Value.Date) return false;
         if (c.Hasta.HasValue && fecha.Date > c.Hasta.Value.Date) return false;
         return true;

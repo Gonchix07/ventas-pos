@@ -30,7 +30,14 @@ public record ItemFiscal(
     decimal PrecioUnitario,
     decimal AlicuotaIva,
     decimal Descuento,
-    string? CodigoInterno);
+    string? CodigoInterno,
+    /// <summary>Impuesto Interno de ESTA línea (bebidas alcohólicas, etc. — monto fijo por unidad ×
+    /// Cantidad, YA incluido en PrecioUnitario). Solo lo usa AfipFiscalService.MapearComprobante
+    /// (Electrónica), para restarlo de la base antes de discriminar IVA — mismo criterio que
+    /// FacturacionService/PercepcionesCalculoService al calcular ImpNeto/ImpIva. El controlador
+    /// Hasar (Fiscal) NO lo usa (ver TipoTributoFiscal.ImpuestoInterno): el precio le llega tal cual,
+    /// con el impuesto interno adentro, para que lo maneje él mismo del lado físico.</summary>
+    decimal ImpuestoInterno = 0m);
 
 public record PagoFiscal(
     string Descripcion,

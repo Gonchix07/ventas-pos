@@ -239,7 +239,7 @@ public class FacturacionService : IFacturacionService
         ).ToDictionaryAsync(x => x.IdPresentacion, ct);
 
         decimal totalNeto = 0, totalIva = 0;
-        var detallesCalculados = new List<(DetalleOperacion Origen, string DescTicket, decimal Alicuota, decimal Importe, decimal Neto, decimal Iva)>();
+        var detallesCalculados = new List<(DetalleOperacion Origen, string DescTicket, decimal Alicuota, decimal Importe, decimal Neto, decimal Iva, decimal ImpuestoInterno)>();
         for (var idx = 0; idx < detallesList.Count; idx++)
         {
             var det = detallesList[idx];
@@ -247,22 +247,24 @@ public class FacturacionService : IFacturacionService
                 throw new DomainException("PRESENTACION_INEXISTENTE", $"La presentación {det.IdPresentacion} ya no existe.");
 
             var importe = det.Precio * det.Cantidad - det.Descuento;
-            decimal alicuotaEfectiva, neto, iva;
+            decimal alicuotaEfectiva, neto, iva, impuestoInternoLinea;
             if (esPresupuesto)
             {
                 // El presupuesto no discrimina impuestos (alícuota 0 → Neto = precio final, Iva = 0),
                 // sin importar la alícuota real del artículo ni la condición del cliente frente al IVA.
                 alicuotaEfectiva = 0m;
                 (neto, iva) = DesglioIva.Calcular(importe, 0m);
+                impuestoInternoLinea = 0m;
             }
             else
             {
                 alicuotaEfectiva = percepcionResultado.AlicuotaPorLinea[idx];
                 neto = percepcionResultado.NetoPorLinea[idx];
                 iva = percepcionResultado.IvaPorLinea[idx];
+                impuestoInternoLinea = percepcionResultado.ImpuestoInternoPorLinea?[idx] ?? 0m;
             }
             totalNeto += neto; totalIva += iva;
-            detallesCalculados.Add((det, info.DescripcionTicket, alicuotaEfectiva, importe, neto, iva));
+            detallesCalculados.Add((det, info.DescripcionTicket, alicuotaEfectiva, importe, neto, iva, impuestoInternoLinea));
         }
 
         // El Impuesto Interno se restó de la base de cada línea antes de discriminar IVA (ver
@@ -280,7 +282,7 @@ public class FacturacionService : IFacturacionService
         // comentario de RepartirDescuentoMp).
         var itemsFiscalesBase = detallesCalculados.Select(d => new ItemFiscal(
             d.DescTicket, d.Origen.Cantidad, d.Origen.Precio, d.Alicuota,
-            d.Origen.Descuento, d.Origen.IdPresentacion.ToString())).ToList();
+            d.Origen.Descuento, d.Origen.IdPresentacion.ToString(), d.ImpuestoInterno)).ToList();
 
         // Ofertas por medio de pago vigentes: se evalúan también en el presupuesto — el pago en
         // Efectivo del presupuesto es un pago como cualquier otro, y el presupuesto tiene que
@@ -436,7 +438,7 @@ public class FacturacionService : IFacturacionService
             {
                 var (netoDesc, ivaDesc) = DesglioIva.Calcular(-descuentoMpTotal, 0m);
                 var origenDescuentoMp = new DetalleOperacion { IdPresentacion = 0, Cantidad = 1, Precio = 0m, Descuento = descuentoMpTotal };
-                detallesCalculados.Add((origenDescuentoMp, "Descuento x MP", 0m, -descuentoMpTotal, netoDesc, ivaDesc));
+                detallesCalculados.Add((origenDescuentoMp, "Descuento x MP", 0m, -descuentoMpTotal, netoDesc, ivaDesc, 0m));
                 totalNeto += netoDesc; totalIva += ivaDesc;
             }
 
@@ -635,6 +637,7 @@ public class FacturacionService : IFacturacionService
                 PercepcionIibb = percepcionResultado.PercepcionIibb,
                 AlicuotaIibb = percepcionResultado.AlicuotaIibb,
                 Percepciones = percepcionResultado.Total,
+                ImpuestoInterno = impuestoInternoTotal,
                 Total = totalNeto + totalIva + impuestoInternoTotal + percepcionResultado.Total,
                 Cae = cae, CaeVencimiento = caeVencimiento, EsCaea = esCaea,
                 // Presupuesto: siempre Persistido (no hay impresora fiscal que lo pase a Impreso).
@@ -648,14 +651,15 @@ public class FacturacionService : IFacturacionService
             };
             // Se agregan vía la navegación (no directo al DbSet) para que EF resuelva el orden
             // de inserción cabecera→detalle correctamente (claves compuestas asignadas a mano).
-            foreach (var (origen, descTicket, alicuota, importe, neto, iva) in detallesCalculados)
+            foreach (var (origen, descTicket, alicuota, importe, neto, iva, impuestoInternoLinea) in detallesCalculados)
             {
                 cabecera.Detalles.Add(new DetalleComprobante
                 {
                     IdSucursal = req.IdSucursal, IdComprobante = idComprobante,
                     IdPresentacion = origen.IdPresentacion, DescripcionTicket = descTicket,
                     Cantidad = origen.Cantidad, PrecioUnit = origen.Precio, Descuento = origen.Descuento,
-                    AlicuotaIva = alicuota, Importe = importe, PrecioLista = origen.PrecioLista
+                    AlicuotaIva = alicuota, Importe = importe, PrecioLista = origen.PrecioLista,
+                    ImpuestoInterno = impuestoInternoLinea
                 });
             }
             _db.CabecerasComprobantes.Add(cabecera);
@@ -806,11 +810,10 @@ public class FacturacionService : IFacturacionService
                 var filasMovStock = new List<MovStockInterfase>();
                 for (var idx = 0; idx < detallesCalculados.Count; idx++)
                 {
-                    var (origen, _, alicuota, importe, neto, iva) = detallesCalculados[idx];
+                    var (origen, _, alicuota, importe, neto, iva, impInt) = detallesCalculados[idx];
                     if (origen.IdPresentacion == 0) continue; // línea sintética de descuento por MP
                     var codigoArticulo = infoPresentaciones.TryGetValue(origen.IdPresentacion, out var info)
                         ? info.CodigoInterno : "";
-                    var impInt = percepcionResultado.ImpuestoInternoPorLinea?[idx] ?? 0m;
                     // Codificación de cantidades (confirmado con el usuario, 2026-08-25): "salida"
                     // no es la cantidad real, es bultos.unidadesSueltas — ver
                     // InterfaseContableReglas.CodificarCantidadMovStock. La cantidad real en
@@ -1008,7 +1011,12 @@ public class FacturacionService : IFacturacionService
         decimal descuento = 0;
         foreach (var d in cab.Detalles.OrderBy(d => d.IdDetalleComprobante))
         {
-            var (neto, iva) = DesglioIva.Calcular(d.Importe, d.AlicuotaIva);
+            // El Impuesto Interno (bebidas alcohólicas, etc.) ya viene incluido en d.Importe pero
+            // NO es base de IVA — hay que restarlo ANTES de discriminar neto/IVA, igual que se hizo
+            // al emitir (ver PercepcionesCalculoService). Sin esto, el desglose de IVA del pie no
+            // coincidía con cab.Neto/cab.Iva (que sí se calcularon bien en su momento) cada vez que
+            // el comprobante tenía un artículo con Impuesto Interno.
+            var (neto, iva) = DesglioIva.Calcular(d.Importe - d.ImpuestoInterno, d.AlicuotaIva);
             paraDiscriminar.Add((d.AlicuotaIva, neto, iva));
 
             // Precio SIN ningún descuento (ni convenio, ni campaña de puntos-app, ni oferta) — ver
@@ -1059,7 +1067,8 @@ public class FacturacionService : IFacturacionService
             Round2(descuento), Round2(cab.Neto), Round2(cab.Iva), Round2(cab.Total),
             discriminado, pagos,
             cab.Cae, cab.CaeVencimiento, cab.EsCaea, cab.Estado.ToString(),
-            cab.PercepcionIva21, cab.PercepcionIva105, cab.PercepcionIibb, cab.AlicuotaIibb);
+            cab.PercepcionIva21, cab.PercepcionIva105, cab.PercepcionIibb, cab.AlicuotaIibb,
+            cab.ImpuestoInterno);
     }
 
     /// <summary>
@@ -1261,7 +1270,7 @@ public class FacturacionService : IFacturacionService
         var descuentoMp = filas.Where(d => d.IdPresentacion == 0).Sum(d => d.Descuento);
         var items = RepartirDescuentoMp(filas.Where(d => d.IdPresentacion != 0)
             .Select(d => new ItemFiscal(d.DescripcionTicket, d.Cantidad, d.PrecioUnit, d.AlicuotaIva,
-                d.Descuento, d.IdPresentacion.ToString()))
+                d.Descuento, d.IdPresentacion.ToString(), d.ImpuestoInterno))
             .ToList(), descuentoMp);
 
         var datosCliente = cab.IdCliente is int idc

@@ -105,7 +105,11 @@ public record ComprobanteImpresionDto(
     string? Cae, DateTime? CaeVencimiento, bool EsCaea, string Estado,
     decimal PercepcionIva21 = 0, decimal PercepcionIva105 = 0, decimal PercepcionIibb = 0,
     /// <summary>Alícuota (%) con la que se calculó PercepcionIibb (0 si no corresponde).</summary>
-    decimal AlicuotaIibb = 0);
+    decimal AlicuotaIibb = 0,
+    /// <summary>Impuesto Interno de bebidas alcohólicas, etc. (0 si no corresponde) — ya está
+    /// restado de <see cref="Neto"/>/<see cref="Iva"/> (no es base de IVA) pero SÍ suma al
+    /// <see cref="Total"/>, igual que las percepciones. Ver DetalleComprobante.ImpuestoInterno.</summary>
+    decimal ImpuestoInterno = 0);
 
 public interface IFacturacionService
 {

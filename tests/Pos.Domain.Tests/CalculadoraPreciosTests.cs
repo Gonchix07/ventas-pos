@@ -21,6 +21,24 @@ public class CalculadoraPreciosTests
         Assert.Equal(80m, r.PrecioVigente);
     }
 
+    // Bug real (2026-09-15): un Folder con "Vigencia hasta" vencida seguía ganando para siempre —
+    // Vigente() solo chequeaba fechas para Temporal, ignorando Desde/Hasta en cualquier otro tipo
+    // (el ABM de Listas de precios permite cargarle fecha a un Folder igual que a una Temporal).
+    // Vencido, tiene que caer al convenio del cliente como si el Folder no existiera.
+    [Fact]
+    public void FolderVencido_NoGana_CaeAlConvenio()
+    {
+        var candidatos = new[]
+        {
+            new CandidatoPrecio(TipoListaPrecio.Base, 1, null, null, 100m, 0m, 3),
+            new CandidatoPrecio(TipoListaPrecio.Folder, 1, Hoy.AddDays(-30), Hoy.AddDays(-1), 80m, 0m, 9),
+        };
+        var r = CalculadoraPrecios.Resolver(candidatos, Hoy, new ConvenioInfo(20m, null));
+        Assert.Equal(100m, r.PrecioVigente);
+        Assert.Equal(80m, r.PrecioConvenio);
+        Assert.True(r.AplicoConvenio);
+    }
+
     [Fact]
     public void Temporal_GanaSobreBase_SoloSiVigente()
     {

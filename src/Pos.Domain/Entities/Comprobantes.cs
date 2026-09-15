@@ -40,6 +40,12 @@ public class CabeceraComprobante : AuditableEntity
     /// alícuota general por defecto si el cliente tenía CUIT pero no estaba en el padrón. Se guarda
     /// (no se recalcula al reimprimir) porque el padrón puede cambiar después de emitido.</summary>
     public decimal AlicuotaIibb { get; set; }
+    /// <summary>Suma del Impuesto Interno de todas las líneas (bebidas alcohólicas, etc.) — monto
+    /// fijo por unidad que ya viene incluido en <see cref="DetalleComprobante.PrecioUnit"/> pero se
+    /// resta de la base ANTES de discriminar IVA (ver PercepcionesCalculoService), no es exento: el
+    /// artículo sigue llevando su alícuota real, solo que sobre "precio final − Impuesto Interno".
+    /// Se guarda acá (no solo en cada línea) para no tener que sumar los detalles en cada reimpresión.</summary>
+    public decimal ImpuestoInterno { get; set; }
     public decimal Total { get; set; }
     public string? Cae { get; set; }
     public DateTime? CaeVencimiento { get; set; }
@@ -87,6 +93,14 @@ public class DetalleComprobante : AuditableEntity
     /// viejos, de antes de esta columna), el comprobante impreso cae de nuevo al comportamiento
     /// previo — ver FacturacionService.ArmarImpresionAsync.</summary>
     public decimal PrecioLista { get; set; }
+
+    /// <summary>Impuesto Interno de ESTA línea (monto fijo por unidad × Cantidad, ver Precio.
+    /// ImpuestoInterno) — ya incluido en <see cref="PrecioUnit"/>/<see cref="Importe"/>, pero hay
+    /// que restarlo de la base antes de recalcular neto/IVA al reimprimir (ver
+    /// FacturacionService.ObtenerParaImprimirAsync); si no se resta, el desglose de IVA del pie del
+    /// ticket no coincide con Neto/Iva de la cabecera (que sí se calcularon bien al emitir, ver
+    /// PercepcionesCalculoService). 0 en comprobantes emitidos antes de esta columna.</summary>
+    public decimal ImpuestoInterno { get; set; }
 
     /// <summary>
     /// En una nota de crédito por artículos: la línea de la factura original que esta línea

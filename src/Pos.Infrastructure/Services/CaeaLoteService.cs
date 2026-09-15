@@ -150,7 +150,7 @@ public class CaeaLoteService : ICaeaLoteService
                 c.Neto, c.Iva, c.Total, c.Fecha, req.IdSucursal,
                 Cliente: cliente is null ? null : ConstruirClienteFiscal(cliente),
                 Items: det.Select(d => new ItemFiscal(d.DescripcionTicket, d.Cantidad, d.PrecioUnit,
-                    d.AlicuotaIva, d.Descuento, null)).ToList(),
+                    d.AlicuotaIva, d.Descuento, null, d.ImpuestoInterno)).ToList(),
                 Tributos: tributos, CodigoArca: tipoComprobante.CodigoArca);
         }).ToList();
 

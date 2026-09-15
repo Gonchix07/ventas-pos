@@ -12,12 +12,13 @@ namespace Pos.Infrastructure.Adapters.Afip;
 ///
 /// IMPORTANTE — alcance de lo cubierto hoy:
 ///  - CAE (<see cref="SolicitarCaeAsync"/>): cubre el caso común, un solo comprobante, con o sin
-///    mezcla de alícuotas 21%/10,5%. NO contempla el Impuesto Interno por línea (ver
-///    FacturacionService.impuestoInternoTotal) — si una factura Electrónica llegara a tener un
-///    artículo con Impuesto Interno, el desglose de IVA por alícuota puede no coincidir exactamente
-///    con lo que exige WSFEv1 (necesitaría <c>Tributos</c> aparte, que ItemFiscal hoy no expone por
-///    línea). No es un caso esperado hoy (los artículos con Impuesto Interno son bebidas
-///    alcohólicas, que en este negocio siempre facturaron Fiscal/Hasar), pero queda anotado.
+///    mezcla de alícuotas 21%/10,5%. El Impuesto Interno (bebidas alcohólicas, etc.) SÍ se manda
+///    (desde el 2026-08-25, ver FacturacionService.tributosElectronica) como un <c>Tributo</c>
+///    aparte con BaseImponible 0 — no por línea, WSFEv1 no lo necesita así para este caso: el
+///    desglose de IVA por alícuota corre sobre "precio final − Impuesto Interno" (ver
+///    PercepcionesCalculoService), que es la base real gravada, y el Impuesto Interno entra aparte
+///    en ImpTrib. Antes de ese fix esto quedaba afuera de ImpTotConc+ImpNeto+ImpOpEx+ImpTrib+ImpIVA
+///    y ARCA rechazaba toda factura Electrónica con Fernet/Whisky/etc. (error 10048).
 ///  - CAEA (<see cref="ObtenerCaeaAsync"/>/<see cref="InformarComprobantesCaeaAsync"/>): implementado
 ///    pero SIN wire-up real todavía — nada en FacturacionService/NotaCreditoService dispara la
 ///    contingencia (ver ReintentosCaeReglas.DebePasarAContingencia, hoy sin usar). Además
@@ -168,6 +169,13 @@ public class AfipFiscalService : IFiscalService
         // desglosa directo con DesglioIva sobre la suma de brutos del grupo — no hace falta prorratear
         // nada. La suma de los tramos sigue cerrando exacto contra cmp.Neto/cmp.Iva porque ambos se
         // calculan con la misma regla (DesglioIva) sobre las mismas líneas, ver FacturacionService.
+        //
+        // Bug real (2026-09-15): el bruto de acá no restaba ItemFiscal.ImpuestoInterno, mientras que
+        // cmp.Neto/cmp.Iva (calculados en FacturacionService vía PercepcionesCalculoService) SÍ lo
+        // restan de la base antes de discriminar IVA. En cuanto una línea con Impuesto Interno
+        // realmente tenía un monto cargado (antes siempre daba 0, por eso no se notaba), la suma de
+        // los tramos dejaba de cerrar contra ImpNeto/ImpIva y ARCA rechazaba con 10061/10023 ("La suma
+        // de los campos BaseImp/Importe en AlicIva debe ser igual al valor ingresado en ImpNeto/ImpIVA").
         var itemsConIva = (cmp.Items ?? Array.Empty<ItemFiscal>())
             .Where(it => it.AlicuotaIva > 0m)
             .ToList();
@@ -187,7 +195,7 @@ public class AfipFiscalService : IFiscalService
                 .GroupBy(it => it.AlicuotaIva)
                 .Select(g =>
                 {
-                    var bruto = g.Sum(it => it.PrecioUnitario * it.Cantidad - it.Descuento);
+                    var bruto = g.Sum(it => it.PrecioUnitario * it.Cantidad - it.Descuento - it.ImpuestoInterno);
                     var (neto, iva) = DesglioIva.Calcular(bruto, g.Key);
                     return new AfipTramoIva(AlicuotaId(g.Key), Math.Round(neto, 2, MidpointRounding.AwayFromZero),
                         Math.Round(iva, 2, MidpointRounding.AwayFromZero));

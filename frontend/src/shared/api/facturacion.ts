@@ -79,6 +79,9 @@ export interface ComprobanteImpresion {
   percepcionIva21: number; percepcionIva105: number; percepcionIibb: number;
   /** Alícuota (%) con la que se calculó percepcionIibb (0 si no corresponde). */
   alicuotaIibb: number;
+  /** Impuesto Interno de bebidas alcohólicas, etc. (0 si no corresponde) — ya está restado de
+   *  neto/iva (no es base de IVA) pero SÍ suma al total, igual que las percepciones. */
+  impuestoInterno: number;
 }
 
 export const facturacion = {
