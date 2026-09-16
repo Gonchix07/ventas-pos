@@ -825,6 +825,11 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 .nc-motivo { margin: 12px 0; }
 .nc-motivo input { width: 100%; padding: 10px 12px; border: 1px solid var(--line);
   border-radius: 8px; font-size: 15px; }
+/* Elegir por qué medio(s) devolver el importe de la NC (por defecto Efectivo, sin tocar nada acá).
+   Mismo criterio visual que .nc-monto/.nc-motivo (label chico arriba). */
+.nc-devolucion { margin: 14px 0 0; }
+.nc-devolucion > label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.nc-devolucion .muted, .nc-devolucion .error { margin: 8px 0 0; font-size: 12px; }
 
 /* Campo "Cant. a anular": se destaca marcado (fondo tenue + borde petrol) mientras la línea está
    tildada y se puede editar — así se ve de entrada que no es un dato fijo, sino algo que se puede

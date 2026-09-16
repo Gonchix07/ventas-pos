@@ -30,22 +30,44 @@ public record LineaAnulableDto(
     decimal Cantidad, decimal PrecioUnit, decimal Descuento, decimal AlicuotaIva,
     decimal Importe, decimal CantidadYaAnulada, decimal CantidadDisponible, bool YaAnulada);
 
+/// <summary>Un medio de pago de la factura original, tal como quedó en
+/// MovimientosCaja/MovimientosPagos — a diferencia de <see cref="PagoComprobanteDto"/> (el que se
+/// imprime en el ticket) éste lleva <paramref name="IdMedioPago"/>, porque acá además sirve para que
+/// el cajero elija por dónde devolver el importe de la nota de crédito (ver
+/// EmitirNotaCreditoRequest.Devoluciones).</summary>
+public record PagoOrigenNcDto(int IdMedioPago, string Descripcion, decimal Monto);
+
+/// <summary><paramref name="Pagos"/>: medios de pago con los que se cobró la factura original — se
+/// muestran al pie del popup de Nota de Crédito para que el cajero vea de entrada por dónde entró
+/// la plata (sin tener que ir a buscar el ticket original) y, opcionalmente, elija devolver por
+/// alguno de esos mismos medios en vez del efectivo por defecto.</summary>
 public record ComprobanteAnulableDetalleDto(
-    ComprobanteAnulableDto Comprobante, List<LineaAnulableDto> Lineas);
+    ComprobanteAnulableDto Comprobante, List<LineaAnulableDto> Lineas, List<PagoOrigenNcDto> Pagos);
 
 /// <summary>Una línea elegida en la anulación "Por artículos", con la cantidad puntual a acreditar
 /// (de 1 hasta <see cref="LineaAnulableDto.CantidadDisponible"/> de esa línea).</summary>
 public record LineaSeleccionNc(long IdDetalle, decimal Cantidad);
 
+/// <summary>Un medio de pago que el cajero eligió para devolver parte (o todo) el importe de la
+/// nota de crédito — ver <see cref="EmitirNotaCreditoRequest.Devoluciones"/>.</summary>
+public record DevolucionSeleccionadaDto(int IdMedioPago, decimal Monto);
+
 /// <summary>
 /// <para><c>Tipo</c>: Total (todo lo que quede con saldo), PorArticulos (las líneas de
 /// <c>Lineas</c>, cada una por la cantidad indicada — puede ser parcial) o PorMonto (<c>Monto</c>,
 /// prorrateado entre las alícuotas de la factura).</para>
-/// <para>La devolución se hace siempre en efectivo por ahora, así que no viaja medio de pago.</para>
+/// <para><paramref name="Devoluciones"/>: por qué medio(s) devolver el importe, elegido por el
+/// cajero entre los medios de la factura original (ver ComprobanteAnulableDetalleDto.Pagos). La
+/// suma tiene que cerrar EXACTO contra lo que esta NC termina acreditando (se valida en el
+/// backend, ver NotaCreditoService.EmitirAsync) — si no, se rechaza. Null o vacío: comportamiento
+/// de siempre, todo en Efectivo. Se ignora si termina siendo una reversión completa (ver
+/// NotaCreditoResponse.ReversionCompleta): ese caso revierte los medios EXACTOS de la venta
+/// original, no admite elegir otra cosa.</para>
 /// </summary>
 public record EmitirNotaCreditoRequest(
     int IdSucursal, int IdComprobanteOrigen, int IdCaja,
     TipoAnulacion Tipo, List<LineaSeleccionNc>? Lineas, decimal? Monto, string? Motivo,
+    List<DevolucionSeleccionadaDto>? Devoluciones = null,
     // Null si quien emite ya es Supervisor/Administrador (ver ISupervisorAuthService).
     string? CodigoSupervisor = null);
 

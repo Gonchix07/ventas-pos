@@ -116,6 +116,17 @@ public class NotaCreditoService : INotaCreditoService
 
         var clientes = await DescripcionesClientesAsync(new[] { cab.IdCliente }, ct);
 
+        // Medios de pago con los que se cobró la factura original — mismo criterio que
+        // FacturacionService.ObtenerParaImprimirAsync (los pagos "efectivamente aplicados" al
+        // comprobante, no lo que diga el lote).
+        var pagos = await (
+            from mc in _db.MovimientosCaja.AsNoTracking()
+            where mc.IdSucursal == idSucursal && mc.IdComprobante == idComprobante && mc.IdMovPagos != null
+            join mp in _db.MovimientosPagos.AsNoTracking() on mc.IdMovPagos equals mp.IdMovPagos
+            join me in _db.MediosPago.AsNoTracking() on mp.IdMedioPago equals me.IdMedioPago
+            select new PagoOrigenNcDto(me.IdMedioPago, me.Descripcion, mp.Total)
+        ).ToListAsync(ct);
+
         return new ComprobanteAnulableDetalleDto(
             new ComprobanteAnulableDto(idSucursal, idComprobante, cab.NumeroCompleto ?? "", cab.Letra,
                 cab.Fecha, cab.IdCliente,
@@ -129,7 +140,8 @@ public class NotaCreditoService : INotaCreditoService
                 return new LineaAnulableDto(d.IdDetalleComprobante, d.IdPresentacion,
                     d.DescripcionTicket, d.Cantidad, d.PrecioUnit, d.Descuento, d.AlicuotaIva,
                     d.Importe, cantidadYaAnulada, disponible, disponible <= 0m);
-            }).ToList());
+            }).ToList(),
+            pagos);
     }
 
     // ---------- Emisión ----------
@@ -332,15 +344,48 @@ public class NotaCreditoService : INotaCreditoService
             // discriminada. Caso general: un solo movimiento en Efectivo, como siempre. Reversión
             // completa: un movimiento por cada medio de la venta original (y esos pagos originales
             // quedan marcados Anulado=true — ver RevertirPagosOriginalesAsync).
-            var devoluciones = esReversionCompleta
-                ? await RevertirPagosOriginalesAsync(req.IdSucursal, req.IdComprobanteOrigen,
-                    origen.NumeroCompleto ?? "", medios, ct)
-                : new List<(int IdMedioPago, decimal Monto)>();
-            // Si por algún motivo no salió ninguna devolución de la reversión (ej. el vuelto neteó
-            // justo todo el único leg de efectivo), no se puede dejar la NC sin ningún movimiento de
-            // caja: cae al comportamiento genérico para ese resto.
-            if (devoluciones.Count == 0)
-                devoluciones.Add((efectivo.IdMedioPago, totalNc));
+            List<(int IdMedioPago, decimal Monto)> devoluciones;
+            if (esReversionCompleta)
+            {
+                // Reversión completa: revierte los movimientos EXACTOS de la venta original (marca
+                // sus cupones de tarjeta Anulado=true) — no tiene sentido dejar que el cajero elija
+                // otra cosa acá, así que se ignora cualquier `req.Devoluciones` en este caso.
+                devoluciones = await RevertirPagosOriginalesAsync(req.IdSucursal, req.IdComprobanteOrigen,
+                    origen.NumeroCompleto ?? "", medios, ct);
+                // Si por algún motivo no salió ninguna devolución de la reversión (ej. el vuelto
+                // neteó justo todo el único leg de efectivo), no se puede dejar la NC sin ningún
+                // movimiento de caja: cae al comportamiento genérico para ese resto.
+                if (devoluciones.Count == 0)
+                    devoluciones.Add((efectivo.IdMedioPago, totalNc));
+            }
+            else if (req.Devoluciones is { Count: > 0 } seleccionDevolucion)
+            {
+                // El cajero eligió por qué medio(s) devolver el importe (ver ComprobanteAnulableDetalleDto.Pagos
+                // en el popup) — se valida que exista cada medio y que la suma cierre EXACTO contra
+                // lo que esta NC acredita; si no, se rechaza en vez de completar la diferencia con
+                // Efectivo por las dudas (podría esconder un error de tipeo del cajero).
+                decimal sumaSeleccionada = 0;
+                devoluciones = new List<(int IdMedioPago, decimal Monto)>();
+                foreach (var d in seleccionDevolucion)
+                {
+                    if (!medios.TryGetValue(d.IdMedioPago, out var medioSeleccionado) || !medioSeleccionado.Activo)
+                        throw new DomainException("MEDIO_PAGO_INEXISTENTE",
+                            $"El medio de pago elegido para la devolución (id {d.IdMedioPago}) no existe o está inactivo.");
+                    if (d.Monto <= 0)
+                        throw new DomainException("MONTO_DEVOLUCION_INVALIDO",
+                            "El importe a devolver por cada medio tiene que ser mayor a cero.");
+                    sumaSeleccionada += d.Monto;
+                    devoluciones.Add((d.IdMedioPago, d.Monto));
+                }
+                if (Math.Abs(sumaSeleccionada - totalNc) > 0.01m)
+                    throw new DomainException("DEVOLUCION_NO_CIERRA",
+                        $"La suma de los medios de pago elegidos (${sumaSeleccionada:0.00}) no coincide con el importe a acreditar (${totalNc:0.00}).");
+            }
+            else
+            {
+                // Comportamiento de siempre: un solo movimiento en Efectivo por el total.
+                devoluciones = new List<(int IdMedioPago, decimal Monto)> { (efectivo.IdMedioPago, totalNc) };
+            }
 
             foreach (var (idMedioPago, monto) in devoluciones)
             {

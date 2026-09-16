@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   notasCredito, TipoAnulacion,
   type ComprobanteAnulable, type ComprobanteAnulableDetalle, type LineaAnulable, type NotaCreditoResultado,
+  type PagoOrigenNc,
 } from "../../shared/api/notasCredito";
 import { facturacion, type ComprobanteImpresion } from "../../shared/api/facturacion";
 import { ComprobanteImpresionView } from "./ComprobanteImpresion";
@@ -30,6 +31,9 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
   const [seleccion, setSeleccion] = useState<Map<number, number>>(new Map());
   const [monto, setMonto] = useState<number | null>(null);
   const [motivo, setMotivo] = useState("");
+  // idMedioPago → importe elegido para devolver por ese medio (solo los tildados están acá). Vacío
+  // = comportamiento de siempre (todo en Efectivo) — el backend lo completa así si no se manda nada.
+  const [devolMedios, setDevolMedios] = useState<Map<number, number>>(new Map());
   const [emitida, setEmitida] = useState<NotaCreditoResultado | null>(null);
   // Ticket real para imprimir en la comandera (mismo componente que usa Caja para la factura) —
   // null solo si falló armarlo, ahí se cae al resumen simple de siempre para no perder la venta.
@@ -57,6 +61,7 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
       setTipo(TipoAnulacion.Total);
       setSeleccion(new Map());
       setMonto(null);
+      setDevolMedios(new Map());
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo abrir el comprobante.");
     } finally {
@@ -105,7 +110,34 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
 
   const saldo = detalle?.comprobante.saldoAnulable ?? 0;
   const excede = totalAAnular - saldo > 0.01;
-  const puedeEmitir = !cargando && totalAAnular > 0 && !excede
+
+  // Tilda/destilda un medio de pago de la factura original para devolver por ahí. Al tildarlo
+  // arranca con lo que falte para completar totalAAnular (tope: lo que ese medio cobró
+  // originalmente) — el cajero puede editarlo después.
+  const alternarMedioDevolucion = (p: PagoOrigenNc) => {
+    const m = new Map(devolMedios);
+    if (m.has(p.idMedioPago)) {
+      m.delete(p.idMedioPago);
+    } else {
+      const yaAsignado = [...m.values()].reduce((a, v) => a + v, 0);
+      const sugerido = Math.min(p.monto, Math.max(0, totalAAnular - yaAsignado)) || p.monto;
+      m.set(p.idMedioPago, Math.min(sugerido, p.monto));
+    }
+    setDevolMedios(m);
+  };
+
+  const cambiarMontoDevolucion = (p: PagoOrigenNc, valor: number | null) => {
+    if (!devolMedios.has(p.idMedioPago)) return;
+    const m = new Map(devolMedios);
+    m.set(p.idMedioPago, Math.max(0, Math.min(valor ?? 0, p.monto)));
+    setDevolMedios(m);
+  };
+
+  const sumaDevolucion = [...devolMedios.values()].reduce((a, v) => a + v, 0);
+  const hayDevolucionManual = devolMedios.size > 0;
+  const devolucionCierra = !hayDevolucionManual || Math.abs(sumaDevolucion - totalAAnular) <= 0.01;
+
+  const puedeEmitir = !cargando && totalAAnular > 0 && !excede && devolucionCierra
     && (tipo !== TipoAnulacion.PorArticulos || seleccion.size > 0);
 
   const emitir = () => ejecutarConSupervisor(async (codigoSupervisor) => {
@@ -122,6 +154,9 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
           : null,
         monto: tipo === TipoAnulacion.PorMonto ? monto : null,
         motivo: motivo.trim() || null,
+        devoluciones: hayDevolucionManual
+          ? [...devolMedios].map(([idMedioPago, monto]) => ({ idMedioPago, monto }))
+          : null,
         codigoSupervisor,
       });
       setEmitida(resultado);
@@ -217,24 +252,24 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
         {(c.percepcionIva21 > 0 || c.percepcionIva105 > 0 || c.percepcionIibb > 0) && tipo !== TipoAnulacion.Total && (
           <p className="muted" style={{ marginTop: -4 }}>
             Esta factura tiene percepciones (ya incluidas en el saldo anulable) — solo se acreditan
-            con "Anulación total"; con {tipo === TipoAnulacion.PorArticulos ? "Por artículos" : "Por diferencia de precio"} quedan sin tocar.
+            con "Anulación total".
           </p>
         )}
 
         <div className="nc-tipos">
           <label>
             <input type="radio" checked={tipo === TipoAnulacion.Total}
-              onChange={() => setTipo(TipoAnulacion.Total)} />
+              onChange={() => { setTipo(TipoAnulacion.Total); setDevolMedios(new Map()); }} />
             Anulación total
           </label>
           <label>
             <input type="radio" checked={tipo === TipoAnulacion.PorArticulos}
-              onChange={() => setTipo(TipoAnulacion.PorArticulos)} />
+              onChange={() => { setTipo(TipoAnulacion.PorArticulos); setDevolMedios(new Map()); }} />
             Por artículos
           </label>
           <label>
             <input type="radio" checked={tipo === TipoAnulacion.PorMonto}
-              onChange={() => setTipo(TipoAnulacion.PorMonto)} />
+              onChange={() => { setTipo(TipoAnulacion.PorMonto); setDevolMedios(new Map()); }} />
             Por diferencia de precio
           </label>
         </div>
@@ -311,6 +346,46 @@ export function NotaCreditoModal({ idSucursal, idCaja, onCerrar }: Props) {
           <div className="total"><span>A acreditar</span><b>{formatearMoneda(totalAAnular)}</b></div>
         </div>
         {excede && <p className="error">Supera el saldo anulable del comprobante ({formatearMoneda(saldo)}).</p>}
+
+        {/* Medios de pago de la factura original: por defecto la NC se devuelve entera en Efectivo
+            (o, si es reversión total del mismo día, se revierte sola por los medios exactos de la
+            venta — ver EmitirNotaCreditoRequest.Devoluciones). Tildando alguno acá el cajero puede
+            elegir devolver por esos mismos medios en su lugar; la suma tiene que cerrar EXACTO
+            contra "A acreditar" o no deja emitir. */}
+        {detalle.pagos.length > 0 && (
+          <div className="nc-devolucion">
+            <label>Medios de pago de la factura</label>
+            <table className="grid">
+              <thead><tr><th style={{ width: 36 }} /><th>Medio</th><th>Monto original</th><th>Devolver</th></tr></thead>
+              <tbody>
+                {detalle.pagos.map((p) => {
+                  const seleccionado = devolMedios.get(p.idMedioPago);
+                  return (
+                    <tr key={p.idMedioPago}>
+                      <td>
+                        <input type="checkbox" checked={seleccionado !== undefined}
+                          onChange={() => alternarMedioDevolucion(p)} />
+                      </td>
+                      <td>{p.descripcion}</td>
+                      <td className="mono">{formatearMoneda(p.monto)}</td>
+                      <td>
+                        {seleccionado !== undefined && (
+                          <MonedaInput value={seleccionado ?? null}
+                            onChange={(v) => cambiarMontoDevolucion(p, v)} style={{ width: 120 }} />
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className={hayDevolucionManual && !devolucionCierra ? "error" : "muted"}>
+              {hayDevolucionManual
+                ? `Devolución elegida: ${formatearMoneda(sumaDevolucion)} de ${formatearMoneda(totalAAnular)} a acreditar.`
+                : "Si no tildás ningún medio, se devuelve todo en efectivo."}
+            </p>
+          </div>
+        )}
         {error && <p className="error">{error}</p>}
 
         <div className="row-actions" style={{ marginTop: 16 }}>

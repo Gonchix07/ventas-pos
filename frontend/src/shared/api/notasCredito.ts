@@ -47,10 +47,20 @@ export interface LineaAnulable {
   yaAnulada: boolean;
 }
 
+/** Medio de pago de la factura original — a diferencia del que se imprime en el ticket, éste trae
+ *  idMedioPago porque también sirve para elegir por dónde devolver el importe de la NC. */
+export interface PagoOrigenNc { idMedioPago: number; descripcion: string; monto: number; }
+
 export interface ComprobanteAnulableDetalle {
   comprobante: ComprobanteAnulable;
   lineas: LineaAnulable[];
+  /** Medios de pago con los que se cobró la factura original — se muestran al pie del popup. */
+  pagos: PagoOrigenNc[];
 }
+
+/** Un medio elegido por el cajero para devolver parte (o todo) el importe de la NC — la suma tiene
+ *  que cerrar exacto contra lo que se termina acreditando (se valida en el backend). */
+export interface DevolucionSeleccionada { idMedioPago: number; monto: number; }
 
 /** Lo devuelto en UN medio de pago concreto (ver NotaCreditoResultado.devoluciones). */
 export interface DevolucionMedio { idMedioPago: number; medioDescripcion: string; monto: number; }
@@ -92,6 +102,10 @@ export interface EmitirNotaCreditoRequest {
   lineas?: LineaSeleccionNc[] | null;
   monto?: number | null;
   motivo?: string | null;
+  /** Por qué medio(s) devolver el importe, elegidos entre ComprobanteAnulableDetalle.pagos. La suma
+   *  tiene que cerrar exacto contra lo que la NC termina acreditando. Null/vacío: todo en Efectivo
+   *  (comportamiento de siempre). Se ignora si termina siendo una reversión completa. */
+  devoluciones?: DevolucionSeleccionada[] | null;
   // Null si quien emite ya es Supervisor/Administrador — ver shared/ui/SupervisorGate.tsx.
   codigoSupervisor?: string | null;
 }
