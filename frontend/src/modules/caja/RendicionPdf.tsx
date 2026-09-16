@@ -237,7 +237,7 @@ function RendicionDocument({ arqueo, cierre, usuario, motivoDescripcion, observa
             <View style={s.resumenItem}><Text>Vueltos</Text><Text>−${money(arqueo.totalVueltos)}</Text></View>
             <View style={s.resumenItemBold}><Text>Efectivo Real (contado)</Text><Text>${money(efectivoReal)}</Text></View>
             <View style={s.resumenItemBold}><Text>Otros Medios (contado)</Text><Text>${money(otrosMedios)}</Text></View>
-            <View style={s.resumenItem}><Text>Total esperado (sistema)</Text><Text>${money(totalEsperado)}</Text></View>
+            <View style={s.resumenItem}><Text>Total esperado (sistema)</Text><Text>−${money(totalEsperado)}</Text></View>
             <View style={[s.resumenTotal, hayDiferencia ? s.diferencia : undefined]}>
               <Text>Diferencia Total</Text><Text>${money(cierre.diferenciaTotal)}</Text>
             </View>

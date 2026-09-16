@@ -631,6 +631,12 @@ td.money, th.money { text-align: right; font-family: ui-monospace, Consolas, mon
 .ident-search input { flex: 1; padding: 12px 14px; font-size: 18px; line-height: 1.25;
   border: 1px solid var(--line); border-radius: 10px; }
 .ident-search button { padding: 12px 22px; font-size: 16px; }
+/* Reimpresión: el combo "Tipo" comparte fila con el buscador (18px) y el botón (16px) de arriba,
+   así que con el <select> genérico (14px, padding chico) quedaba visiblemente más chico que sus
+   vecinos. Se lo agranda al mismo porte, y se achica el margen superior que trae `.field-row`
+   (10px) ahora que el párrafo de arriba se acorta o desaparece según el tipo elegido. */
+.reimpresion-search.field-row { margin-top: 2px; }
+.reimpresion-search select { padding: 12px 32px 12px 14px; font-size: 16px; }
 /* `table.` es necesario: `table.grid th/td` (de arriba) le gana en especificidad a `.ident-table td`. */
 table.ident-table th, table.ident-table td { padding: 12px 14px; font-size: 15px; }
 table.ident-table tbody tr { cursor: pointer; }

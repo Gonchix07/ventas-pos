@@ -226,7 +226,7 @@ export function ReporteCierreTurno({
             <div><span>Vueltos</span><strong>−${money(arqueo.totalVueltos)}</strong></div>
             <div className="rendicion__resumen-bold"><span>Efectivo Real (contado)</span><strong>${money(efectivoReal)}</strong></div>
             <div className="rendicion__resumen-bold"><span>Otros Medios (contado)</span><strong>${money(otrosMedios)}</strong></div>
-            <div><span>Total esperado (sistema)</span><strong>${money(totalEsperado)}</strong></div>
+            <div><span>Total esperado (sistema)</span><strong>−${money(totalEsperado)}</strong></div>
             <div className={`rendicion__resumen-total${hayDiferencia ? " rendicion__diferencia" : ""}`}>
               <span>Diferencia Total</span><strong>${money(cierre.diferenciaTotal)}</strong>
             </div>

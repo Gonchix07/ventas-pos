@@ -131,11 +131,13 @@ export function ReimpresionPage() {
       </header>
       <main className="app-main">
         <h1>Reimpresión</h1>
-        <p className="muted">
-          {tipo === "Rendicion"
-            ? "Buscá la rendición (cierre de turno) por número de lote o cajero. Se genera un PDF real para imprimir eligiendo la impresora — no sale directo por la comandera."
-            : "Buscá la factura, nota de crédito o presupuesto por número, cliente o CUIT. Se imprime en pantalla (papel común) — si el comprobante original salió por controlador fiscal, esto NO reimprime el rollo fiscal original."}
-        </p>
+        {tipo !== "Rendicion" && (
+          <p className="muted">
+            Buscá la factura, nota de crédito o presupuesto por número, cliente o CUIT. Se imprime
+            en pantalla (papel común) — si el comprobante original salió por controlador fiscal,
+            esto NO reimprime el rollo fiscal original.
+          </p>
+        )}
 
         <div className="card form">
           <div className="form-grid">
@@ -148,7 +150,7 @@ export function ReimpresionPage() {
             <label>Desde<input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} /></label>
             <label>Hasta<input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} /></label>
           </div>
-          <div className="ident-search field-row">
+          <div className="ident-search field-row reimpresion-search">
             <label>Tipo
               <select value={tipo} onChange={(e) => setTipo(e.target.value as TipoReimpresion)}>
                 {TIPOS.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
