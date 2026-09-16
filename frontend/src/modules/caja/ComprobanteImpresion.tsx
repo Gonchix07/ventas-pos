@@ -166,7 +166,12 @@ export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolv
               ))}
             </>
           )}
-          {c.impuestoInterno > 0 && (
+          {/* El Impuesto Interno solo se discrimina como "Exento" en Factura A, donde el resto de
+              la columna de totales también viene discriminado (Subtotal + IVA por alícuota). En B
+              y Presupuesto las líneas ya van con precio final (sin desglosar ningún impuesto), así
+              que mostrar acá un renglón discriminado desentonaría con el resto del comprobante —
+              el monto ya está incluido en el precio de línea como en cualquier otro impuesto. */}
+          {esA && c.impuestoInterno > 0 && (
             <div><span>Exento</span><span>${money(c.impuestoInterno)}</span></div>
           )}
           {c.percepcionIva21 > 0 && (
