@@ -1247,7 +1247,17 @@ export function CajaPage() {
                 <tbody>
                   {arqueo?.acumulados.map((a) => (
                     <tr key={a.idMedioPago}>
-                      <td>{a.descripcion}</td>
+                      {/* El "Esperado" de Efectivo ya viene neto de los vueltos entregados (el
+                          Vuelto se registra como MovimientoPago sobre el mismo IdMedioPago de
+                          Efectivo — ver TipoMovimientoManual.Vuelto), así que el cajero declara
+                          acá TODO el efectivo del cajón en un solo número. Se aclara con el
+                          sufijo para que no cuente el vuelto aparte y quede una diferencia falsa
+                          — la diferencia real siempre cae en Efectivo, nunca en un "vuelto" que
+                          no es un medio de pago propio. El informe de rendición (ReporteCierreTurno
+                          / RendicionPdf) sigue mostrando Efectivo y Vueltos discriminados aparte:
+                          no tocar esa lógica, y por eso acá NO se cambia a.descripcion, solo cómo
+                          se muestra en esta tabla. */}
+                      <td>{a.descripcion === "Efectivo" ? "Efectivo + Vueltos" : a.descripcion}</td>
                       <td className="mono">{formatearMoneda(a.total)}</td>
                       <td>
                         <MonedaInput value={declaraciones[a.idMedioPago] ?? null}
