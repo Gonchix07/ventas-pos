@@ -305,7 +305,7 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
    ancho de pantalla normal — con tarjeta son 5 campos + botón en la misma línea. */
 .pago-row .campo-medio { flex: 0 0 200px; }
 .pago-row .campo-medio select { width: 100%; padding: 12px 32px 12px 14px; font-size: 17px; }
-.pago-row .campo-monto { flex: 0 0 170px; }
+.pago-row .campo-monto { flex: 0 0 187px; } /* +10% de ancho (era 170px) — solo horizontal, alto sin cambios */
 .pago-row .campo-monto .moneda-input { display: flex; width: 100%; padding: 12px 14px; }
 .pago-row .campo-monto .moneda-input input { font-size: 20px; }
 .pago-row .campo-monto .moneda-signo { font-size: 16px; }
