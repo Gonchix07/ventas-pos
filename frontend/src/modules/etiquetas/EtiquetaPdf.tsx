@@ -32,9 +32,13 @@ const fmtFleje = (n: number) => (n >= 1_000_000 ? Math.round(n).toLocaleString("
 // margen antes de que los centavos empiecen a molestar) — pedido explícito del usuario.
 const fmtHoja = (n: number) => (n > 9_999_999 ? Math.round(n).toLocaleString("es-AR") : fmt(n));
 
-/** Una fila de precio (por tarjeta, o el precio base si el artículo no tiene precios por tarjeta). */
+const esAzul = (nombre: string) => nombre.toUpperCase().includes("AZUL");
+
+/** Una fila de precio (por tarjeta, o el precio base si el artículo no tiene precios por tarjeta).
+ *  AZUL siempre primero (arriba) cuando conviven varias tarjetas — el resto mantiene el orden en
+ *  que vino de la API. */
 function filasDe(e: Etiqueta, prefijoTarjeta: string) {
-  return e.preciosTarjeta.length > 0
+  const filas = e.preciosTarjeta.length > 0
     ? e.preciosTarjeta.map((t) => ({
         nombre: `${prefijoTarjeta}${t.nombreTarjeta}`, precio: t.precio,
         pxu: t.precioPorUnidadMedida, si: t.precioSinImpuestos,
@@ -43,6 +47,9 @@ function filasDe(e: Etiqueta, prefijoTarjeta: string) {
         nombre: e.aclaracionPrecio ?? "", precio: e.precioBase,
         pxu: e.precioBasePorUnidadMedida, si: e.precioBaseSinImpuestos,
       }];
+  return filas.length > 1
+    ? [...filas].sort((a, b) => Number(esAzul(b.nombre)) - Number(esAzul(a.nombre)))
+    : filas;
 }
 
 // ---------- Fleje (90x40mm, comandera Zebra) ----------
@@ -112,8 +119,6 @@ const PRECIO_UNICO = 60;
 const PRECIO_AZUL = 66;
 const PRECIO_OTRA = 50;
 
-const esAzul = (nombre: string) => nombre.toUpperCase().includes("AZUL");
-
 const hs = StyleSheet.create({
   page: { fontFamily: "Plus Jakarta Sans", color: "#16211f" },
   // Márgenes superior/inferior al doble de los originales (14mm → 28mm) — pedido explícito.
@@ -138,19 +143,15 @@ function HojaDocument({ items, formato }: { items: Etiqueta[]; formato: "A4" | "
   return (
     <Document>
       {items.map((e) => {
-        const filas = filasDe(e, "");
-        // AZUL siempre primero (arriba) cuando conviven las dos tarjetas — el resto mantiene el
-        // orden en que vino de la API.
-        const ordenadas = filas.length > 1
-          ? [...filas].sort((a, b) => Number(esAzul(b.nombre)) - Number(esAzul(a.nombre)))
-          : filas;
+        // filasDe ya deja AZUL primero cuando conviven varias tarjetas.
+        const ordenadas = filasDe(e, "");
         return (
           <Page key={e.idPresentacion} size={size} style={hs.page}>
             <View style={hs.container}>
               <Text style={hs.titulo}>{e.descripcion.toUpperCase()}</Text>
               <View style={hs.preciosArea}>
                 {ordenadas.map((row, i) => {
-                  const fontSize = filas.length > 1 ? (esAzul(row.nombre) ? PRECIO_AZUL : PRECIO_OTRA) : PRECIO_UNICO;
+                  const fontSize = ordenadas.length > 1 ? (esAzul(row.nombre) ? PRECIO_AZUL : PRECIO_OTRA) : PRECIO_UNICO;
                   return (
                     <View key={i} style={hs.bloque}>
                       {row.nombre && <Text style={hs.nombreTarjeta}>{row.nombre.toUpperCase()}</Text>}
