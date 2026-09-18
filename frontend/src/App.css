@@ -1014,14 +1014,22 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
    de la izquierda) y el gap entre los 4 controles alcanza sin tocar el resto de la app. */
 .etiquetas-compact .page-head select { padding: 6px 26px 6px 8px; }
 .etiquetas-compact .inline-label { gap: 5px; }
-/* Margen izquierdo del panel más chico que el resto del admin (pedido del usuario) — el resto de
-   `.page-shell` (32px) queda igual, esto solo achica el lado izquierdo acá. */
-.page-shell.etiquetas-compact { padding-left: 12px; }
+/* Margen izquierdo más chico que el resto del admin (pedido del usuario, ya de por sí angosto).
+   El derecho queda fluido (clamp entre un piso y el 32px de `.page-shell` normal) en vez de fijo:
+   se achica solo en pantallas angostas (celular), sin afectar el resto de `.page-shell`. */
+.page-shell.etiquetas-compact { padding-left: 12px; padding-right: clamp(12px, 3vw, 32px); }
 /* Columnas Azul/Roja de la lista armada: "Precio Único" (folder vigente, o Azul/Roja cargados con
    el mismo precio — ver EtiquetaService) se resalta en naranja+negrita para que se note que no son
    dos precios independientes, aunque las dos columnas muestren el mismo número. Mismo naranja que
    .modo-badge, sin el fondo (acá va adentro de una celda de tabla angosta). */
 .precio-etiqueta-unico { color: #9a4b00; font-weight: 700; }
+/* Pantalla de Etiquetas responsive sin depender de un punto de quiebre fijo (`.two-col` de base
+   usa `@media (max-width: 900px)`, un ancho de PANTALLA absoluto: en un panel angosto dentro de una
+   pantalla grande no se activaba, y en cambio a los 900px se cortaba de golpe aunque hubiera lugar
+   de sobra). `auto-fit`/`minmax` mide el contenedor, no la pantalla: cada columna pasa a ocupar una
+   fila entera recién cuando de verdad no entran las dos, sea cual sea el ancho de la ventana —
+   mismo criterio que ya usa `.form-grid` más arriba. */
+.etiquetas-compact .two-col { grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); }
 
 /* Panel de solo lectura de "Clientes" (ClientesFichaPage): más separación entre el nombre de cada
    campo y su valor que el form-grid default (5px quedaba muy pegado al ser todo de solo lectura,

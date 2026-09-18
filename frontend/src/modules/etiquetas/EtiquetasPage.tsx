@@ -207,24 +207,26 @@ export function EtiquetasPage() {
                   onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscar()} style={{ flex: 1 }} />
                 <button className="primary" onClick={buscar}>Buscar</button>
               </div>
-              <table className="grid">
-                <thead><tr><th>Código</th><th>Artículo</th><th></th></tr></thead>
-                <tbody>
-                  {resultados.map((a) => (
-                    <tr key={a.idPresentacion}>
-                      <td className="mono">{a.codigoInterno}</td>
-                      <td>{a.descripcion}</td>
-                      <td>
-                        <button className="icon-btn icon-agregar" title="Agregar" aria-label="Agregar"
-                          onClick={() => agregar(a)}><IconAgregar /></button>
-                      </td>
-                    </tr>
-                  ))}
-                  {resultados.length === 0 && (
-                    <tr><td colSpan={3} className="muted">Buscá un artículo por código, código de barra o descripción.</td></tr>
-                  )}
-                </tbody>
-              </table>
+              <div className="table-scroll">
+                <table className="grid">
+                  <thead><tr><th>Código</th><th>Artículo</th><th></th></tr></thead>
+                  <tbody>
+                    {resultados.map((a) => (
+                      <tr key={a.idPresentacion}>
+                        <td className="mono">{a.codigoInterno}</td>
+                        <td>{a.descripcion}</td>
+                        <td>
+                          <button className="icon-btn icon-agregar" title="Agregar" aria-label="Agregar"
+                            onClick={() => agregar(a)}><IconAgregar /></button>
+                        </td>
+                      </tr>
+                    ))}
+                    {resultados.length === 0 && (
+                      <tr><td colSpan={3} className="muted">Buscá un artículo por código, código de barra o descripción.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </>
           ) : (
             <div className="form-grid">
@@ -266,39 +268,41 @@ export function EtiquetasPage() {
               </button>
             </div>
           </div>
-          <table className="grid">
-            <thead>
-              <tr>
-                <th>Código</th><th>Artículo</th><th>Azul</th><th>Roja</th>
-                <th>
-                  <button className="danger" disabled={lista.length === 0 || cargando} onClick={quitarTodo}>
-                    Limpiar
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {lista.map((a) => {
-                const azul = precioTarjeta(a.idPresentacion, "AZUL");
-                const roja = precioTarjeta(a.idPresentacion, "ROJA");
-                // "Precio Único": folder vigente, o Azul/Roja cargados con el mismo precio (ver
-                // EtiquetaService) — se resalta para que se note de un vistazo que no son dos
-                // precios independientes, aunque las dos columnas muestren el mismo número.
-                const esUnico = !!precios.get(a.idPresentacion)?.aclaracionPrecio;
-                const claseUnico = esUnico ? "precio-etiqueta-unico" : undefined;
-                return (
-                  <tr key={a.idPresentacion}>
-                    <td className="mono">{a.codigoInterno}</td>
-                    <td>{a.descripcion}</td>
-                    <td className={`mono ${claseUnico ?? ""}`}>{azul != null ? formatearMoneda(azul) : "—"}</td>
-                    <td className={`mono ${claseUnico ?? ""}`}>{roja != null ? formatearMoneda(roja) : "—"}</td>
-                    <td><button className="danger" onClick={() => quitar(a.idPresentacion)}>Quitar</button></td>
-                  </tr>
-                );
-              })}
-              {lista.length === 0 && <tr><td colSpan={5} className="muted">Sin artículos en la lista.</td></tr>}
-            </tbody>
-          </table>
+          <div className="table-scroll">
+            <table className="grid">
+              <thead>
+                <tr>
+                  <th>Código</th><th>Artículo</th><th>Azul</th><th>Roja</th>
+                  <th>
+                    <button className="danger" disabled={lista.length === 0 || cargando} onClick={quitarTodo}>
+                      Limpiar
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {lista.map((a) => {
+                  const azul = precioTarjeta(a.idPresentacion, "AZUL");
+                  const roja = precioTarjeta(a.idPresentacion, "ROJA");
+                  // "Precio Único": folder vigente, o Azul/Roja cargados con el mismo precio (ver
+                  // EtiquetaService) — se resalta para que se note de un vistazo que no son dos
+                  // precios independientes, aunque las dos columnas muestren el mismo número.
+                  const esUnico = !!precios.get(a.idPresentacion)?.aclaracionPrecio;
+                  const claseUnico = esUnico ? "precio-etiqueta-unico" : undefined;
+                  return (
+                    <tr key={a.idPresentacion}>
+                      <td className="mono">{a.codigoInterno}</td>
+                      <td>{a.descripcion}</td>
+                      <td className={`mono ${claseUnico ?? ""}`}>{azul != null ? formatearMoneda(azul) : "—"}</td>
+                      <td className={`mono ${claseUnico ?? ""}`}>{roja != null ? formatearMoneda(roja) : "—"}</td>
+                      <td><button className="danger" onClick={() => quitar(a.idPresentacion)}>Quitar</button></td>
+                    </tr>
+                  );
+                })}
+                {lista.length === 0 && <tr><td colSpan={5} className="muted">Sin artículos en la lista.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </div>
         </div>
       </div>
