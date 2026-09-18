@@ -207,7 +207,8 @@ export function EtiquetasPage() {
             <>
               <div className="toolbar">
                 <input placeholder="Código, código de barra o descripción" value={q}
-                  onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscar()} style={{ flex: 1 }} />
+                  onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscar()}
+                  style={{ flex: "0 1 min(320px, 100%)" }} />
                 <button className="primary" onClick={buscar}>Buscar</button>
                 <button type="button" className="toggle-flecha"
                   onClick={() => setResultadosAbierto((v) => !v)}
