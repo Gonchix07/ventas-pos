@@ -1042,7 +1042,11 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
    `min(Xpx, 100%)` que .form-grid, sigue achicándose en pantallas angostas). En CSS (no inline)
    para poder pisarlo desde el @media de acá abajo sin pelear con la especificidad de un estilo
    inline. */
-.etiquetas-buscar-input { flex: 0 1 min(180px, 100%); }
+/* min-width: 0 es necesario porque un <input> flex item por default tiene min-width:auto (su ancho
+   intrínseco de contenido, ~170-200px según el navegador) — sin esto, flex-basis/flex-shrink no
+   podían achicarlo por debajo de ese piso invisible, así que los cambios de tamaño en el @media de
+   abajo no se notaban. */
+.etiquetas-buscar-input { flex: 0 1 min(180px, 100%); min-width: 0; }
 /* Pantalla angosta de verdad (< 325px de ancho): se saca "Salir" del header (para que "Módulos" y
    el logo entren sin scroll horizontal), el selector de Sucursal (que a este ancho ya no cabe
    junto a su label en una sola línea) y "Buscar por" (a este ancho se usa solo por artículo, pedido
