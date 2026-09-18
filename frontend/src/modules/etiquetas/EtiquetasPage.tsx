@@ -158,7 +158,7 @@ export function EtiquetasPage() {
   // Azul/Roja en la lista armada van redondeados, sin decimales — es solo para chequear de un
   // vistazo qué precio tiene cargado cada artículo antes de imprimir, no un importe a cobrar (ese
   // sale con decimales en el PDF real, ver EtiquetaPdf.tsx).
-  const formatearSinDecimales = (n: number) => `$ ${Math.round(n).toLocaleString("es-AR")}`;
+  const formatearSinDecimales = (n: number) => `$${Math.round(n).toLocaleString("es-AR")}`;
 
   // Precio de una tarjeta puntual (AZUL/ROJA) para la fila de la lista armada. Si las tarjetas
   // colapsaron en un precio único (folder vigente, o Rojo/Azul coincidiendo — ver EtiquetaService)
