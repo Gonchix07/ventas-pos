@@ -1038,11 +1038,20 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 .etiquetas-compact .toolbar { margin-top: 6px; }
 .etiquetas-compact table.grid { margin-top: 6px; }
 .etiquetas-compact .field-row { margin-top: 4px; }
-/* Pantalla angosta de verdad (< 319px de ancho): se saca "Salir" del header para que "Módulos" y
-   los botones/logo del brand entren sin scroll horizontal — pedido explícito, es un caso extremo
-   que en el resto de la app no se da (esta pantalla es la única con este piso tan bajo). */
+/* Campo de código del buscador por artículo: tope de ancho en vez de estirarse (mismo criterio
+   `min(Xpx, 100%)` que .form-grid, sigue achicándose en pantallas angostas). En CSS (no inline)
+   para poder pisarlo desde el @media de acá abajo sin pelear con la especificidad de un estilo
+   inline. */
+.etiquetas-buscar-input { flex: 0 1 min(180px, 100%); }
+/* Pantalla angosta de verdad (< 325px de ancho): se saca "Salir" del header (para que "Módulos" y
+   el logo entren sin scroll horizontal) y el selector de Sucursal (que a este ancho ya no cabe
+   junto a su label en una sola línea) — casos extremos que en el resto de la app no se dan (esta
+   pantalla es la única con un piso tan bajo). El campo de código del buscador se achica más
+   todavía, para que entre junto con "Buscar" en la misma línea. */
 @media (max-width: 325px) {
   .etiquetas-header .btn-salir { display: none; }
+  .etiquetas-sucursal-row { display: none; }
+  .etiquetas-buscar-input { flex: 0 1 min(90px, 100%); }
 }
 /* Columnas Azul/Roja de la lista armada: "Precio Único" (folder vigente, o Azul/Roja cargados con
    el mismo precio — ver EtiquetaService) se resalta en naranja+negrita para que se note que no son

@@ -187,7 +187,7 @@ export function EtiquetasPage() {
       <div className="page-shell etiquetas-compact">
         {error && <p className="error">{error}</p>}
 
-        <div className="field-row" style={{ marginTop: 0 }}>
+        <div className="field-row etiquetas-sucursal-row" style={{ marginTop: 0 }}>
           <label className="inline-label">Sucursal
             <select value={idSucursal} onChange={(e) => setIdSucursal(Number(e.target.value))}>
               {sucursales.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
@@ -209,9 +209,8 @@ export function EtiquetasPage() {
           {modoBusqueda === "articulo" ? (
             <>
               <div className="toolbar">
-                <input placeholder="Código, código de barra o descripción" value={q}
-                  onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscar()}
-                  style={{ flex: "0 1 min(180px, 100%)" }} />
+                <input className="etiquetas-buscar-input" placeholder="Código, código de barra o descripción" value={q}
+                  onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscar()} />
                 <button className="primary" onClick={buscar}>Buscar</button>
                 <button type="button" className="toggle-flecha"
                   onClick={() => setResultadosAbierto((v) => !v)}
