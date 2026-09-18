@@ -197,7 +197,7 @@ export function EtiquetasPage() {
 
         <div className="two-col">
         <div className="card form">
-          <div className="field-row" style={{ marginTop: 0 }}>
+          <div className="field-row etiquetas-buscar-por-row" style={{ marginTop: 0 }}>
             <label>Buscar por
               <select value={modoBusqueda} onChange={(e) => setModoBusqueda(e.target.value as typeof modoBusqueda)}>
                 <option value="articulo">Artículo</option>

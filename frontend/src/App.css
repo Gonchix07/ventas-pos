@@ -1044,14 +1044,17 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
    inline. */
 .etiquetas-buscar-input { flex: 0 1 min(180px, 100%); }
 /* Pantalla angosta de verdad (< 325px de ancho): se saca "Salir" del header (para que "Módulos" y
-   el logo entren sin scroll horizontal) y el selector de Sucursal (que a este ancho ya no cabe
-   junto a su label en una sola línea) — casos extremos que en el resto de la app no se dan (esta
-   pantalla es la única con un piso tan bajo). El campo de código del buscador se achica más
-   todavía, para que entre junto con "Buscar" en la misma línea. */
+   el logo entren sin scroll horizontal), el selector de Sucursal (que a este ancho ya no cabe
+   junto a su label en una sola línea) y "Buscar por" (a este ancho se usa solo por artículo, pedido
+   explícito — queda el modo que ya estuviera elegido, por default "Artículo") — casos extremos que
+   en el resto de la app no se dan (esta pantalla es la única con un piso tan bajo). El campo de
+   código del buscador se achica más todavía (90px, después bajado a 60px), para que entre junto
+   con "Buscar" en la misma línea. */
 @media (max-width: 325px) {
   .etiquetas-header .btn-salir { display: none; }
   .etiquetas-sucursal-row { display: none; }
-  .etiquetas-buscar-input { flex: 0 1 min(90px, 100%); }
+  .etiquetas-buscar-por-row { display: none; }
+  .etiquetas-buscar-input { flex: 0 1 min(60px, 100%); }
 }
 /* Columnas Azul/Roja de la lista armada: "Precio Único" (folder vigente, o Azul/Roja cargados con
    el mismo precio — ver EtiquetaService) se resalta en naranja+negrita para que se note que no son
