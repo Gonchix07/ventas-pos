@@ -1002,7 +1002,7 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
    uno por uno en vez de un solo `font-size` en `.etiquetas-compact`. */
 .etiquetas-compact { font-size: 13px; }
 .etiquetas-compact h3 { font-size: 14px; }
-.etiquetas-compact table.grid th, .etiquetas-compact table.grid td { font-size: 12.5px; padding: 8px 10px; }
+.etiquetas-compact table.grid th, .etiquetas-compact table.grid td { font-size: 11px; padding: 6px 8px; }
 .etiquetas-compact .toolbar input, .etiquetas-compact .form-grid input, .etiquetas-compact .field-row input,
 .etiquetas-compact select { font-size: 12.5px; }
 .etiquetas-compact button { font-size: 12.5px; padding: 7px 10px; }
