@@ -1003,6 +1003,12 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 .etiquetas-compact { font-size: 13px; }
 .etiquetas-compact h3 { font-size: 14px; }
 .etiquetas-compact table.grid th, .etiquetas-compact table.grid td { font-size: 11px; padding: 6px 8px; }
+/* Lista armada (la que se imprime): más chica todavía que el resto de las tablas de la pantalla —
+   pedido explícito, tiene más columnas (Código|Artículo, Azul, Roja, Limpiar) compitiendo por el
+   mismo ancho. "Gap" acá es el padding de celda, que es lo que separa una columna de la otra. */
+.etiquetas-compact table.tabla-lista-armada th, .etiquetas-compact table.tabla-lista-armada td {
+  font-size: 10px; padding: 4px 6px;
+}
 .etiquetas-compact .toolbar input, .etiquetas-compact .form-grid input, .etiquetas-compact .field-row input,
 .etiquetas-compact select { font-size: 12.5px; }
 .etiquetas-compact button { font-size: 12.5px; padding: 7px 10px; }

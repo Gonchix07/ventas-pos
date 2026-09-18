@@ -280,7 +280,7 @@ export function EtiquetasPage() {
             </div>
           </div>
           <div className="table-scroll">
-            <table className="grid">
+            <table className="grid tabla-lista-armada">
               <thead>
                 <tr>
                   <th>Código | Artículo</th><th>Azul</th><th>Roja</th>
