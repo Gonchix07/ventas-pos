@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/auth/auth";
 import {
-  etiquetas, type ArticuloParaEtiqueta, type Clasificaciones, type LookupSimple,
+  etiquetas, type ArticuloParaEtiqueta, type Clasificaciones, type Etiqueta, type LookupSimple,
 } from "../../shared/api/etiquetas";
 import { abrirPestañaParaPdf, generarYAbrirPdf, type FormatoEtiqueta } from "./EtiquetaPdf";
 import { IconAgregar } from "../../shared/ui/icons";
 import { useToast } from "../../shared/ui/toast";
+import { formatearMoneda } from "../../shared/ui/moneda";
 
 type Formato = FormatoEtiqueta;
 
@@ -25,6 +26,10 @@ export function EtiquetasPage() {
   const [q, setQ] = useState("");
   const [resultados, setResultados] = useState<ArticuloParaEtiqueta[]>([]);
   const [lista, setLista] = useState<ArticuloParaEtiqueta[]>([]);
+  // idPresentacion → precios ya resueltos (AZUL/ROJA), para mostrarlos en la lista armada sin
+  // esperar a "Generar PDF". Se completa en segundo plano al agregar cada artículo (o de nuevo si
+  // cambia la sucursal, porque el precio vigente es por sucursal).
+  const [precios, setPrecios] = useState<Map<number, Etiqueta>>(new Map());
   const [formato, setFormato] = useState<Formato>("Fleje");
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -53,10 +58,29 @@ export function EtiquetasPage() {
   // dos veces para detectar efectos impuros, y una notificación disparada adentro se duplicaría.
   // Se agrega AL PRINCIPIO (no al final): al escanear en cadena, lo último agregado es lo que el
   // operador quiere ver arriba para confirmar de un vistazo que entró bien.
+  // Resuelve AZUL/ROJA (u otras tarjetas configuradas) para mostrarlas en la lista armada, sin
+  // esperar a "Generar PDF" — mismo endpoint que ya usa el PDF, así que el precio que se ve acá es
+  // el mismo que sale impreso. Best-effort: si falla, la fila simplemente queda sin precio (no
+  // bloquea agregar/buscar artículos, que es la acción principal de la pantalla).
+  const cargarPrecios = async (idsPresentacion: number[]) => {
+    if (!idSucursal || idsPresentacion.length === 0) return;
+    try {
+      const r = await etiquetas.generar(idSucursal, idsPresentacion);
+      setPrecios((p) => {
+        const m = new Map(p);
+        r.forEach((e) => m.set(e.idPresentacion, e));
+        return m;
+      });
+    } catch {
+      // Silencioso: la columna de precio queda vacía para esos artículos, nada más.
+    }
+  };
+
   const agregar = (a: ArticuloParaEtiqueta) => {
     if (lista.some((x) => x.idPresentacion === a.idPresentacion)) return;
     notificar(`${a.descripcion} agregado a la lista`);
     setLista((l) => (l.some((x) => x.idPresentacion === a.idPresentacion) ? l : [a, ...l]));
+    cargarPrecios([a.idPresentacion]);
   };
 
   const buscar = async () => {
@@ -87,11 +111,22 @@ export function EtiquetasPage() {
         ? `${nuevos.length} artículo${nuevos.length === 1 ? "" : "s"} agregado${nuevos.length === 1 ? "" : "s"} a la lista`
         : "No hay artículos nuevos para agregar");
       setLista((l) => [...nuevos, ...l]);
+      cargarPrecios(nuevos.map((x) => x.idPresentacion));
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
   };
 
-  const quitar = (idPresentacion: number) => setLista((l) => l.filter((x) => x.idPresentacion !== idPresentacion));
-  const quitarTodo = () => { if (confirm("¿Vaciar toda la lista armada?")) setLista([]); };
+  const quitar = (idPresentacion: number) => {
+    setLista((l) => l.filter((x) => x.idPresentacion !== idPresentacion));
+    setPrecios((p) => { const m = new Map(p); m.delete(idPresentacion); return m; });
+  };
+  const quitarTodo = () => { if (confirm("¿Vaciar toda la lista armada?")) { setLista([]); setPrecios(new Map()); } };
+
+  // El precio vigente es por sucursal: si se cambia la sucursal con artículos ya en la lista, hay
+  // que volver a resolverlos todos (los que había quedan con el precio viejo hasta que llega esto).
+  useEffect(() => {
+    if (lista.length > 0) cargarPrecios(lista.map((x) => x.idPresentacion));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idSucursal]);
 
   // Genera el PDF real (fleje 90x40mm o A4/A5) y lo abre en una pestaña nueva para imprimir desde
   // el visor de PDF del navegador — ver EtiquetaPdf.tsx. Ya no hay una "vista de impresión" propia
@@ -116,6 +151,17 @@ export function EtiquetasPage() {
       setError(e instanceof Error ? e.message : "Error al generar las etiquetas");
       ventana?.close();
     } finally { setCargando(false); }
+  };
+
+  // Precio de una tarjeta puntual (AZUL/ROJA) para la fila de la lista armada. Si las tarjetas
+  // colapsaron en un precio único (folder vigente, o Rojo/Azul coincidiendo — ver EtiquetaService)
+  // no hay entradas individuales: en ese caso el precio único vale para las dos, así que se usa ese.
+  // null = todavía no se resolvió (o esa tarjeta puntual no tiene precio cargado para este artículo).
+  const precioTarjeta = (idPresentacion: number, contiene: string): number | null => {
+    const e = precios.get(idPresentacion);
+    if (!e) return null;
+    if (e.preciosTarjeta.length === 0) return e.precioBase;
+    return e.preciosTarjeta.find((t) => t.nombreTarjeta.toUpperCase().includes(contiene))?.precio ?? null;
   };
 
   return (
@@ -223,7 +269,7 @@ export function EtiquetasPage() {
           <table className="grid">
             <thead>
               <tr>
-                <th>Código</th><th>Artículo</th>
+                <th>Código</th><th>Artículo</th><th>Azul</th><th>Roja</th>
                 <th>
                   <button className="danger" disabled={lista.length === 0 || cargando} onClick={quitarTodo}>
                     Limpiar
@@ -232,14 +278,25 @@ export function EtiquetasPage() {
               </tr>
             </thead>
             <tbody>
-              {lista.map((a) => (
-                <tr key={a.idPresentacion}>
-                  <td className="mono">{a.codigoInterno}</td>
-                  <td>{a.descripcion}</td>
-                  <td><button className="danger" onClick={() => quitar(a.idPresentacion)}>Quitar</button></td>
-                </tr>
-              ))}
-              {lista.length === 0 && <tr><td colSpan={3} className="muted">Sin artículos en la lista.</td></tr>}
+              {lista.map((a) => {
+                const azul = precioTarjeta(a.idPresentacion, "AZUL");
+                const roja = precioTarjeta(a.idPresentacion, "ROJA");
+                // "Precio Único": folder vigente, o Azul/Roja cargados con el mismo precio (ver
+                // EtiquetaService) — se resalta para que se note de un vistazo que no son dos
+                // precios independientes, aunque las dos columnas muestren el mismo número.
+                const esUnico = !!precios.get(a.idPresentacion)?.aclaracionPrecio;
+                const claseUnico = esUnico ? "precio-etiqueta-unico" : undefined;
+                return (
+                  <tr key={a.idPresentacion}>
+                    <td className="mono">{a.codigoInterno}</td>
+                    <td>{a.descripcion}</td>
+                    <td className={`mono ${claseUnico ?? ""}`}>{azul != null ? formatearMoneda(azul) : "—"}</td>
+                    <td className={`mono ${claseUnico ?? ""}`}>{roja != null ? formatearMoneda(roja) : "—"}</td>
+                    <td><button className="danger" onClick={() => quitar(a.idPresentacion)}>Quitar</button></td>
+                  </tr>
+                );
+              })}
+              {lista.length === 0 && <tr><td colSpan={5} className="muted">Sin artículos en la lista.</td></tr>}
             </tbody>
           </table>
         </div>

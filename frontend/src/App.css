@@ -1017,6 +1017,11 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 /* Margen izquierdo del panel más chico que el resto del admin (pedido del usuario) — el resto de
    `.page-shell` (32px) queda igual, esto solo achica el lado izquierdo acá. */
 .page-shell.etiquetas-compact { padding-left: 12px; }
+/* Columnas Azul/Roja de la lista armada: "Precio Único" (folder vigente, o Azul/Roja cargados con
+   el mismo precio — ver EtiquetaService) se resalta en naranja+negrita para que se note que no son
+   dos precios independientes, aunque las dos columnas muestren el mismo número. Mismo naranja que
+   .modo-badge, sin el fondo (acá va adentro de una celda de tabla angosta). */
+.precio-etiqueta-unico { color: #9a4b00; font-weight: 700; }
 
 /* Panel de solo lectura de "Clientes" (ClientesFichaPage): más separación entre el nombre de cada
    campo y su valor que el form-grid default (5px quedaba muy pegado al ser todo de solo lectura,
