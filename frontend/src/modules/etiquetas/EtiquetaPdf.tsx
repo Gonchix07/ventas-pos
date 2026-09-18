@@ -49,17 +49,20 @@ function filasDe(e: Etiqueta, prefijoTarjeta: string) {
 
 const fs = StyleSheet.create({
   page: { fontFamily: "Plus Jakarta Sans", color: "#16211f" },
+  // Margen izq./der. ampliado (3mm -> 4.5mm) — pedido explícito.
   container: {
     flexDirection: "column", justifyContent: "space-between", height: "100%",
-    paddingVertical: mm(2), paddingHorizontal: mm(3),
+    paddingVertical: mm(2), paddingHorizontal: mm(4.5),
   },
-  titulo: { textAlign: "center", fontWeight: 800, fontSize: 8.5, lineHeight: 1.1 },
-  codigos: { flexDirection: "row", justifyContent: "space-between", fontSize: 6.5, marginTop: mm(1) },
+  // Todas las fuentes agrandadas salvo `footer` (la leyenda "Compra minima... Precio unitario
+  // final con IVA") — pedido explícito de dejar esa sola sin cambios.
+  titulo: { textAlign: "center", fontWeight: 800, fontSize: 10, lineHeight: 1.1 },
+  codigos: { flexDirection: "row", justifyContent: "space-between", fontSize: 7.5, marginTop: mm(1) },
   precios: { flexDirection: "column", marginTop: mm(1) },
   fila: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: mm(1) },
-  tarjeta: { fontWeight: 700, fontSize: 8 },
-  precioInline: { fontWeight: 800, fontSize: 12 },
-  detalle: { textAlign: "right", fontSize: 6, lineHeight: 1.25, maxWidth: mm(35) },
+  tarjeta: { fontWeight: 700, fontSize: 9.5 },
+  precioInline: { fontWeight: 800, fontSize: 14 },
+  detalle: { textAlign: "right", fontSize: 7, lineHeight: 1.25, maxWidth: mm(36) },
   footer: {
     textAlign: "center", fontSize: 6, borderTopWidth: 1, borderTopColor: "#dde3e0",
     paddingTop: mm(0.5),
@@ -78,7 +81,7 @@ function FlejeDocument({ items }: { items: Etiqueta[] }) {
               <Text>Cod.Bar {e.codigoBarra}</Text>
             </View>
             <View style={fs.precios}>
-              {filasDe(e, "Tarj. ").map((row, i) => (
+              {filasDe(e, "").map((row, i) => (
                 <View key={i} style={fs.fila}>
                   <Text style={fs.tarjeta}>
                     {row.nombre} <Text style={fs.precioInline}>$ {fmtFleje(row.precio)}</Text>
