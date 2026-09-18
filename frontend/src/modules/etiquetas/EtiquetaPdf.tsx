@@ -138,8 +138,12 @@ const hs = StyleSheet.create({
   footer: { flexDirection: "row", justifyContent: "center", gap: mm(12), fontSize: 10.5, marginTop: mm(6) },
 });
 
-function HojaDocument({ items, formato }: { items: Etiqueta[]; formato: "A4" | "A5" }) {
-  const size = formato === "A4" ? { width: mm(210), height: mm(297) } : { width: mm(148), height: mm(210) };
+function HojaDocument({ items, formato }: { items: Etiqueta[]; formato: "A4" | "A5" | "A4H" | "A5H" }) {
+  // H = horizontal (apaisada): mismas medidas de A4/A5 con ancho y alto invertidos.
+  const size = formato === "A4" ? { width: mm(210), height: mm(297) }
+    : formato === "A4H" ? { width: mm(297), height: mm(210) }
+    : formato === "A5" ? { width: mm(148), height: mm(210) }
+    : { width: mm(210), height: mm(148) };
   return (
     <Document>
       {items.map((e) => {
@@ -181,7 +185,7 @@ function HojaDocument({ items, formato }: { items: Etiqueta[]; formato: "A4" | "
   );
 }
 
-export type FormatoEtiqueta = "Fleje" | "A4" | "A5";
+export type FormatoEtiqueta = "Fleje" | "A4" | "A5" | "A4H" | "A5H";
 
 /**
  * Abre una pestaña en blanco. Llamar a esto ANTES de cualquier `await` en el handler del click (ej.
