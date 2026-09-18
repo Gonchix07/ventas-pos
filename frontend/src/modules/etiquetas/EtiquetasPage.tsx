@@ -173,14 +173,14 @@ export function EtiquetasPage() {
 
   return (
     <>
-      <header className="app-header">
+      <header className="app-header etiquetas-header">
         <div className="brand">
           <span className="brand-mark">POS</span>
           <span className="brand-sub">Etiquetas</span>
         </div>
         <div className="user-box">
           <button onClick={() => navigate("/")}>Módulos</button>
-          <button onClick={logout}>Salir</button>
+          <button className="btn-salir" onClick={logout}>Salir</button>
         </div>
       </header>
       {cargando && <PantallaBloqueada mensaje="Generando PDF…" />}

@@ -1038,6 +1038,12 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 .etiquetas-compact .toolbar { margin-top: 6px; }
 .etiquetas-compact table.grid { margin-top: 6px; }
 .etiquetas-compact .field-row { margin-top: 4px; }
+/* Pantalla angosta de verdad (< 319px de ancho): se saca "Salir" del header para que "Módulos" y
+   los botones/logo del brand entren sin scroll horizontal — pedido explícito, es un caso extremo
+   que en el resto de la app no se da (esta pantalla es la única con este piso tan bajo). */
+@media (max-width: 319px) {
+  .etiquetas-header .btn-salir { display: none; }
+}
 /* Columnas Azul/Roja de la lista armada: "Precio Único" (folder vigente, o Azul/Roja cargados con
    el mismo precio — ver EtiquetaService) se resalta en naranja+negrita para que se note que no son
    dos precios independientes, aunque las dos columnas muestren el mismo número. Mismo naranja que
