@@ -1017,8 +1017,20 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 .etiquetas-compact .inline-label { gap: 5px; }
 /* Margen izquierdo más chico que el resto del admin (pedido del usuario, ya de por sí angosto).
    El derecho queda fluido (clamp entre un piso y el 32px de `.page-shell` normal) en vez de fijo:
-   se achica solo en pantallas angostas (celular), sin afectar el resto de `.page-shell`. */
-.page-shell.etiquetas-compact { padding-left: 12px; padding-right: clamp(12px, 3vw, 32px); }
+   se achica solo en pantallas angostas (celular), sin afectar el resto de `.page-shell`. Arriba
+   también más chico (20px -> 10px, pedido explícito de achicar los márgenes superiores). */
+.page-shell.etiquetas-compact { padding-top: 10px; padding-left: 12px; padding-right: clamp(12px, 3vw, 32px); }
+/* "Sucursal" usa .inline-label para ir en la misma línea que su <select> (label + control lado a
+   lado), pero `.field-row label { flex-direction: column }` (más específico: clase+elemento le
+   gana a la sola clase .inline-label) lo apilaba igual — mismo motivo por el que .check-box
+   necesita su propia excepción más arriba. */
+.etiquetas-compact .field-row .inline-label { flex-direction: row; align-items: center; }
+/* Márgenes superiores de todos los bloques de la pantalla, achicados (pedido explícito): el card
+   de búsqueda/lista, el toolbar de buscar y las tablas quedan más pegados entre sí. */
+.etiquetas-compact .card.form { margin-top: 8px; }
+.etiquetas-compact .toolbar { margin-top: 6px; }
+.etiquetas-compact table.grid { margin-top: 6px; }
+.etiquetas-compact .field-row { margin-top: 4px; }
 /* Columnas Azul/Roja de la lista armada: "Precio Único" (folder vigente, o Azul/Roja cargados con
    el mismo precio — ver EtiquetaService) se resalta en naranja+negrita para que se note que no son
    dos precios independientes, aunque las dos columnas muestren el mismo número. Mismo naranja que
