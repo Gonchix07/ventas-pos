@@ -1041,7 +1041,7 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 /* Pantalla angosta de verdad (< 319px de ancho): se saca "Salir" del header para que "Módulos" y
    los botones/logo del brand entren sin scroll horizontal — pedido explícito, es un caso extremo
    que en el resto de la app no se da (esta pantalla es la única con este piso tan bajo). */
-@media (max-width: 319px) {
+@media (max-width: 325px) {
   .etiquetas-header .btn-salir { display: none; }
 }
 /* Columnas Azul/Roja de la lista armada: "Precio Único" (folder vigente, o Azul/Roja cargados con
