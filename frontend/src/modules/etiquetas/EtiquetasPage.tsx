@@ -274,8 +274,8 @@ export function EtiquetasPage() {
               <label className="inline-label">Formato
                 <select value={formato} onChange={(e) => setFormato(e.target.value as Formato)}>
                   <option value="Fleje">Fleje</option>
-                  <option value="A4">A4 (vertical)</option>
-                  <option value="A5">A5 (vertical)</option>
+                  <option value="A4">A4 vertical</option>
+                  <option value="A5">A5 vertical</option>
                   <option value="A4H">A4 horizontal</option>
                   <option value="A5H">A5 horizontal</option>
                 </select>
