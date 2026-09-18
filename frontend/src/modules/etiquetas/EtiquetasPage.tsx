@@ -7,7 +7,6 @@ import {
 import { abrirPestañaParaPdf, generarYAbrirPdf, type FormatoEtiqueta } from "./EtiquetaPdf";
 import { IconAgregar } from "../../shared/ui/icons";
 import { useToast } from "../../shared/ui/toast";
-import { formatearMoneda } from "../../shared/ui/moneda";
 
 type Formato = FormatoEtiqueta;
 
@@ -156,6 +155,11 @@ export function EtiquetasPage() {
     } finally { setCargando(false); }
   };
 
+  // Azul/Roja en la lista armada van redondeados, sin decimales — es solo para chequear de un
+  // vistazo qué precio tiene cargado cada artículo antes de imprimir, no un importe a cobrar (ese
+  // sale con decimales en el PDF real, ver EtiquetaPdf.tsx).
+  const formatearSinDecimales = (n: number) => `$ ${Math.round(n).toLocaleString("es-AR")}`;
+
   // Precio de una tarjeta puntual (AZUL/ROJA) para la fila de la lista armada. Si las tarjetas
   // colapsaron en un precio único (folder vigente, o Rojo/Azul coincidiendo — ver EtiquetaService)
   // no hay entradas individuales: en ese caso el precio único vale para las dos, así que se usa ese.
@@ -303,8 +307,8 @@ export function EtiquetasPage() {
                   return (
                     <tr key={a.idPresentacion}>
                       <td><span className="mono">{a.codigoInterno}</span> | {a.descripcion}</td>
-                      <td className={`mono ${claseUnico ?? ""}`}>{azul != null ? formatearMoneda(azul) : "—"}</td>
-                      <td className={`mono ${claseUnico ?? ""}`}>{roja != null ? formatearMoneda(roja) : "—"}</td>
+                      <td className={`mono ${claseUnico ?? ""}`}>{azul != null ? formatearSinDecimales(azul) : "—"}</td>
+                      <td className={`mono ${claseUnico ?? ""}`}>{roja != null ? formatearSinDecimales(roja) : "—"}</td>
                       <td><button className="danger" onClick={() => quitar(a.idPresentacion)}>Quitar</button></td>
                     </tr>
                   );
