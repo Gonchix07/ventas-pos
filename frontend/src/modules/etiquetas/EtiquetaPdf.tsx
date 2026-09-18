@@ -138,41 +138,67 @@ const hs = StyleSheet.create({
   footer: { flexDirection: "row", justifyContent: "center", gap: mm(12), fontSize: 10.5, marginTop: mm(6) },
 });
 
+// Horizontal (A4H/A5H): mucho menos alto disponible que en vertical — A5H tiene solo 148mm de
+// alto total contra los 210/297mm de A5/A4 verticales. Con el padding y las fuentes de `hs` tal
+// cual, el contenido no entraba: `preciosArea` (flex:1) terminaba con una altura calculada
+// insuficiente y los bloques de AZUL/ROJA se superponían en vez de apilarse (bug real, visto en
+// captura). Achicando padding vertical y fuentes de este set alcanza de sobra incluso en A5H.
+const hsH = StyleSheet.create({
+  page: hs.page,
+  container: { flexDirection: "column", height: "100%", paddingVertical: mm(8), paddingHorizontal: mm(16) },
+  titulo: { fontWeight: 800, fontSize: 20, textAlign: "center" },
+  preciosArea: { flex: 1, flexDirection: "column", justifyContent: "center", alignItems: "center" },
+  bloque: { marginBottom: mm(3), alignItems: "center" },
+  nombreTarjeta: { fontWeight: 800, fontSize: 11, marginBottom: mm(1) },
+  precio: { fontWeight: 800, marginBottom: mm(1) },
+  detalle: { fontSize: 8, color: "#333333", textAlign: "center" },
+  piePrecio: { fontSize: 8, textAlign: "center" },
+  footer: { flexDirection: "row", justifyContent: "center", gap: mm(10), fontSize: 8, marginTop: mm(3) },
+});
+const PRECIO_UNICO_H = 42;
+const PRECIO_AZUL_H = 46;
+const PRECIO_OTRA_H = 34;
+
 function HojaDocument({ items, formato }: { items: Etiqueta[]; formato: "A4" | "A5" | "A4H" | "A5H" }) {
   // H = horizontal (apaisada): mismas medidas de A4/A5 con ancho y alto invertidos.
   const size = formato === "A4" ? { width: mm(210), height: mm(297) }
     : formato === "A4H" ? { width: mm(297), height: mm(210) }
     : formato === "A5" ? { width: mm(148), height: mm(210) }
     : { width: mm(210), height: mm(148) };
+  const esHorizontal = formato === "A4H" || formato === "A5H";
+  const s = esHorizontal ? hsH : hs;
+  const [precioUnico, precioAzul, precioOtra] = esHorizontal
+    ? [PRECIO_UNICO_H, PRECIO_AZUL_H, PRECIO_OTRA_H]
+    : [PRECIO_UNICO, PRECIO_AZUL, PRECIO_OTRA];
   return (
     <Document>
       {items.map((e) => {
         // filasDe ya deja AZUL primero cuando conviven varias tarjetas.
         const ordenadas = filasDe(e, "");
         return (
-          <Page key={e.idPresentacion} size={size} style={hs.page}>
-            <View style={hs.container}>
-              <Text style={hs.titulo}>{e.descripcion.toUpperCase()}</Text>
-              <View style={hs.preciosArea}>
+          <Page key={e.idPresentacion} size={size} style={s.page}>
+            <View style={s.container}>
+              <Text style={s.titulo}>{e.descripcion.toUpperCase()}</Text>
+              <View style={s.preciosArea}>
                 {ordenadas.map((row, i) => {
-                  const fontSize = ordenadas.length > 1 ? (esAzul(row.nombre) ? PRECIO_AZUL : PRECIO_OTRA) : PRECIO_UNICO;
+                  const fontSize = ordenadas.length > 1 ? (esAzul(row.nombre) ? precioAzul : precioOtra) : precioUnico;
                   return (
-                    <View key={i} style={hs.bloque}>
-                      {row.nombre && <Text style={hs.nombreTarjeta}>{row.nombre.toUpperCase()}</Text>}
-                      <Text style={[hs.precio, { fontSize }]}>$ {fmtHoja(row.precio)}</Text>
+                    <View key={i} style={s.bloque}>
+                      {row.nombre && <Text style={s.nombreTarjeta}>{row.nombre.toUpperCase()}</Text>}
+                      <Text style={[s.precio, { fontSize }]}>$ {fmtHoja(row.precio)}</Text>
                       {row.pxu != null && (
-                        <Text style={hs.detalle}>Precio por {e.unidadMedidaTexto} $ {fmt(row.pxu)}</Text>
+                        <Text style={s.detalle}>Precio por {e.unidadMedidaTexto} $ {fmt(row.pxu)}</Text>
                       )}
-                      <Text style={hs.detalle}>Precio sin impuestos nacionales: $ {fmt(row.si)}</Text>
+                      <Text style={s.detalle}>Precio sin impuestos nacionales: $ {fmt(row.si)}</Text>
                     </View>
                   );
                 })}
               </View>
               <View>
-                <Text style={hs.piePrecio}>
+                <Text style={s.piePrecio}>
                   Compra mínima: {e.compraMinima} Unidad(es){"\n"}Precio final, IVA incluido
                 </Text>
-                <View style={hs.footer}>
+                <View style={s.footer}>
                   <Text>Cod. {e.codigoInterno}</Text>
                   <Text>Cod. Barras: {e.codigoBarra}</Text>
                 </View>
