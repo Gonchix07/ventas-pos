@@ -12,7 +12,7 @@ import { formatearMoneda } from "../../shared/ui/moneda";
 type Formato = FormatoEtiqueta;
 
 export function EtiquetasPage() {
-  const { usuario, logout, idSucursalPredeterminada } = useAuth();
+  const { logout, idSucursalPredeterminada } = useAuth();
   const navigate = useNavigate();
   const notificar = useToast();
   const [sucursales, setSucursales] = useState<LookupSimple[]>([]);
@@ -175,7 +175,6 @@ export function EtiquetasPage() {
           <span className="brand-sub">Etiquetas</span>
         </div>
         <div className="user-box">
-          <span>{usuario}</span>
           <button onClick={() => navigate("/")}>Módulos</button>
           <button onClick={logout}>Salir</button>
         </div>
