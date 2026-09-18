@@ -197,8 +197,8 @@ export function EtiquetasPage() {
           <div className="field-row" style={{ marginTop: 0 }}>
             <label>Buscar por
               <select value={modoBusqueda} onChange={(e) => setModoBusqueda(e.target.value as typeof modoBusqueda)}>
-                <option value="articulo">Artículo (código, código de barra o descripción)</option>
-                <option value="clasificacion">Clasificación completa (línea/sector/familia)</option>
+                <option value="articulo">Artículo</option>
+                <option value="clasificacion">Clasificación completa</option>
               </select>
             </label>
           </div>

@@ -663,8 +663,9 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
    que hay algo ahí debajo — reusada por "Autorizados" en Caja y por los resultados de búsqueda en
    Etiquetas. */
 .toggle-flecha { flex: 0 0 auto; width: 28px; height: 28px; margin-top: -2px;
+  display: inline-flex; align-items: center; justify-content: center;
   border: none; background: transparent; padding: 0; cursor: pointer; color: #1c6b3c;
-  font-size: 26px; font-weight: 700; line-height: 28px; text-align: center; border-radius: 4px; }
+  font-size: 26px; font-weight: 700; line-height: 1; border-radius: 4px; }
 .toggle-flecha:hover { color: #124a29; background: #e3f5e9; }
 .caja-totales { display: flex; align-items: center; gap: 24px; justify-content: flex-end;
   margin-top: 16px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
