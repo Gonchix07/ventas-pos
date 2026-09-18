@@ -1048,13 +1048,13 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
    junto a su label en una sola línea) y "Buscar por" (a este ancho se usa solo por artículo, pedido
    explícito — queda el modo que ya estuviera elegido, por default "Artículo") — casos extremos que
    en el resto de la app no se dan (esta pantalla es la única con un piso tan bajo). El campo de
-   código del buscador se achica más todavía (90px, después bajado a 60px), para que entre junto
-   con "Buscar" en la misma línea. */
+   código del buscador se achica más todavía (90px, después 60px, después 40px), para que entre
+   junto con "Buscar" en la misma línea. */
 @media (max-width: 325px) {
   .etiquetas-header .btn-salir { display: none; }
   .etiquetas-sucursal-row { display: none; }
   .etiquetas-buscar-por-row { display: none; }
-  .etiquetas-buscar-input { flex: 0 1 min(60px, 100%); }
+  .etiquetas-buscar-input { flex: 0 1 min(40px, 100%); }
 }
 /* Columnas Azul/Roja de la lista armada: "Precio Único" (folder vigente, o Azul/Roja cargados con
    el mismo precio — ver EtiquetaService) se resalta en naranja+negrita para que se note que no son
