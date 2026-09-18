@@ -283,7 +283,7 @@ export function EtiquetasPage() {
             <table className="grid">
               <thead>
                 <tr>
-                  <th>Código</th><th>Artículo</th><th>Azul</th><th>Roja</th>
+                  <th>Código | Artículo</th><th>Azul</th><th>Roja</th>
                   <th>
                     <button className="danger" disabled={lista.length === 0 || cargando} onClick={quitarTodo}>
                       Limpiar
@@ -302,15 +302,14 @@ export function EtiquetasPage() {
                   const claseUnico = esUnico ? "precio-etiqueta-unico" : undefined;
                   return (
                     <tr key={a.idPresentacion}>
-                      <td className="mono">{a.codigoInterno}</td>
-                      <td>{a.descripcion}</td>
+                      <td><span className="mono">{a.codigoInterno}</span> | {a.descripcion}</td>
                       <td className={`mono ${claseUnico ?? ""}`}>{azul != null ? formatearMoneda(azul) : "—"}</td>
                       <td className={`mono ${claseUnico ?? ""}`}>{roja != null ? formatearMoneda(roja) : "—"}</td>
                       <td><button className="danger" onClick={() => quitar(a.idPresentacion)}>Quitar</button></td>
                     </tr>
                   );
                 })}
-                {lista.length === 0 && <tr><td colSpan={5} className="muted">Sin artículos en la lista.</td></tr>}
+                {lista.length === 0 && <tr><td colSpan={4} className="muted">Sin artículos en la lista.</td></tr>}
               </tbody>
             </table>
           </div>
