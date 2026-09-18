@@ -25,6 +25,9 @@ export function EtiquetasPage() {
   const [modoBusqueda, setModoBusqueda] = useState<"articulo" | "clasificacion">("articulo");
   const [q, setQ] = useState("");
   const [resultados, setResultados] = useState<ArticuloParaEtiqueta[]>([]);
+  // Plegar/desplegar la tabla de resultados de la búsqueda — puede quedar larga y tapar el resto
+  // del panel; mismo criterio visual que "Autorizados" en Caja (flecha + cantidad al lado).
+  const [resultadosAbierto, setResultadosAbierto] = useState(true);
   const [lista, setLista] = useState<ArticuloParaEtiqueta[]>([]);
   // idPresentacion → precios ya resueltos (AZUL/ROJA), para mostrarlos en la lista armada sin
   // esperar a "Generar PDF". Se completa en segundo plano al agregar cada artículo (o de nuevo si
@@ -206,27 +209,35 @@ export function EtiquetasPage() {
                 <input placeholder="Código, código de barra o descripción" value={q}
                   onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscar()} style={{ flex: 1 }} />
                 <button className="primary" onClick={buscar}>Buscar</button>
+                <button type="button" className="toggle-flecha"
+                  onClick={() => setResultadosAbierto((v) => !v)}
+                  aria-expanded={resultadosAbierto}
+                  title={resultadosAbierto ? "Ocultar resultados" : "Mostrar resultados"}>
+                  {resultadosAbierto ? "▾" : "▸"}
+                </button>
               </div>
-              <div className="table-scroll">
-                <table className="grid">
-                  <thead><tr><th>Código</th><th>Artículo</th><th></th></tr></thead>
-                  <tbody>
-                    {resultados.map((a) => (
-                      <tr key={a.idPresentacion}>
-                        <td className="mono">{a.codigoInterno}</td>
-                        <td>{a.descripcion}</td>
-                        <td>
-                          <button className="icon-btn icon-agregar" title="Agregar" aria-label="Agregar"
-                            onClick={() => agregar(a)}><IconAgregar /></button>
-                        </td>
-                      </tr>
-                    ))}
-                    {resultados.length === 0 && (
-                      <tr><td colSpan={3} className="muted">Buscá un artículo por código, código de barra o descripción.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              {resultadosAbierto && (
+                <div className="table-scroll">
+                  <table className="grid">
+                    <thead><tr><th>Código</th><th>Artículo</th><th></th></tr></thead>
+                    <tbody>
+                      {resultados.map((a) => (
+                        <tr key={a.idPresentacion}>
+                          <td className="mono">{a.codigoInterno}</td>
+                          <td>{a.descripcion}</td>
+                          <td>
+                            <button className="icon-btn icon-agregar" title="Agregar" aria-label="Agregar"
+                              onClick={() => agregar(a)}><IconAgregar /></button>
+                          </td>
+                        </tr>
+                      ))}
+                      {resultados.length === 0 && (
+                        <tr><td colSpan={3} className="muted">Buscá un artículo por código, código de barra o descripción.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </>
           ) : (
             <div className="form-grid">

@@ -1860,7 +1860,7 @@ export function CajaPage() {
             presentan. Solo llegan los autorizados activos. */}
         {clienteSel?.autorizados && clienteSel.autorizados.length > 0 && (
           <div className="caja-autorizados">
-            <button type="button" className="caja-autorizados-toggle"
+            <button type="button" className="toggle-flecha"
               onClick={() => setAutorizadosAbierto((v) => !v)}
               aria-expanded={autorizadosAbierto}
               title={autorizadosAbierto ? "Ocultar autorizados" : "Mostrar autorizados"}>

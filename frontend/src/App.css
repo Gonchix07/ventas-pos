@@ -659,12 +659,13 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 .caja-autorizados .tit { font-weight: 600; }
 .caja-autorizados ul { list-style: none; margin: 0; padding: 0; }
 .caja-autorizados .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
-/* Flecha para plegar/desplegar la lista (puede ser larga) sin perder el dato de que hay
-   autorizados — colapsada muestra la cantidad al lado de "Autorizados". */
-.caja-autorizados-toggle { flex: 0 0 auto; width: 24px; height: 24px; margin-top: -2px;
+/* Flecha genérica para plegar/desplegar un bloque de contenido (lista, tabla) sin perder de vista
+   que hay algo ahí debajo — reusada por "Autorizados" en Caja y por los resultados de búsqueda en
+   Etiquetas. */
+.toggle-flecha { flex: 0 0 auto; width: 28px; height: 28px; margin-top: -2px;
   border: none; background: transparent; padding: 0; cursor: pointer; color: #1c6b3c;
-  font-size: 20px; font-weight: 700; line-height: 24px; text-align: center; border-radius: 4px; }
-.caja-autorizados-toggle:hover { color: #124a29; background: #e3f5e9; }
+  font-size: 26px; font-weight: 700; line-height: 28px; text-align: center; border-radius: 4px; }
+.toggle-flecha:hover { color: #124a29; background: #e3f5e9; }
 .caja-totales { display: flex; align-items: center; gap: 24px; justify-content: flex-end;
   margin-top: 16px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .caja-totales div { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 2px; }
