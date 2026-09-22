@@ -45,6 +45,30 @@ public class EtiquetaService : IEtiquetaService
         ).Take(30).ToListAsync(ct);
     }
 
+    public async Task<ArticuloParaEtiquetaDto?> BuscarExactoAsync(string codigo, CancellationToken ct = default)
+    {
+        codigo = codigo.Trim();
+        if (codigo.Length == 0) return null;
+
+        // Código de barras exacto primero, mismo criterio que BuscarAsync.
+        var porBarra = await (
+            from b in _db.Barras.AsNoTracking().Where(x => x.CodigoBarra == codigo)
+            join pr in _db.Presentaciones.AsNoTracking().Where(p => p.UnidadXBulto == 1m) on b.IdPresentacion equals pr.IdPresentacion
+            join a in _db.Articulos.AsNoTracking().Where(x => x.Activo) on pr.IdArticulo equals a.IdArticulo
+            select new ArticuloParaEtiquetaDto(a.IdArticulo, pr.IdPresentacion, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket)
+        ).FirstOrDefaultAsync(ct);
+        if (porBarra is not null) return porBarra;
+
+        // Código interno EXACTO — a diferencia de BuscarAsync, acá NO se admite Contains sobre
+        // descripción ni código: es solo para el escaneo numérico, donde un match parcial sería un
+        // error (podría traer un artículo distinto al escaneado).
+        return await (
+            from a in _db.Articulos.AsNoTracking().Where(x => x.Activo && x.CodigoInterno == codigo)
+            join pr in _db.Presentaciones.AsNoTracking().Where(p => p.UnidadXBulto == 1m) on a.IdArticulo equals pr.IdArticulo
+            select new ArticuloParaEtiquetaDto(a.IdArticulo, pr.IdPresentacion, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket)
+        ).FirstOrDefaultAsync(ct);
+    }
+
     public async Task<IReadOnlyList<ArticuloParaEtiquetaDto>> PorClasificacionAsync(
         int? idSector, int? idLinea, int? idFamilia, CancellationToken ct = default)
     {

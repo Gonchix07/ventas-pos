@@ -1047,18 +1047,40 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
    podían achicarlo por debajo de ese piso invisible, así que los cambios de tamaño en el @media de
    abajo no se notaban. */
 .etiquetas-buscar-input { flex: 0 1 min(180px, 100%); min-width: 0; }
+/* Buscador numérico de coincidencia exacta (solo pantalla angosta de celular, ver EtiquetasPage.tsx
+   buscarExacto()): oculto por default, se muestra en su lugar dentro del @media de acá abajo. */
+.etiquetas-buscar-numerico { display: none; }
 /* Pantalla angosta de verdad (< 325px de ancho): se saca "Salir" del header (para que "Módulos" y
    el logo entren sin scroll horizontal), el selector de Sucursal (que a este ancho ya no cabe
    junto a su label en una sola línea) y "Buscar por" (a este ancho se usa solo por artículo, pedido
    explícito — queda el modo que ya estuviera elegido, por default "Artículo") — casos extremos que
    en el resto de la app no se dan (esta pantalla es la única con un piso tan bajo). El campo de
-   código del buscador se achica más todavía (90px, después 60px, después 40px), para que entre
-   junto con "Buscar" en la misma línea. */
+   código del buscador pasó por varios tamaños (90px, 60px, 40px, 80px, 160px y por último 128px
+   — todo pedido explícito, ajustado a mano hasta que se vio bien), para que entre junto con
+   "Buscar" en la misma línea. */
 @media (max-width: 325px) {
   .etiquetas-header .btn-salir { display: none; }
   .etiquetas-sucursal-row { display: none; }
   .etiquetas-buscar-por-row { display: none; }
-  .etiquetas-buscar-input { flex: 0 1 min(40px, 100%); }
+  .etiquetas-buscar-input { flex: 0 1 min(128px, 100%); }
+  /* El buscador normal (texto libre, puede traer varios resultados) se reemplaza acá por el
+     numérico de coincidencia exacta — ver EtiquetasPage.tsx buscarExacto(). Con eso, la tabla de
+     resultados tampoco tiene función (buscarExacto nunca deja más de un candidato para elegir) y
+     se oculta junto con la flecha que la plegaba/desplegaba. */
+  .etiquetas-buscar-normal { display: none; }
+  .etiquetas-buscar-numerico { display: flex; }
+  .etiquetas-resultados-table { display: none; }
+  .etiquetas-toggle-resultados { display: none; }
+  /* Gaps achicados: entre input/Buscar/flecha del toolbar, y entre el card de búsqueda y la lista
+     armada — a este ancho .two-col ya se apila en una sola columna (360px no entra en <325px), así
+     que ese segundo gap es el espacio vertical entre ambos bloques apilados. */
+  .etiquetas-compact .toolbar { gap: 4px; }
+  .etiquetas-compact .two-col { gap: 8px; }
+  /* Se saca el recuadro blanco (fondo/borde/radio) que envuelve el campo de código y "Buscar": a
+     este ancho es el único control visible ahí (el resto del card está oculto), así que el
+     recuadro es puro espacio desperdiciado — sin él, y con el padding/margen comprimidos, entra
+     más contenido en pantalla sin scroll. */
+  .etiquetas-compact .card.form { background: none; border: none; border-radius: 0; padding: 0; margin: 4px 0; gap: 4px; }
 }
 /* Columnas Azul/Roja de la lista armada: "Precio Único" (folder vigente, o Azul/Roja cargados con
    el mismo precio — ver EtiquetaService) se resalta en naranja+negrita para que se note que no son

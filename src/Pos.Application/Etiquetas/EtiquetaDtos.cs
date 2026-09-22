@@ -25,6 +25,11 @@ public record ClasificacionesDto(List<LookupSimpleDto> Sectores, List<LookupSimp
 public interface IEtiquetaService
 {
     Task<IReadOnlyList<ArticuloParaEtiquetaDto>> BuscarAsync(string query, CancellationToken ct = default);
+    /// <summary>Coincidencia EXACTA por código de barras o código interno del artículo (a diferencia
+    /// de <see cref="BuscarAsync"/>, que también admite texto parcial sobre la descripción) — pensado
+    /// para el escaneo numérico en la pantalla angosta de celular (ver EtiquetasPage.tsx). Null si no
+    /// hay ningún match exacto.</summary>
+    Task<ArticuloParaEtiquetaDto?> BuscarExactoAsync(string codigo, CancellationToken ct = default);
     Task<IReadOnlyList<ArticuloParaEtiquetaDto>> PorClasificacionAsync(
         int? idSector, int? idLinea, int? idFamilia, CancellationToken ct = default);
     Task<IReadOnlyList<EtiquetaDto>> GenerarAsync(int idSucursal, List<int> idsPresentacion, CancellationToken ct = default);

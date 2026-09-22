@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/auth/auth";
 import {
@@ -35,6 +35,15 @@ export function EtiquetasPage() {
   const [formato, setFormato] = useState<Formato>("Fleje");
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+  // El cajero escanea en cadena: el foco tiene que volver siempre al campo de código, tanto al
+  // cargar la página como después de agregar cada artículo (si no, el siguiente código escaneado
+  // se pierde tipeando en otro lado).
+  const inputBusquedaRef = useRef<HTMLInputElement>(null);
+  // Pantalla angosta de celular (< 325px, ver App.css): campo aparte, solo dígitos, que busca por
+  // coincidencia EXACTA de código de artículo o de barras (no texto parcial de descripción) — un
+  // input propio en vez de reusar `q`/`buscar` porque la validación y el endpoint son distintos.
+  const [qNumerico, setQNumerico] = useState("");
+  const inputNumericoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     etiquetas.sucursales().then((s) => {
@@ -83,6 +92,11 @@ export function EtiquetasPage() {
     notificar(`${a.descripcion} agregado a la lista`);
     setLista((l) => (l.some((x) => x.idPresentacion === a.idPresentacion) ? l : [a, ...l]));
     cargarPrecios([a.idPresentacion]);
+    // Solo uno de los dos campos está visible según el ancho de pantalla (ver .etiquetas-buscar-
+    // normal/.etiquetas-buscar-numerico en App.css) — un elemento oculto (display:none) no puede
+    // recibir foco, así que llamar a los dos acá no hace nada en el que no corresponde.
+    inputBusquedaRef.current?.focus();
+    inputNumericoRef.current?.focus();
   };
 
   const buscar = async () => {
@@ -93,12 +107,33 @@ export function EtiquetasPage() {
       // Resultado único (típico al escanear un código de barra): va directo a la lista armada, sin
       // el paso intermedio de "+ Agregar" — y limpia el campo para poder seguir escaneando ya
       // mismo. Con más de un resultado (búsqueda por texto ambigua) se elige a mano, como antes.
+      // Este buscador (y su tabla de resultados) queda oculto por CSS en la pantalla angosta de
+      // celular (< 325px) — ahí se usa buscarExacto() en su lugar, ver más abajo.
       if (r.length === 1) {
         agregar(r[0]);
         setResultados([]);
         setQ("");
       } else {
         setResultados(r);
+      }
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+  };
+
+  // Pantalla angosta de celular: coincidencia exacta por código de artículo o de barras (nunca
+  // texto parcial). Siempre "el primer resultado" en el sentido de que solo puede haber uno —
+  // código de artículo y código de barras son identificadores únicos — a diferencia de `buscar`,
+  // que puede traer varios por texto ambiguo.
+  const buscarExacto = async () => {
+    setError(null);
+    const codigo = qNumerico.trim();
+    if (!codigo) return;
+    try {
+      const r = await etiquetas.buscarExacto(codigo);
+      if (r) {
+        agregar(r);
+        setQNumerico("");
+      } else {
+        setError(`No se encontró ningún artículo con el código ${codigo}.`);
       }
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
   };
@@ -208,19 +243,30 @@ export function EtiquetasPage() {
 
           {modoBusqueda === "articulo" ? (
             <>
-              <div className="toolbar">
-                <input className="etiquetas-buscar-input" placeholder="Código, código de barra o descripción" value={q}
+              <div className="toolbar etiquetas-buscar-normal">
+                <input ref={inputBusquedaRef} autoFocus className="etiquetas-buscar-input"
+                  placeholder="Código, código de barra o descripción" value={q}
                   onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && buscar()} />
                 <button className="primary" onClick={buscar}>Buscar</button>
-                <button type="button" className="toggle-flecha"
+                <button type="button" className="toggle-flecha etiquetas-toggle-resultados"
                   onClick={() => setResultadosAbierto((v) => !v)}
                   aria-expanded={resultadosAbierto}
                   title={resultadosAbierto ? "Ocultar resultados" : "Mostrar resultados"}>
                   {resultadosAbierto ? "▾" : "▸"}
                 </button>
               </div>
+              {/* Pantalla angosta de celular: solo dígitos, solo coincidencia exacta (ver
+                  buscarExacto) — reemplaza al buscador normal de arriba, que en este ancho queda
+                  oculto por CSS. */}
+              <div className="toolbar etiquetas-buscar-numerico">
+                <input ref={inputNumericoRef} autoFocus inputMode="numeric" pattern="[0-9]*"
+                  className="etiquetas-buscar-input" placeholder="Código" value={qNumerico}
+                  onChange={(e) => setQNumerico(e.target.value.replace(/\D/g, ""))}
+                  onKeyDown={(e) => e.key === "Enter" && buscarExacto()} />
+                <button className="primary" onClick={buscarExacto}>Buscar</button>
+              </div>
               {resultadosAbierto && (
-                <div className="table-scroll">
+                <div className="table-scroll etiquetas-resultados-table">
                   <table className="grid">
                     <thead><tr><th>Código</th><th>Artículo</th><th></th></tr></thead>
                     <tbody>

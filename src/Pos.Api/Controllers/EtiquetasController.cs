@@ -28,6 +28,10 @@ public class EtiquetasController : ControllerBase
     public async Task<IActionResult> Buscar([FromQuery] string q, CancellationToken ct) =>
         Ok(ApiResult<IReadOnlyList<ArticuloParaEtiquetaDto>>.Success(await _service.BuscarAsync(q ?? "", ct)));
 
+    [HttpGet("buscar-exacto")]
+    public async Task<IActionResult> BuscarExacto([FromQuery] string codigo, CancellationToken ct) =>
+        Ok(ApiResult<ArticuloParaEtiquetaDto?>.Success(await _service.BuscarExactoAsync(codigo ?? "", ct)));
+
     [HttpGet("por-clasificacion")]
     public async Task<IActionResult> PorClasificacion(
         [FromQuery] int? idSector, [FromQuery] int? idLinea, [FromQuery] int? idFamilia, CancellationToken ct) =>

@@ -26,6 +26,10 @@ export const etiquetas = {
   clasificaciones: () => unwrap<Clasificaciones>(api.get(`/etiquetas/clasificaciones`)),
   sucursales: () => unwrap<LookupSimple[]>(api.get(`/etiquetas/sucursales`)),
   buscar: (q: string) => unwrap<ArticuloParaEtiqueta[]>(api.get(`/etiquetas/buscar`, { params: { q } })),
+  /** Coincidencia EXACTA por código de barras o código interno (sin texto parcial sobre
+   *  descripción) — usado en la pantalla angosta de celular, ver EtiquetasPage.tsx. */
+  buscarExacto: (codigo: string) =>
+    unwrap<ArticuloParaEtiqueta | null>(api.get(`/etiquetas/buscar-exacto`, { params: { codigo } })),
   porClasificacion: (idSector?: number, idLinea?: number, idFamilia?: number) =>
     unwrap<ArticuloParaEtiqueta[]>(api.get(`/etiquetas/por-clasificacion`, { params: { idSector, idLinea, idFamilia } })),
   generar: (idSucursal: number, idsPresentacion: number[]) =>
