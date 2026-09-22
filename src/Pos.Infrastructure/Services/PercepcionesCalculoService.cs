@@ -105,8 +105,13 @@ public class PercepcionesCalculoService : IPercepcionesCalculoService
         var percepcionIva21 = exceptuadoIva ? 0m : PercepcionesReglas.CalcularPercepcionIva21(netoAl21, minimoIva21);
         var percepcionIva105 = exceptuadoIva ? 0m : PercepcionesReglas.CalcularPercepcionIva105(netoAl105, minimoIva105);
 
+        // Percepción de IIBB: mismo criterio que la de IVA de más arriba — solo corresponde a
+        // Responsables Inscriptos (Factura A), nunca a Consumidor Final/Monotributista/Exento
+        // (Factura B), tengan o no CUIT cargado. Bug real (2026-09-22, factura 0034-00000032): antes
+        // solo miraba si había CUIT, así que un Consumidor Final con CUIT cargado (algunos clientes
+        // lo tienen igual, para otros usos) terminaba pagando IIBB indebidamente.
         decimal? alicuotaIibb = null;
-        if (!string.IsNullOrWhiteSpace(cuit))
+        if (esResponsableInscripto && !string.IsNullOrWhiteSpace(cuit))
         {
             alicuotaIibb = await _db.PadronIngresosBrutos.AsNoTracking().Where(p => p.Cuit == cuit)
                 .Select(p => (decimal?)p.Percepcion).FirstOrDefaultAsync(ct);
