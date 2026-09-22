@@ -826,7 +826,16 @@ public class CajaService : ICajaService
 
         // Último escaneado arriba: es el orden que espera el cajero en pantalla. El comprobante no
         // usa este DTO (lee op.Detalles directo), así que el detalle fiscal no se ve afectado.
-        var lineas = op.Detalles.OrderByDescending(d => d.IdDetalleOperacion).Select(d =>
+        // Ordenar por IdDetalleOperacion (creación) dejaba una línea ya existente clavada en su
+        // lugar original al volver a escanearla para sumarle cantidad — bug real, reportado por el
+        // usuario: "leer un artículo que ya está en el carrito no lo sube al tope". UpdatedAtUtc (lo
+        // pisa StampAudit en cada SaveChanges que la modifica, ver PosDbContext) sí refleja el último
+        // toque, sea alta o cambio de cantidad; se cae a CreatedAtUtc para una línea que nunca se
+        // tocó después de crearse.
+        var lineas = op.Detalles
+            .OrderByDescending(d => d.UpdatedAtUtc ?? d.CreatedAtUtc)
+            .ThenByDescending(d => d.IdDetalleOperacion)
+            .Select(d =>
         {
             var i = info.GetValueOrDefault(d.IdPresentacion);
             // PrecioLista: precio de lista SIN ningún descuento (columna "Precio" de Caja). Fallback
