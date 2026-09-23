@@ -375,10 +375,14 @@ public class CajaService : ICajaService
         // dígitos) prácticamente nunca coincide por casualidad con un código interno corto, así que
         // este orden no cambia nada para un escaneo real de góndola.
         // Trim() de ambos lados: el código interno importado del catálogo legacy a veces trae
-        // espacios sobrantes (comprobado con el artículo 355 — la igualdad exacta fallaba pero el
-        // Contains de la búsqueda por lupa sí lo encontraba, señal de basura invisible en el dato).
+        // espacios sobrantes. Activo también va DENTRO del where (no filtrado después del
+        // FirstOrDefault): si el catálogo tiene un artículo duplicado/dado de baja con el mismo
+        // código interno que ordena antes por UnidadXBulto, filtrar Activo recién al final se queda
+        // con esa fila inactiva y descarta la búsqueda entera — aunque exista un artículo activo con
+        // ese mismo código (bug real, artículo 355: la lupa SÍ lo encontraba porque BuscarArticulosAsync
+        // ya filtra Activo en el WHERE; la búsqueda exacta no).
         var match = await (
-            from a in _db.Articulos.AsNoTracking().Where(x => x.CodigoInterno.Trim() == codigo)
+            from a in _db.Articulos.AsNoTracking().Where(x => x.Activo && x.CodigoInterno.Trim() == codigo)
             join pr in _db.Presentaciones.AsNoTracking() on a.IdArticulo equals pr.IdArticulo
             orderby pr.UnidadXBulto
             select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo, a.MinimaUnidadVenta }
@@ -392,7 +396,7 @@ public class CajaService : ICajaService
             match = await (
                 from b in _db.Barras.AsNoTracking().Where(x => x.CodigoBarra == codigo)
                 join pr in _db.Presentaciones.AsNoTracking() on b.IdPresentacion equals pr.IdPresentacion
-                join a in _db.Articulos.AsNoTracking() on pr.IdArticulo equals a.IdArticulo
+                join a in _db.Articulos.AsNoTracking().Where(x => x.Activo) on pr.IdArticulo equals a.IdArticulo
                 orderby pr.UnidadXBulto
                 select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo, a.MinimaUnidadVenta }
             ).FirstOrDefaultAsync(ct);
@@ -405,7 +409,7 @@ public class CajaService : ICajaService
         {
             var codigos = BarraBalanza.CodigosPosibles(pesada.CodigoArticulo);
             match = await (
-                from a in _db.Articulos.AsNoTracking().Where(x => codigos.Contains(x.CodigoInterno))
+                from a in _db.Articulos.AsNoTracking().Where(x => x.Activo && codigos.Contains(x.CodigoInterno))
                 join pr in _db.Presentaciones.AsNoTracking() on a.IdArticulo equals pr.IdArticulo
                 orderby pr.UnidadXBulto
                 select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo, a.MinimaUnidadVenta }
