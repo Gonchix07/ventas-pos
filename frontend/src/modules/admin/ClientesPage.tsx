@@ -22,6 +22,12 @@ const hoyLocal = () => {
 };
 const soloFecha = (v?: string | null) => (v ? v.slice(0, 10) : hoyLocal());
 
+const formatearFechaHora = (iso?: string | null) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return `${d.toLocaleDateString("es-AR")} ${d.toLocaleTimeString("es-AR", { hour12: false, hour: "2-digit", minute: "2-digit" })}`;
+};
+
 // La condición de IVA decide la letra del comprobante. El lookup de condiciones solo devuelve
 // {id, descripcion}, así que acá se reconoce por nombre (el backend usa CondicionIva.Letra, que es
 // la fuente de verdad — esto es solo el aviso en pantalla).
@@ -36,6 +42,9 @@ export function ClientesPage() {
   const [q, setQ] = useState("");
   const [form, setForm] = useState<ClienteInput | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
+  // No viaja en ClienteInput (eso es lo que se manda al guardar), así que se guarda aparte solo
+  // para mostrarlo junto al formulario.
+  const [formUltimaSyncErp, setFormUltimaSyncErp] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const cargar = async () => {
@@ -53,12 +62,14 @@ export function ClientesPage() {
 
   const nuevo = () => {
     setEditId(null);
+    setFormUltimaSyncErp(null);
     setForm({ ...VACIO, idCondIva: condiciones[0]?.id ?? 0 });
   };
 
   const editar = async (c: Cliente) => {
     setError(null);
     setEditId(c.idCliente);
+    setFormUltimaSyncErp(c.ultimaSincronizacionErpUtc ?? null);
     const armar = (d: Cliente): ClienteInput => ({
       codigoInt: d.codigoInt, cuit: d.cuit ?? "", documento: d.documento ?? "",
       descripcion: d.descripcion, nombreFantasia: d.nombreFantasia ?? "", idCondIva: d.idCondIva,
@@ -73,7 +84,11 @@ export function ClientesPage() {
     });
     setForm(armar(c));
     // El listado no trae los autorizados (por peso): el detalle sí.
-    try { setForm(armar(await clientes.get(c.idCliente))); }
+    try {
+      const detalle = await clientes.get(c.idCliente);
+      setForm(armar(detalle));
+      setFormUltimaSyncErp(detalle.ultimaSincronizacionErpUtc ?? null);
+    }
     catch (e) { setError(e instanceof Error ? e.message : "Error"); }
   };
 
@@ -125,6 +140,13 @@ export function ClientesPage() {
       {form && (
         <div className="card form">
           <h3>{editId ? "Editar cliente" : "Nuevo cliente"}</h3>
+          {editId && (
+            <p className="muted">
+              {formatearFechaHora(formUltimaSyncErp)
+                ? `Última sincronización con el ERP: ${formatearFechaHora(formUltimaSyncErp)}`
+                : "Nunca sincronizado con el ERP (cargado a mano)"}
+            </p>
+          )}
           <div className="form-grid">
             <label>Código<input value={form.codigoInt} onChange={(e) => set({ codigoInt: e.target.value })} /></label>
             <label>Razón social / Nombre<input value={form.descripcion} onChange={(e) => set({ descripcion: e.target.value })} /></label>

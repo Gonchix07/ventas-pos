@@ -223,7 +223,7 @@ public class ErpSyncRunner
                         IdErp = fila.IdErp, CodigoInterno = codigoInterno, Descripcion = fila.DescripcionFull,
                         IdSector = idSector, IdLinea = idLinea, IdFamilia = idFamilia, IdModoIva = idModoIva,
                         Activo = activo, EstadoErp = fila.Estado, UnidadXBulto = fila.UnidadBulto <= 0 ? 1m : fila.UnidadBulto,
-                        CreatedBy = AutorSync
+                        CreatedBy = AutorSync, UltimaSincronizacionErpUtc = DateTime.UtcNow
                     });
                     checkpoint.Insertados++;
                 }
@@ -240,6 +240,7 @@ public class ErpSyncRunner
                     existente.EstadoErp = fila.Estado;
                     existente.UnidadXBulto = fila.UnidadBulto <= 0 ? 1m : fila.UnidadBulto;
                     existente.UpdatedBy = AutorSync;
+                    existente.UltimaSincronizacionErpUtc = DateTime.UtcNow;
                     checkpoint.Actualizados++;
                 }
             }
@@ -532,7 +533,7 @@ public class ErpSyncRunner
                         IdErp = fila.IdErp, CodigoInt = fila.Codigo, Descripcion = fila.RazonSocial,
                         NombreFantasia = fila.NombreFantasia, Domicilio = fila.Domicilio, Localidad = fila.Localidad,
                         Cuit = cuit, IdCondIva = idCondIva, Email = fila.Email, Activo = activo,
-                        EstadoErp = fila.Estado, CreatedBy = AutorSync
+                        EstadoErp = fila.Estado, CreatedBy = AutorSync, UltimaSincronizacionErpUtc = DateTime.UtcNow
                     });
                     checkpoint.Insertados++;
                 }
@@ -550,6 +551,7 @@ public class ErpSyncRunner
                     existente.Activo = activo;
                     existente.EstadoErp = fila.Estado;
                     existente.UpdatedBy = AutorSync;
+                    existente.UltimaSincronizacionErpUtc = DateTime.UtcNow;
                     checkpoint.Actualizados++;
                 }
             }

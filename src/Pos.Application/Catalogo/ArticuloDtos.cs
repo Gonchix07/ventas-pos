@@ -34,7 +34,9 @@ public record ArticuloDetail(
     int IdSector, int IdLinea, int IdFamilia, int IdModoIva,
     bool Activo, string ImagenUrl, int UnidadMedida, decimal? ContenidoNetoUnitario,
     decimal UnidadXBulto, bool VentaPorPeso, decimal MinimaUnidadVenta,
-    List<PresentacionDto> Presentaciones);
+    List<PresentacionDto> Presentaciones,
+    // Null si el artículo nunca sincronizó desde el ERP (cargado a mano en el ABM).
+    DateTime? UltimaSincronizacionErpUtc = null);
 
 public record ArticuloInput(
     string CodigoInterno, string Descripcion,

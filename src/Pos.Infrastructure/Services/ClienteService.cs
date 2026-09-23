@@ -244,5 +244,6 @@ public class ClienteService : IClienteService
     private static ClienteDto Map(Cliente c) => new(
         c.IdCliente, c.CodigoInt, c.Cuit, c.Documento, c.Descripcion, c.NombreFantasia,
         c.IdCondIva, c.CondicionIva?.Descripcion, c.PermitePresupuesto, c.AdmiteCuentaCorriente, c.Activo,
-        c.Domicilio, c.CodigoPostal, c.Localidad, c.Provincia, c.Email);
+        c.Domicilio, c.CodigoPostal, c.Localidad, c.Provincia, c.Email,
+        UltimaSincronizacionErpUtc: c.UltimaSincronizacionErpUtc);
 }

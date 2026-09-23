@@ -109,7 +109,10 @@ export interface ArticuloInput {
 export const articulos = {
   list: (filtro?: ArticuloFiltro) =>
     unwrap<ArticuloListItem[]>(api.get(`/admin/articulos`, { params: filtro })),
-  get: (id: number) => unwrap<ArticuloInput & { idArticulo: number }>(api.get(`/admin/articulos/${id}`)),
+  get: (id: number) =>
+    unwrap<ArticuloInput & { idArticulo: number; ultimaSincronizacionErpUtc?: string | null }>(
+      api.get(`/admin/articulos/${id}`)
+    ),
   create: (input: ArticuloInput) => unwrap<number>(api.post(`/admin/articulos`, input)),
   update: (id: number, input: ArticuloInput) => unwrap<boolean>(api.put(`/admin/articulos/${id}`, input)),
   remove: (id: number) => unwrap<boolean>(api.delete(`/admin/articulos/${id}`)),
@@ -155,6 +158,9 @@ export interface Cliente {
   email?: string | null;
   /** Solo viene en el detalle (`clientes.get`), no en el listado. */
   autorizados?: Autorizado[] | null;
+  /** Última vez que el sync con el ERP tocó este cliente (alta o actualización). Null si nunca
+   *  sincronizó (cargado a mano en el ABM). */
+  ultimaSincronizacionErpUtc?: string | null;
 }
 export interface ClienteInput {
   codigoInt: string;

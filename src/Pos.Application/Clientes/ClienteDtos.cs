@@ -15,7 +15,9 @@ public record ClienteDto(
     bool PermitePresupuesto, bool AdmiteCuentaCorriente, bool Activo,
     string? Domicilio, string? CodigoPostal, string? Localidad, string? Provincia, string? Email,
     // Solo viene en el detalle (GetById); el listado no los trae por peso.
-    List<AutorizadoDto>? Autorizados = null);
+    List<AutorizadoDto>? Autorizados = null,
+    // Null si el cliente nunca sincronizó desde el ERP (cargado a mano en el ABM).
+    DateTime? UltimaSincronizacionErpUtc = null);
 
 public record ClienteInput(
     string CodigoInt, string? Cuit, string? Documento,

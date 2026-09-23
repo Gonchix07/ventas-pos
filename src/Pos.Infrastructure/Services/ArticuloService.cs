@@ -79,7 +79,7 @@ public class ArticuloService : IArticuloService
             a.IdSector, a.IdLinea, a.IdFamilia, a.IdModoIva, a.Activo,
             _images.BuildImageUrl(a.CodigoInterno).ToString(),
             (int)a.UnidadMedida, a.ContenidoNetoUnitario, a.UnidadXBulto, a.VentaPorPeso,
-            a.MinimaUnidadVenta, presentaciones);
+            a.MinimaUnidadVenta, presentaciones, a.UltimaSincronizacionErpUtc);
     }
 
     public async Task<int> CreateAsync(ArticuloInput input, CancellationToken ct = default)

@@ -26,6 +26,12 @@ const nuevaPresentacion = (): Presentacion => ({
   unidadXBulto: 1, descripcionTicket: "", barras: [],
 });
 
+const formatearFechaHora = (iso?: string | null) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return `${d.toLocaleDateString("es-AR")} ${d.toLocaleTimeString("es-AR", { hour12: false, hour: "2-digit", minute: "2-digit" })}`;
+};
+
 export function ArticulosPage() {
   const [items, setItems] = useState<ArticuloListItem[]>([]);
   const [sectores, setSectores] = useState<Lookup[]>([]);
@@ -37,6 +43,9 @@ export function ArticulosPage() {
   // La imagen no viaja en ArticuloInput (el detalle no la trae, solo el listado): se guarda la del
   // renglón sobre el que se apretó "Editar", nada más que para mostrarla junto al formulario.
   const [formImagenUrl, setFormImagenUrl] = useState<string | null>(null);
+  // Igual que formImagenUrl: no viaja en ArticuloInput (eso es lo que se manda al guardar), así que
+  // se guarda aparte solo para mostrarlo junto al formulario.
+  const [formUltimaSyncErp, setFormUltimaSyncErp] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // ---- Filtros del listado (se resuelven en el backend, ver ArticuloFiltro) ----
@@ -101,6 +110,7 @@ export function ArticulosPage() {
   const nuevo = () => {
     setEditId(null);
     setFormImagenUrl(null);
+    setFormUltimaSyncErp(null);
     const idSector = sectores[0]?.id ?? 0;
     setForm({
       ...VACIO,
@@ -126,6 +136,7 @@ export function ArticulosPage() {
       const a = await articulos.get(id);
       setEditId(id);
       setFormImagenUrl(items.find((i) => i.idArticulo === id)?.imagenUrl ?? null);
+      setFormUltimaSyncErp(a.ultimaSincronizacionErpUtc ?? null);
       setForm({
         codigoInterno: a.codigoInterno, descripcion: a.descripcion,
         idSector: a.idSector, idLinea: a.idLinea, idFamilia: a.idFamilia, idModoIva: a.idModoIva,
@@ -169,6 +180,13 @@ export function ArticulosPage() {
       {form && (
         <div className="card form">
           <h3>{editId ? "Editar artículo" : "Nuevo artículo"}</h3>
+          {editId && (
+            <p className="muted">
+              {formatearFechaHora(formUltimaSyncErp)
+                ? `Última sincronización con el ERP: ${formatearFechaHora(formUltimaSyncErp)}`
+                : "Nunca sincronizado con el ERP (cargado a mano)"}
+            </p>
+          )}
           <div className="form-con-imagen">
             {formImagenUrl && (
               <img className="form-imagen" src={formImagenUrl} alt=""

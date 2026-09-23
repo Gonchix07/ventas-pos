@@ -117,6 +117,11 @@ public class Articulo : AuditableEntity
     /// perder información aunque hoy <see cref="Activo"/> solo distinga activo/inactivo (0,1,2 →
     /// activo — el 2 es "suspendido" pero igual se puede vender —, 3 → inactivo).</summary>
     public int? EstadoErp { get; set; }
+    /// <summary>Fecha/hora (UTC) de la última vez que el sync ERP tocó este artículo (alta o
+    /// actualización) — distinto de <see cref="AuditableEntity.UpdatedAtUtc"/>, que se pisa con
+    /// cualquier edición manual desde el ABM y perdería el dato de "cuándo lo actualizó el ERP" si
+    /// alguien lo edita a mano después. Null en artículos que nunca sincronizó el ERP.</summary>
+    public DateTime? UltimaSincronizacionErpUtc { get; set; }
 
     public ICollection<Presentacion> Presentaciones { get; set; } = new List<Presentacion>();
 }

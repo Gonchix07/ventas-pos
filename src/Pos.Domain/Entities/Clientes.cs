@@ -58,6 +58,10 @@ public class Cliente : AuditableEntity
     /// <summary>Estado crudo (T_Clientes.estado: 0/1/2/3) tal como viene del ERP. Ver
     /// <see cref="Articulo.EstadoErp"/> para el mismo criterio de mapeo a <see cref="Activo"/>.</summary>
     public int? EstadoErp { get; set; }
+    /// <summary>Fecha/hora (UTC) de la última vez que el sync ERP tocó este cliente (alta o
+    /// actualización). Ver <see cref="Articulo.UltimaSincronizacionErpUtc"/> para el motivo de que
+    /// sea un campo aparte de <see cref="AuditableEntity.UpdatedAtUtc"/>.</summary>
+    public DateTime? UltimaSincronizacionErpUtc { get; set; }
 
     public ICollection<ClienteEnCuenta> Cuentas { get; set; } = new List<ClienteEnCuenta>();
     public ICollection<Autorizado> Autorizados { get; set; } = new List<Autorizado>();
