@@ -31,7 +31,7 @@ const TIPOS: { v: TipoReimpresion; l: string }[] = [
  * (CopiarComprobante) pero no está implementado todavía.
  */
 export function ReimpresionPage() {
-  const { usuario, logout, idSucursal: idSucursalAuth } = useAuth();
+  const { usuario, logout, idSucursal: idSucursalAuth, idSucursalPredeterminada } = useAuth();
   const navigate = useNavigate();
 
   const [sucursales, setSucursales] = useState<Lookup[]>([]);
@@ -48,16 +48,17 @@ export function ReimpresionPage() {
 
   useEffect(() => {
     // Si la sesión está atada a una sucursal (Supervisor con puesto asignado, mismo criterio que
-    // Caja), se fuerza esa — el backend rechaza (403 SUCURSAL_NO_AUTORIZADA) cualquier otra, y antes
-    // esta pantalla siempre arrancaba con la PRIMERA sucursal de la lista sin mirar la propia, lo que
-    // le impedía operar a un Supervisor cuya sucursal no era la primera. Tesorero/Administrador sin
-    // puesto asignado siguen pudiendo elegir cualquiera.
+    // Caja), se fuerza esa — el backend rechaza (403 SUCURSAL_NO_AUTORIZADA) cualquier otra. Si no
+    // hay puesto asignado (Tesorero/Administrador), se usa la sucursal predeterminada configurada
+    // en su perfil (ABM Usuarios) — antes se ignoraba y esta pantalla siempre arrancaba con la
+    // PRIMERA sucursal de la lista.
     referencias.sucursales().then((s) => {
       setSucursales(s);
       if (idSucursalAuth) setIdSucursal(idSucursalAuth);
+      else if (idSucursalPredeterminada) setIdSucursal(idSucursalPredeterminada);
       else if (s.length) setIdSucursal(s[0].id);
     }).catch(() => {});
-  }, [idSucursalAuth]);
+  }, [idSucursalAuth, idSucursalPredeterminada]);
 
   const buscar = async () => {
     if (!idSucursal) return;
