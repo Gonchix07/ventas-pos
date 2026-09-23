@@ -211,15 +211,16 @@ public class ErpSyncRunner
                 var idFamilia = (fila.CodigoFamiliaErp is not null && familiasPorSectorYCodigo.TryGetValue(((int?)idSector, fila.CodigoFamiliaErp), out var idFam))
                     ? idFam : idFamiliaSinFamilia;
 
+                var codigoInterno = NormalizarCodigoArticulo(fila.Codigo);
                 var existente = await _db.Articulos.FirstOrDefaultAsync(a => a.IdErp == fila.IdErp, ct)
-                    ?? await _db.Articulos.FirstOrDefaultAsync(a => a.IdErp == null && a.CodigoInterno == fila.Codigo, ct);
+                    ?? await _db.Articulos.FirstOrDefaultAsync(a => a.IdErp == null && a.CodigoInterno == codigoInterno, ct);
 
                 var activo = fila.Estado != 3; // 0/1/2 activo (2 = suspendido, igual se puede vender), 3 = inactivo
                 if (existente is null)
                 {
                     _db.Articulos.Add(new Articulo
                     {
-                        IdErp = fila.IdErp, CodigoInterno = fila.Codigo, Descripcion = fila.DescripcionFull,
+                        IdErp = fila.IdErp, CodigoInterno = codigoInterno, Descripcion = fila.DescripcionFull,
                         IdSector = idSector, IdLinea = idLinea, IdFamilia = idFamilia, IdModoIva = idModoIva,
                         Activo = activo, EstadoErp = fila.Estado, UnidadXBulto = fila.UnidadBulto <= 0 ? 1m : fila.UnidadBulto,
                         CreatedBy = AutorSync
@@ -229,7 +230,7 @@ public class ErpSyncRunner
                 else
                 {
                     existente.IdErp = fila.IdErp;
-                    existente.CodigoInterno = fila.Codigo;
+                    existente.CodigoInterno = codigoInterno;
                     existente.Descripcion = fila.DescripcionFull;
                     existente.IdSector = idSector;
                     existente.IdLinea = idLinea;
@@ -455,6 +456,18 @@ public class ErpSyncRunner
             if (lote.Count < _options.LoteSize) break;
             if (_options.MaxLotesPorFuente > 0 && lotesProcesados >= _options.MaxLotesPorFuente) break;
         }
+    }
+
+    /// <summary>El ERP guarda el código de artículo con 13 dígitos, completado con ceros a la
+    /// izquierda ("0000000025004"); el padrón legacy de pos-mayorista lo tiene cargado sin esos
+    /// ceros ("25004"). Sin esta normalización, el matcheo por CodigoInterno contra artículos
+    /// legacy (los que todavía no tienen IdErp) fallaba siempre y el sync terminaba creando un
+    /// artículo DUPLICADO por cada uno en vez de actualizar el existente — bug real que generó
+    /// 36.914 duplicados en la primera corrida completa (2026-09-23), limpiados a mano.</summary>
+    private static string NormalizarCodigoArticulo(string codigo)
+    {
+        var sinCeros = codigo.TrimStart('0');
+        return sinCeros.Length == 0 ? codigo : sinCeros;
     }
 
     /// <summary>El ERP guarda el CUIT formateado con guiones ("30-71012233-4", 13 caracteres);
