@@ -374,8 +374,11 @@ public class CajaService : ICajaService
         // debe ganarle a la búsqueda por código interno — un código de barra real (EAN, 8-13
         // dígitos) prácticamente nunca coincide por casualidad con un código interno corto, así que
         // este orden no cambia nada para un escaneo real de góndola.
+        // Trim() de ambos lados: el código interno importado del catálogo legacy a veces trae
+        // espacios sobrantes (comprobado con el artículo 355 — la igualdad exacta fallaba pero el
+        // Contains de la búsqueda por lupa sí lo encontraba, señal de basura invisible en el dato).
         var match = await (
-            from a in _db.Articulos.AsNoTracking().Where(x => x.CodigoInterno == codigo)
+            from a in _db.Articulos.AsNoTracking().Where(x => x.CodigoInterno.Trim() == codigo)
             join pr in _db.Presentaciones.AsNoTracking() on a.IdArticulo equals pr.IdArticulo
             orderby pr.UnidadXBulto
             select new { pr.IdPresentacion, a.IdArticulo, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket, pr.UnidadXBulto, a.Activo, a.MinimaUnidadVenta }

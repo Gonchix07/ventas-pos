@@ -63,7 +63,7 @@ public class EtiquetaService : IEtiquetaService
         // descripción ni código: es solo para el escaneo numérico, donde un match parcial sería un
         // error (podría traer un artículo distinto al escaneado).
         return await (
-            from a in _db.Articulos.AsNoTracking().Where(x => x.Activo && x.CodigoInterno == codigo)
+            from a in _db.Articulos.AsNoTracking().Where(x => x.Activo && x.CodigoInterno.Trim() == codigo)
             join pr in _db.Presentaciones.AsNoTracking().Where(p => p.UnidadXBulto == 1m) on a.IdArticulo equals pr.IdArticulo
             select new ArticuloParaEtiquetaDto(a.IdArticulo, pr.IdPresentacion, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket)
         ).FirstOrDefaultAsync(ct);
