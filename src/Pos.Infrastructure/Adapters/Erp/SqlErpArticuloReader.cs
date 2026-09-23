@@ -78,7 +78,11 @@ public class SqlErpArticuloReader : IErpArticuloReader
         await using var conn = new SqlConnection(_options.ConnectionString);
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 120 };
-        cmd.Parameters.AddWithValue("@watermark", watermark);
+        // SqlDbType explícito: AddWithValue infiere "datetime" para un DateTime .NET, y ese tipo de
+        // SQL no admite DateTime.MinValue (0001-01-01) — el primer watermark de una fuente nueva.
+        // "datetime2" sí cubre todo el rango de DateTime y compara sin problema contra columnas
+        // "datetime" legacy del ERP (conversión implícita).
+        cmd.Parameters.Add("@watermark", System.Data.SqlDbType.DateTime2).Value = watermark;
         cmd.Parameters.AddWithValue("@lote", loteSize);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct)) resultado.Add(map(reader));

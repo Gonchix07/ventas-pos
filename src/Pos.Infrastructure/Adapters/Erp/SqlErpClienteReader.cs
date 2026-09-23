@@ -35,7 +35,9 @@ public class SqlErpClienteReader : IErpClienteReader
         await using var conn = new SqlConnection(_options.ConnectionString);
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 120 };
-        cmd.Parameters.AddWithValue("@watermark", watermark);
+        // Ver comentario equivalente en SqlErpArticuloReader: "datetime2" explícito porque
+        // AddWithValue infiere "datetime", que no admite DateTime.MinValue.
+        cmd.Parameters.Add("@watermark", System.Data.SqlDbType.DateTime2).Value = watermark;
         cmd.Parameters.AddWithValue("@lote", loteSize);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))

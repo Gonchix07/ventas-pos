@@ -24,7 +24,8 @@ public static class ErpSyncDependencyInjection
         services.AddSingleton(new ErpSyncOptions
         {
             FrecuenciaMinutos = config.GetValue("ErpSync:FrecuenciaMinutos", 15),
-            LoteSize = config.GetValue("ErpSync:LoteSize", 500)
+            LoteSize = config.GetValue("ErpSync:LoteSize", 500),
+            MaxLotesPorFuente = config.GetValue("ErpSync:MaxLotesPorFuente", 0)
         });
 
         services.AddSingleton<IErpLookupReader, SqlErpLookupReader>();

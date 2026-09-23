@@ -10,6 +10,11 @@ public class ErpSyncOptions
     /// como una unidad: si el proceso se cae a mitad de una corrida, el próximo disparo retoma desde
     /// el último lote confirmado.</summary>
     public int LoteSize { get; set; } = 500;
+    /// <summary>Tope de lotes a procesar por fuente en una misma corrida (0 = sin tope). Pensado para
+    /// una primera corrida supervisada con blast radius chico: en vez de tragarse de una todo lo
+    /// pendiente, se frena a los N lotes y el resto queda para la próxima corrida (el watermark ya
+    /// avanzó hasta donde se confirmó, no se pierde nada).</summary>
+    public int MaxLotesPorFuente { get; set; }
 }
 
 /// <summary>

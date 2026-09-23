@@ -38,7 +38,7 @@ public class ErpSyncRunner
 
     public async Task EjecutarAsync(CancellationToken ct)
     {
-        await SincronizarFuenteAsync(ErpSyncFuentes.Lookups, (cp, c) => SincronizarLookupsAsync(c), ct);
+        await SincronizarFuenteAsync(ErpSyncFuentes.Lookups, SincronizarLookupsAsync, ct);
         await SincronizarFuenteAsync(ErpSyncFuentes.Articulos, SincronizarArticulosAsync, ct);
         await SincronizarFuenteAsync(ErpSyncFuentes.Presentaciones, SincronizarPresentacionesAsync, ct);
         await SincronizarFuenteAsync(ErpSyncFuentes.CodBarras, SincronizarCodBarrasAsync, ct);
@@ -92,64 +92,80 @@ public class ErpSyncRunner
     // watermark) y se crea lo que falte — CondicionIva es la única excepción: no se auto-crea porque
     // alimenta la letra de facturación ARCA (ver comentario en la entidad). -----
 
-    private async Task SincronizarLookupsAsync(CancellationToken ct)
+    private async Task SincronizarLookupsAsync(SyncCheckpoint checkpoint, CancellationToken ct)
     {
         await UpsertLookupAsync(await _lookups.GetSectoresAsync(ct),
-            r => r.Codigo, async r =>
+            async r =>
             {
                 var existente = await _db.Sectores.FirstOrDefaultAsync(x => x.CodigoErp == r.Codigo, ct);
-                if (existente is null) _db.Sectores.Add(new Sector { CodigoErp = r.Codigo, Descripcion = r.Descripcion, CreatedBy = AutorSync });
-                else if (existente.Descripcion != r.Descripcion) { existente.Descripcion = r.Descripcion; existente.UpdatedBy = AutorSync; }
+                if (existente is null) { _db.Sectores.Add(new Sector { CodigoErp = r.Codigo, Descripcion = r.Descripcion, CreatedBy = AutorSync }); checkpoint.Insertados++; }
+                else if (existente.Descripcion != r.Descripcion) { existente.Descripcion = r.Descripcion; existente.UpdatedBy = AutorSync; checkpoint.Actualizados++; }
             }, ct);
 
         await UpsertLookupAsync(await _lookups.GetLineasAsync(ct),
-            r => r.Codigo, async r =>
+            async r =>
             {
                 var existente = await _db.Lineas.FirstOrDefaultAsync(x => x.CodigoErp == r.Codigo, ct);
-                if (existente is null) _db.Lineas.Add(new Linea { CodigoErp = r.Codigo, Descripcion = r.Descripcion, CreatedBy = AutorSync });
-                else if (existente.Descripcion != r.Descripcion) { existente.Descripcion = r.Descripcion; existente.UpdatedBy = AutorSync; }
+                if (existente is null) { _db.Lineas.Add(new Linea { CodigoErp = r.Codigo, Descripcion = r.Descripcion, CreatedBy = AutorSync }); checkpoint.Insertados++; }
+                else if (existente.Descripcion != r.Descripcion) { existente.Descripcion = r.Descripcion; existente.UpdatedBy = AutorSync; checkpoint.Actualizados++; }
             }, ct);
 
         await UpsertLookupAsync(await _lookups.GetModosIvaAsync(ct),
-            r => r.Codigo, async r =>
+            async r =>
             {
                 var existente = await _db.ModosIva.FirstOrDefaultAsync(x => x.CodigoErp == r.Codigo, ct);
                 if (existente is null)
+                {
                     _db.ModosIva.Add(new ModoIva
                     {
                         CodigoErp = r.Codigo, Descripcion = r.Descripcion,
                         Alicuota = r.Alicuota / 100m, PorcentajePercepcion = r.Percepcion, CreatedBy = AutorSync
                     });
+                    checkpoint.Insertados++;
+                }
                 else if (existente.Descripcion != r.Descripcion || existente.Alicuota != r.Alicuota / 100m)
                 {
                     existente.Descripcion = r.Descripcion;
                     existente.Alicuota = r.Alicuota / 100m;
                     existente.PorcentajePercepcion = r.Percepcion;
                     existente.UpdatedBy = AutorSync;
+                    checkpoint.Actualizados++;
                 }
             }, ct);
 
-        // Familia depende de Sector, ya sincronizado arriba en esta misma corrida.
+        // Se guarda ACÁ (no al final del método): Familia necesita resolver Sector por IdSector real,
+        // y hasta que esto no se confirma contra la base los Sectores recién agregados no tienen id
+        // asignado ni son visibles para la consulta de abajo — sin este save, sectoresPorCodigo salía
+        // vacío y TODAS las familias colapsaban a IdSector=null, chocando entre sí por código
+        // duplicado (bug real, encontrado en la prueba controlada del 2026-09-23).
+        await _db.SaveChangesAsync(ct);
+
+        // Familia depende de Sector, ya sincronizado y confirmado arriba. El código de familia del
+        // ERP NO es único globalmente (solo dentro de su sector — ver comentario en PosDbContext),
+        // así que la clave de matcheo es el PAR (sector, código), no el código solo.
         var sectoresPorCodigo = await _db.Sectores.Where(s => s.CodigoErp != null).ToDictionaryAsync(s => s.CodigoErp!, s => s.IdSector, ct);
         await UpsertLookupAsync(await _lookups.GetFamiliasAsync(ct),
-            r => r.Codigo, async r =>
+            async r =>
             {
                 var idSector = r.CodigoSectorErp is not null && sectoresPorCodigo.TryGetValue(r.CodigoSectorErp, out var id) ? id : (int?)null;
-                var existente = await _db.Familias.FirstOrDefaultAsync(x => x.CodigoErp == r.Codigo, ct);
+                var existente = await _db.Familias.FirstOrDefaultAsync(x => x.CodigoErp == r.Codigo && x.IdSector == idSector, ct);
                 if (existente is null)
+                {
                     _db.Familias.Add(new Familia { CodigoErp = r.Codigo, Descripcion = r.Descripcion, IdSector = idSector, CreatedBy = AutorSync });
-                else if (existente.Descripcion != r.Descripcion || existente.IdSector != idSector)
+                    checkpoint.Insertados++;
+                }
+                else if (existente.Descripcion != r.Descripcion)
                 {
                     existente.Descripcion = r.Descripcion;
-                    existente.IdSector = idSector;
                     existente.UpdatedBy = AutorSync;
+                    checkpoint.Actualizados++;
                 }
             }, ct);
 
         await _db.SaveChangesAsync(ct);
     }
 
-    private static async Task UpsertLookupAsync<T>(IReadOnlyList<T> filas, Func<T, string> codigo, Func<T, Task> upsert, CancellationToken ct)
+    private static async Task UpsertLookupAsync<T>(IReadOnlyList<T> filas, Func<T, Task> upsert, CancellationToken ct)
     {
         foreach (var fila in filas)
         {
@@ -164,13 +180,17 @@ public class ErpSyncRunner
     {
         var sectores = await _db.Sectores.Where(s => s.CodigoErp != null).ToDictionaryAsync(s => s.CodigoErp!, s => s.IdSector, ct);
         var lineas = await _db.Lineas.Where(l => l.CodigoErp != null).ToDictionaryAsync(l => l.CodigoErp!, l => l.IdLinea, ct);
-        var familias = await _db.Familias.Where(f => f.CodigoErp != null).ToDictionaryAsync(f => f.CodigoErp!, f => f.IdFamilia, ct);
         var modosIva = await _db.ModosIva.Where(m => m.CodigoErp != null).ToDictionaryAsync(m => m.CodigoErp!, m => m.IdModoIva, ct);
+        // Familia se resuelve por el PAR (sector, código): el código de familia del ERP no es único
+        // globalmente, solo dentro de su sector (ver comentario en PosDbContext).
+        var familiasPorSectorYCodigo = await _db.Familias.Where(f => f.CodigoErp != null)
+            .ToDictionaryAsync(f => (f.IdSector, f.CodigoErp!), f => f.IdFamilia, ct);
         // Articulo.IdFamilia no es nullable: los artículos que en el ERP no cuelgan de ninguna
         // familia (idFamilia NULL, el "SIN FAMILIA" legado) necesitan igual una fila local válida.
         var idFamiliaSinFamilia = await ObtenerOCrearSinFamiliaAsync(ct);
 
         var watermark = checkpoint.UltimoWatermarkUtc ?? DateTime.MinValue;
+        var lotesProcesados = 0;
         while (true)
         {
             var lote = await _articulos.GetArticulosModificadosAsync(watermark, _options.LoteSize, ct);
@@ -187,7 +207,7 @@ public class ErpSyncRunner
                     checkpoint.Errores++;
                     continue;
                 }
-                var idFamilia = (fila.CodigoFamiliaErp is not null && familias.TryGetValue(fila.CodigoFamiliaErp, out var idFam))
+                var idFamilia = (fila.CodigoFamiliaErp is not null && familiasPorSectorYCodigo.TryGetValue(((int?)idSector, fila.CodigoFamiliaErp), out var idFam))
                     ? idFam : idFamiliaSinFamilia;
 
                 var existente = await _db.Articulos.FirstOrDefaultAsync(a => a.IdErp == fila.IdErp, ct)
@@ -226,7 +246,9 @@ public class ErpSyncRunner
             checkpoint.UltimoWatermarkUtc = watermark;
             await _db.SaveChangesAsync(ct);
 
+            lotesProcesados++;
             if (lote.Count < _options.LoteSize) break;
+            if (_options.MaxLotesPorFuente > 0 && lotesProcesados >= _options.MaxLotesPorFuente) break;
         }
     }
 
@@ -252,6 +274,7 @@ public class ErpSyncRunner
     private async Task SincronizarPresentacionesAsync(SyncCheckpoint checkpoint, CancellationToken ct)
     {
         var watermark = checkpoint.UltimoWatermarkUtc ?? DateTime.MinValue;
+        var lotesProcesados = 0;
         while (true)
         {
             var lote = await _articulos.GetPresentacionesModificadasAsync(watermark, _options.LoteSize, ct);
@@ -305,7 +328,9 @@ public class ErpSyncRunner
             checkpoint.UltimoWatermarkUtc = watermark;
             await _db.SaveChangesAsync(ct);
 
+            lotesProcesados++;
             if (lote.Count < _options.LoteSize) break;
+            if (_options.MaxLotesPorFuente > 0 && lotesProcesados >= _options.MaxLotesPorFuente) break;
         }
     }
 
@@ -314,10 +339,19 @@ public class ErpSyncRunner
     private async Task SincronizarCodBarrasAsync(SyncCheckpoint checkpoint, CancellationToken ct)
     {
         var watermark = checkpoint.UltimoWatermarkUtc ?? DateTime.MinValue;
+        var lotesProcesados = 0;
         while (true)
         {
             var lote = await _articulos.GetCodBarrasModificadosAsync(watermark, _options.LoteSize, ct);
             if (lote.Count == 0) break;
+
+            // Códigos ya reservados EN ESTE LOTE (además de lo que ya hay en la base): Barra.CodigoBarra
+            // es único globalmente en pos-mayorista (un escaneo en Caja tiene que resolver a un único
+            // producto) pero el ERP no exige lo mismo — un mismo código puede aparecer repetido bajo
+            // presentaciones distintas (visto en producción). Sin este control, la segunda fila del
+            // MISMO lote todavía no está en la base (recién se guarda al final) y el chequeo contra la
+            // base no la detecta, así que igual rompía el INSERT.
+            var codigosReservadosEnLote = new Dictionary<string, int>();
 
             foreach (var fila in lote)
             {
@@ -331,8 +365,34 @@ public class ErpSyncRunner
                 }
                 var tipo = string.Equals(fila.TipoCodigo, "DUN", StringComparison.OrdinalIgnoreCase) ? TipoBarra.Dun14 : TipoBarra.Ean13;
 
-                // Clave natural: (presentación local, código de barra) — el propio código ya es único.
-                var existente = await _db.Barras.FirstOrDefaultAsync(b => b.IdPresentacion == idPresentacion && b.CodigoBarra == fila.Codigo, ct);
+                if (codigosReservadosEnLote.TryGetValue(fila.Codigo, out var idPresentacionReservada))
+                {
+                    // Ya se procesó este código en este mismo lote (para esta u otra presentación):
+                    // no hay nada más que hacer con esta fila, sea porque ya se agregó (misma
+                    // presentación, fila repetida) o porque ya se logueó el conflicto (otra presentación).
+                    if (idPresentacionReservada != idPresentacion)
+                    {
+                        _log.LogWarning("Código de barra {Codigo}: repetido en el mismo lote bajo dos presentaciones distintas del ERP, se salta.", fila.Codigo);
+                        checkpoint.Errores++;
+                    }
+                    continue;
+                }
+
+                // Clave natural: (presentación local, código de barra). Pero CodigoBarra también es
+                // único GLOBAL en pos-mayorista — si el ERP lo repite bajo otra presentación, no se
+                // puede insertar sin violar esa invariante (que además es real: evita que un mismo
+                // código escaneado en Caja resuelva a dos productos). Se salta y se loguea para que
+                // alguien lo resuelva a mano en el ERP, no se rompe todo el lote por una fila sucia.
+                var existente = await _db.Barras.FirstOrDefaultAsync(b => b.CodigoBarra == fila.Codigo, ct);
+                if (existente is not null && existente.IdPresentacion != idPresentacion)
+                {
+                    _log.LogWarning("Código de barra {Codigo}: ya existe localmente en otra presentación (Id {IdPresentacionLocal}), el ERP lo trae bajo la presentación ERP {IdPresentacionErp} — se salta.",
+                        fila.Codigo, existente.IdPresentacion, fila.IdPresentacionErp);
+                    checkpoint.Errores++;
+                    continue;
+                }
+
+                codigosReservadosEnLote[fila.Codigo] = idPresentacion.Value;
                 if (existente is null)
                 {
                     _db.Barras.Add(new Barra { IdPresentacion = idPresentacion.Value, CodigoBarra = fila.Codigo, Tipo = tipo, CreatedBy = AutorSync });
@@ -350,8 +410,24 @@ public class ErpSyncRunner
             checkpoint.UltimoWatermarkUtc = watermark;
             await _db.SaveChangesAsync(ct);
 
+            lotesProcesados++;
             if (lote.Count < _options.LoteSize) break;
+            if (_options.MaxLotesPorFuente > 0 && lotesProcesados >= _options.MaxLotesPorFuente) break;
         }
+    }
+
+    /// <summary>El ERP guarda el CUIT formateado con guiones ("30-71012233-4", 13 caracteres);
+    /// Cliente.Cuit espera los 11 dígitos sin separadores (mismo criterio que el padrón ya cargado
+    /// a mano). Sin esto, el INSERT truncaba contra el nvarchar(11) local (bug real, encontrado en
+    /// la prueba controlada del 2026-09-23).</summary>
+    private static string? NormalizarCuit(string? cuit)
+    {
+        if (string.IsNullOrWhiteSpace(cuit)) return null;
+        var soloDigitos = new string(cuit.Where(char.IsDigit).ToArray());
+        if (soloDigitos.Length == 0) return null;
+        // Un CUIT válido son 11 dígitos; si el dato del ERP viene más largo (entrada sucia), se
+        // recorta en vez de romper el lote entero contra el nvarchar(11) local.
+        return soloDigitos.Length > 11 ? soloDigitos[..11] : soloDigitos;
     }
 
     // ----- Clientes -----
@@ -361,6 +437,7 @@ public class ErpSyncRunner
         var condicionesIva = await _db.CondicionesIva.Where(c => c.CodigoErp != null).ToDictionaryAsync(c => c.CodigoErp!, c => c.IdCondIva, ct);
 
         var watermark = checkpoint.UltimoWatermarkUtc ?? DateTime.MinValue;
+        var lotesProcesados = 0;
         while (true)
         {
             var lote = await _clientes.GetClientesModificadosAsync(watermark, _options.LoteSize, ct);
@@ -382,13 +459,14 @@ public class ErpSyncRunner
                     ?? await _db.Clientes.FirstOrDefaultAsync(c => c.IdErp == null && c.CodigoInt == fila.Codigo, ct);
 
                 var activo = fila.Estado != 3; // mismo criterio que Articulo.EstadoErp
+                var cuit = NormalizarCuit(fila.Cuit);
                 if (existente is null)
                 {
                     _db.Clientes.Add(new Cliente
                     {
                         IdErp = fila.IdErp, CodigoInt = fila.Codigo, Descripcion = fila.RazonSocial,
                         NombreFantasia = fila.NombreFantasia, Domicilio = fila.Domicilio, Localidad = fila.Localidad,
-                        Cuit = fila.Cuit, IdCondIva = idCondIva, Email = fila.Email, Activo = activo,
+                        Cuit = cuit, IdCondIva = idCondIva, Email = fila.Email, Activo = activo,
                         EstadoErp = fila.Estado, CreatedBy = AutorSync
                     });
                     checkpoint.Insertados++;
@@ -401,7 +479,7 @@ public class ErpSyncRunner
                     existente.NombreFantasia = fila.NombreFantasia;
                     existente.Domicilio = fila.Domicilio;
                     existente.Localidad = fila.Localidad;
-                    existente.Cuit = fila.Cuit;
+                    existente.Cuit = cuit;
                     existente.IdCondIva = idCondIva;
                     existente.Email = fila.Email;
                     existente.Activo = activo;
@@ -415,7 +493,9 @@ public class ErpSyncRunner
             checkpoint.UltimoWatermarkUtc = watermark;
             await _db.SaveChangesAsync(ct);
 
+            lotesProcesados++;
             if (lote.Count < _options.LoteSize) break;
+            if (_options.MaxLotesPorFuente > 0 && lotesProcesados >= _options.MaxLotesPorFuente) break;
         }
     }
 }

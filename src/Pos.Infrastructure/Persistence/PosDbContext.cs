@@ -300,7 +300,10 @@ public class PosDbContext : DbContext
         b.Entity<Presentacion>().HasIndex(x => x.IdErp).IsUnique();
         b.Entity<Sector>().HasIndex(x => x.CodigoErp).IsUnique();
         b.Entity<Linea>().HasIndex(x => x.CodigoErp).IsUnique();
-        b.Entity<Familia>().HasIndex(x => x.CodigoErp).IsUnique();
+        // El código de familia del ERP NO es único globalmente, solo dentro de su sector (visto en
+        // producción: "004" se repite en 18 sectores distintos — QUESOS, ACHURAS, APERITIVOS...). La
+        // clave real de matcheo es el par (sector, código).
+        b.Entity<Familia>().HasIndex(x => new { x.IdSector, x.CodigoErp }).IsUnique();
         b.Entity<ModoIva>().HasIndex(x => x.CodigoErp).IsUnique();
         b.Entity<CondicionIva>().HasIndex(x => x.CodigoErp).IsUnique();
         // Una sola fila de checkpoint por fuente ("Lookups"/"Articulos"/"Clientes") — el sync hace
