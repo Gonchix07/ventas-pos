@@ -144,6 +144,7 @@ export function ReimpresionPage() {
           <div className="form-grid">
             <label>Sucursal
               <select value={idSucursal} disabled={!!idSucursalAuth}
+                title={idSucursalAuth ? "Este equipo tiene un puesto asignado a esta sucursal" : undefined}
                 onChange={(e) => setIdSucursal(Number(e.target.value))}>
                 {sucursales.map((s) => <option key={s.id} value={s.id}>{s.descripcion}</option>)}
               </select>
