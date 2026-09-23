@@ -190,10 +190,11 @@ public class ErpSyncRunner
         var idFamiliaSinFamilia = await ObtenerOCrearSinFamiliaAsync(ct);
 
         var watermark = checkpoint.UltimoWatermarkUtc ?? DateTime.MinValue;
+        var ultimoId = checkpoint.UltimoIdErp;
         var lotesProcesados = 0;
         while (true)
         {
-            var lote = await _articulos.GetArticulosModificadosAsync(watermark, _options.LoteSize, ct);
+            var lote = await _articulos.GetArticulosModificadosAsync(watermark, ultimoId, _options.LoteSize, ct);
             if (lote.Count == 0) break;
 
             foreach (var fila in lote)
@@ -242,8 +243,15 @@ public class ErpSyncRunner
                 }
             }
 
-            watermark = lote.Max(f => f.FechaModificacion);
+            // El lote viene ordenado por (fecha, id) — se avanza a la ÚLTIMA fila procesada, no al
+            // máximo de fecha del lote: con touches masivos (miles de filas al mismo timestamp) el
+            // máximo de fecha por sí solo no alcanza para saber hasta qué id se llegó dentro de ese
+            // timestamp, y perdía las filas restantes del empate (bug real, 2026-09-23).
+            var ultima = lote[^1];
+            watermark = ultima.FechaModificacion;
+            ultimoId = ultima.IdErp;
             checkpoint.UltimoWatermarkUtc = watermark;
+            checkpoint.UltimoIdErp = ultimoId;
             await _db.SaveChangesAsync(ct);
 
             lotesProcesados++;
@@ -274,36 +282,45 @@ public class ErpSyncRunner
     private async Task SincronizarPresentacionesAsync(SyncCheckpoint checkpoint, CancellationToken ct)
     {
         var watermark = checkpoint.UltimoWatermarkUtc ?? DateTime.MinValue;
+        var ultimoId = checkpoint.UltimoIdErp;
         var lotesProcesados = 0;
         while (true)
         {
-            var lote = await _articulos.GetPresentacionesModificadasAsync(watermark, _options.LoteSize, ct);
+            var lote = await _articulos.GetPresentacionesModificadasAsync(watermark, ultimoId, _options.LoteSize, ct);
             if (lote.Count == 0) break;
+
+            // Precarga por lote (2 consultas IN en vez de hasta 3 por fila): con lotes de cientos o
+            // miles de filas, una query por fila hacía que un lote tardara minutos por puro ida-y-vuelta
+            // a la base (bug de performance real, encontrado en la primera corrida completa).
+            var idsArticuloErp = lote.Select(f => f.IdArticuloErp).Distinct().ToList();
+            var articulosPorIdErp = await _db.Articulos.Where(a => idsArticuloErp.Contains(a.IdErp!.Value))
+                .ToDictionaryAsync(a => a.IdErp!.Value, a => a.IdArticulo, ct);
+            var idsErpDelLote = lote.Select(f => f.IdErp).ToList();
+            var presentacionesExistentes = await _db.Presentaciones.Where(p => idsErpDelLote.Contains(p.IdErp!.Value))
+                .ToDictionaryAsync(p => p.IdErp!.Value, p => p, ct);
 
             foreach (var fila in lote)
             {
-                var idArticulo = await _db.Articulos.Where(a => a.IdErp == fila.IdArticuloErp).Select(a => (int?)a.IdArticulo).FirstOrDefaultAsync(ct);
-                if (idArticulo is null)
+                if (!articulosPorIdErp.TryGetValue(fila.IdArticuloErp, out var idArticuloValue))
                 {
                     _log.LogWarning("Presentación ERP {IdErp}: el artículo ERP {IdArticuloErp} todavía no está sincronizado, se salta (se resuelve en la próxima corrida).",
                         fila.IdErp, fila.IdArticuloErp);
                     checkpoint.Errores++;
                     continue;
                 }
+                var idArticulo = (int?)idArticuloValue;
                 // baja=1 en el ERP: por ahora no se borra ni se oculta (Presentacion no tiene un
                 // Activo/Baja local todavía — queda pendiente, ver memoria pos-mayorista-erp-sync
                 // punto 3), pero tampoco se crea una presentación nueva si es la primera vez que se ve.
-                if (fila.Baja)
+                // LogDebug (no Information): en catálogos con muchas bajas históricas esto puede ser la
+                // mayoría de las filas de un lote, y a nivel INFO saturaba la consola/archivo de log.
+                if (fila.Baja && !presentacionesExistentes.ContainsKey(fila.IdErp))
                 {
-                    var yaExiste = await _db.Presentaciones.AnyAsync(p => p.IdErp == fila.IdErp, ct);
-                    if (!yaExiste)
-                    {
-                        _log.LogInformation("Presentación ERP {IdErp} está dada de baja en el ERP y no existe localmente, se ignora.", fila.IdErp);
-                        continue;
-                    }
+                    _log.LogDebug("Presentación ERP {IdErp} está dada de baja en el ERP y no existe localmente, se ignora.", fila.IdErp);
+                    continue;
                 }
 
-                var existente = await _db.Presentaciones.FirstOrDefaultAsync(p => p.IdErp == fila.IdErp, ct);
+                var existente = presentacionesExistentes.GetValueOrDefault(fila.IdErp);
                 if (existente is null)
                 {
                     _db.Presentaciones.Add(new Presentacion
@@ -324,8 +341,15 @@ public class ErpSyncRunner
                 }
             }
 
-            watermark = lote.Max(f => f.FechaModificacion);
+            // El lote viene ordenado por (fecha, id) — se avanza a la ÚLTIMA fila procesada, no al
+            // máximo de fecha del lote: con touches masivos (miles de filas al mismo timestamp) el
+            // máximo de fecha por sí solo no alcanza para saber hasta qué id se llegó dentro de ese
+            // timestamp, y perdía las filas restantes del empate (bug real, 2026-09-23).
+            var ultima = lote[^1];
+            watermark = ultima.FechaModificacion;
+            ultimoId = ultima.IdErp;
             checkpoint.UltimoWatermarkUtc = watermark;
+            checkpoint.UltimoIdErp = ultimoId;
             await _db.SaveChangesAsync(ct);
 
             lotesProcesados++;
@@ -339,10 +363,11 @@ public class ErpSyncRunner
     private async Task SincronizarCodBarrasAsync(SyncCheckpoint checkpoint, CancellationToken ct)
     {
         var watermark = checkpoint.UltimoWatermarkUtc ?? DateTime.MinValue;
+        var ultimoId = checkpoint.UltimoIdErp;
         var lotesProcesados = 0;
         while (true)
         {
-            var lote = await _articulos.GetCodBarrasModificadosAsync(watermark, _options.LoteSize, ct);
+            var lote = await _articulos.GetCodBarrasModificadosAsync(watermark, ultimoId, _options.LoteSize, ct);
             if (lote.Count == 0) break;
 
             // Códigos ya reservados EN ESTE LOTE (además de lo que ya hay en la base): Barra.CodigoBarra
@@ -353,16 +378,25 @@ public class ErpSyncRunner
             // base no la detecta, así que igual rompía el INSERT.
             var codigosReservadosEnLote = new Dictionary<string, int>();
 
+            // Precarga por lote (2 consultas IN en vez de hasta 2 por fila) — mismo motivo que en
+            // SincronizarPresentacionesAsync.
+            var idsPresentacionErp = lote.Select(f => f.IdPresentacionErp).Distinct().ToList();
+            var presentacionesPorIdErp = await _db.Presentaciones.Where(p => idsPresentacionErp.Contains(p.IdErp!.Value))
+                .ToDictionaryAsync(p => p.IdErp!.Value, p => p.IdPresentacion, ct);
+            var codigosDelLote = lote.Select(f => f.Codigo).Distinct().ToList();
+            var barrasPorCodigo = await _db.Barras.Where(b => codigosDelLote.Contains(b.CodigoBarra))
+                .ToDictionaryAsync(b => b.CodigoBarra, b => b, ct);
+
             foreach (var fila in lote)
             {
-                var idPresentacion = await _db.Presentaciones.Where(p => p.IdErp == fila.IdPresentacionErp).Select(p => (int?)p.IdPresentacion).FirstOrDefaultAsync(ct);
-                if (idPresentacion is null)
+                if (!presentacionesPorIdErp.TryGetValue(fila.IdPresentacionErp, out var idPresentacionValue))
                 {
                     _log.LogWarning("Código de barra {Codigo}: la presentación ERP {IdPresentacionErp} todavía no está sincronizada, se salta.",
                         fila.Codigo, fila.IdPresentacionErp);
                     checkpoint.Errores++;
                     continue;
                 }
+                var idPresentacion = (int?)idPresentacionValue;
                 var tipo = string.Equals(fila.TipoCodigo, "DUN", StringComparison.OrdinalIgnoreCase) ? TipoBarra.Dun14 : TipoBarra.Ean13;
 
                 if (codigosReservadosEnLote.TryGetValue(fila.Codigo, out var idPresentacionReservada))
@@ -383,7 +417,7 @@ public class ErpSyncRunner
                 // puede insertar sin violar esa invariante (que además es real: evita que un mismo
                 // código escaneado en Caja resuelva a dos productos). Se salta y se loguea para que
                 // alguien lo resuelva a mano en el ERP, no se rompe todo el lote por una fila sucia.
-                var existente = await _db.Barras.FirstOrDefaultAsync(b => b.CodigoBarra == fila.Codigo, ct);
+                var existente = barrasPorCodigo.GetValueOrDefault(fila.Codigo);
                 if (existente is not null && existente.IdPresentacion != idPresentacion)
                 {
                     _log.LogWarning("Código de barra {Codigo}: ya existe localmente en otra presentación (Id {IdPresentacionLocal}), el ERP lo trae bajo la presentación ERP {IdPresentacionErp} — se salta.",
@@ -406,8 +440,15 @@ public class ErpSyncRunner
                 }
             }
 
-            watermark = lote.Max(f => f.FechaModificacion);
+            // El lote viene ordenado por (fecha, id) — se avanza a la ÚLTIMA fila procesada, no al
+            // máximo de fecha del lote: con touches masivos (miles de filas al mismo timestamp) el
+            // máximo de fecha por sí solo no alcanza para saber hasta qué id se llegó dentro de ese
+            // timestamp, y perdía las filas restantes del empate (bug real, 2026-09-23).
+            var ultima = lote[^1];
+            watermark = ultima.FechaModificacion;
+            ultimoId = ultima.IdErp;
             checkpoint.UltimoWatermarkUtc = watermark;
+            checkpoint.UltimoIdErp = ultimoId;
             await _db.SaveChangesAsync(ct);
 
             lotesProcesados++;
@@ -437,11 +478,23 @@ public class ErpSyncRunner
         var condicionesIva = await _db.CondicionesIva.Where(c => c.CodigoErp != null).ToDictionaryAsync(c => c.CodigoErp!, c => c.IdCondIva, ct);
 
         var watermark = checkpoint.UltimoWatermarkUtc ?? DateTime.MinValue;
+        var ultimoId = checkpoint.UltimoIdErp;
         var lotesProcesados = 0;
         while (true)
         {
-            var lote = await _clientes.GetClientesModificadosAsync(watermark, _options.LoteSize, ct);
+            var lote = await _clientes.GetClientesModificadosAsync(watermark, ultimoId, _options.LoteSize, ct);
             if (lote.Count == 0) break;
+
+            // Precarga por lote — mismo motivo y mismo patrón que en SincronizarPresentacionesAsync /
+            // SincronizarCodBarrasAsync (bug de performance real, 2026-09-23): una consulta por fila
+            // hacía que un lote de cientos de clientes tardara varios minutos.
+            var idsErpDelLote = lote.Select(f => f.IdErp).ToList();
+            var codigosDelLote = lote.Select(f => f.Codigo).ToList();
+            var clientesExistentes = await _db.Clientes
+                .Where(c => idsErpDelLote.Contains(c.IdErp!.Value) || (c.IdErp == null && codigosDelLote.Contains(c.CodigoInt)))
+                .ToListAsync(ct);
+            var clientesPorIdErp = clientesExistentes.Where(c => c.IdErp is not null).ToDictionary(c => c.IdErp!.Value, c => c);
+            var clientesPorCodigo = clientesExistentes.Where(c => c.IdErp is null).ToDictionary(c => c.CodigoInt, c => c);
 
             foreach (var fila in lote)
             {
@@ -455,8 +508,7 @@ public class ErpSyncRunner
                     continue;
                 }
 
-                var existente = await _db.Clientes.FirstOrDefaultAsync(c => c.IdErp == fila.IdErp, ct)
-                    ?? await _db.Clientes.FirstOrDefaultAsync(c => c.IdErp == null && c.CodigoInt == fila.Codigo, ct);
+                var existente = clientesPorIdErp.GetValueOrDefault(fila.IdErp) ?? clientesPorCodigo.GetValueOrDefault(fila.Codigo);
 
                 var activo = fila.Estado != 3; // mismo criterio que Articulo.EstadoErp
                 var cuit = NormalizarCuit(fila.Cuit);
@@ -489,8 +541,13 @@ public class ErpSyncRunner
                 }
             }
 
-            watermark = lote.Max(f => f.FechaActualizacion);
+            // Ver comentario equivalente más arriba (Articulos/Presentaciones/CodBarras): se avanza a
+            // la última fila del lote ordenado, no al máximo de fecha solo.
+            var ultima = lote[^1];
+            watermark = ultima.FechaActualizacion;
+            ultimoId = ultima.IdErp;
             checkpoint.UltimoWatermarkUtc = watermark;
+            checkpoint.UltimoIdErp = ultimoId;
             await _db.SaveChangesAsync(ct);
 
             lotesProcesados++;

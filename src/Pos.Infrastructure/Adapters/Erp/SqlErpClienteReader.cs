@@ -9,13 +9,18 @@ public class SqlErpClienteReader : IErpClienteReader
 
     public SqlErpClienteReader(ErpOptions options) => _options = options;
 
-    public async Task<IReadOnlyList<ErpClienteRow>> GetClientesModificadosAsync(DateTime watermark, int loteSize, CancellationToken ct)
+    public async Task<IReadOnlyList<ErpClienteRow>> GetClientesModificadosAsync(DateTime watermark, long ultimoIdErp, int loteSize, CancellationToken ct)
     {
         // T_Clientes (el maestro legacy con los datos completos) no tiene fecha de modificación
         // propia, así que el "qué cambió" sale de cli.cliente (normalizada, sí la tiene) cruzando por
         // mig.map_cliente para volver al código de 5 caracteres que identifica al cliente en
         // T_Clientes. El GROUP BY colapsa el caso (raro, visto en la exploración) de más de una fila
         // de cli.cliente mapeando al mismo código.
+        //
+        // Watermark compuesto (fecha, idCliente) — mismo motivo que en SqlErpArticuloReader: hay
+        // touches masivos con miles de filas en el mismo fecha_actualizacion exacto. El WHERE de la
+        // subconsulta usa ">=" solo para podar filas antes de agregar (performance); el corte real
+        // por el que se pagina es el WHERE de afuera, ya con t.idCliente disponible.
         const string sql = @"
             SELECT TOP (@lote)
                 t.idCliente, t.codigo, t.razonSocial, t.nombreFantasia, t.domicilio, t.localidad,
@@ -24,12 +29,14 @@ public class SqlErpClienteReader : IErpClienteReader
                 SELECT m.codigo, MAX(c.fecha_actualizacion) AS fecha_actualizacion
                 FROM cli.cliente c
                 JOIN mig.map_cliente m ON m.id_cliente = c.id
-                WHERE c.fecha_actualizacion > @watermark
+                WHERE c.fecha_actualizacion >= @watermark
                 GROUP BY m.codigo
             ) x
             JOIN dbo.T_Clientes t ON t.codigo = x.codigo
             JOIN dbo.T_CondIVA iva ON iva.idCondIVA = t.idCondIVA
-            ORDER BY x.fecha_actualizacion";
+            WHERE x.fecha_actualizacion > @watermark
+               OR (x.fecha_actualizacion = @watermark AND t.idCliente > @ultimoId)
+            ORDER BY x.fecha_actualizacion, t.idCliente";
 
         var resultado = new List<ErpClienteRow>();
         await using var conn = new SqlConnection(_options.ConnectionString);
@@ -38,6 +45,7 @@ public class SqlErpClienteReader : IErpClienteReader
         // Ver comentario equivalente en SqlErpArticuloReader: "datetime2" explícito porque
         // AddWithValue infiere "datetime", que no admite DateTime.MinValue.
         cmd.Parameters.Add("@watermark", System.Data.SqlDbType.DateTime2).Value = watermark;
+        cmd.Parameters.AddWithValue("@ultimoId", ultimoIdErp);
         cmd.Parameters.AddWithValue("@lote", loteSize);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
