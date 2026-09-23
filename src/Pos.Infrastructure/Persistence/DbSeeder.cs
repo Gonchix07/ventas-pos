@@ -231,11 +231,17 @@ public static class DbSeeder
 
         if (!await db.CondicionesIva.AnyAsync(ct))
         {
+            // CodigoErp: código de T_CondIVA en el ERP Central (1=Consumidor Final, 2=Responsable
+            // Inscripto, 4=Exento/No Alcanzado, 5=Régimen Simplificado/Monotributo — ver memoria
+            // pos-mayorista-erp-sync). Los códigos 3/6/7 del ERP (Resp. No Inscripto, Sujeto No
+            // Categorizado, Resp. Ins. M) no tienen equivalente fiscal cargado acá todavía: el sync
+            // de clientes salta esos casos y los loguea en vez de inventar una condición nueva —
+            // Letra/CodigoInterno alimentan la facturación ARCA y no se pueden adivinar.
             db.CondicionesIva.AddRange(
-                new CondicionIva { Descripcion = "Responsable Inscripto", Letra = "A", CodigoInterno = "RI" },
-                new CondicionIva { Descripcion = "Monotributista", Letra = "A", CodigoInterno = "MT" },
-                new CondicionIva { Descripcion = "Exento", Letra = "B", CodigoInterno = "EX" },
-                new CondicionIva { Descripcion = "Consumidor Final", Letra = "B", CodigoInterno = "CF" });
+                new CondicionIva { Descripcion = "Responsable Inscripto", Letra = "A", CodigoInterno = "RI", CodigoErp = "2" },
+                new CondicionIva { Descripcion = "Monotributista", Letra = "A", CodigoInterno = "MT", CodigoErp = "5" },
+                new CondicionIva { Descripcion = "Exento", Letra = "B", CodigoInterno = "EX", CodigoErp = "4" },
+                new CondicionIva { Descripcion = "Consumidor Final", Letra = "B", CodigoInterno = "CF", CodigoErp = "1" });
             await db.SaveChangesAsync(ct);
         }
 

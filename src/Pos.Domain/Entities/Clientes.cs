@@ -8,6 +8,11 @@ public class CondicionIva : AuditableEntity
     public string Descripcion { get; set; } = "";
     public string? Letra { get; set; }
     public string? CodigoInterno { get; set; }
+    /// <summary>Código de T_CondIVA en el ERP Central. Deliberadamente distinto de
+    /// <see cref="CodigoInterno"/> (que es el código fiscal usado en facturación ARCA): el sync NO
+    /// crea condiciones nuevas cuando no encuentra un CodigoErp mapeado, para no inventar una
+    /// condición fiscal sin Letra/CodigoInterno correctos.</summary>
+    public string? CodigoErp { get; set; }
 }
 
 public class Cliente : AuditableEntity
@@ -45,6 +50,14 @@ public class Cliente : AuditableEntity
     /// <summary>Provincia: la factura A la lleva impresa junto con la localidad.</summary>
     public string? Provincia { get; set; }
     public string? Email { get; set; }
+
+    /// <summary>idCliente de T_Clientes en el ERP Central. Clave de matcheo del sync — a diferencia
+    /// de <see cref="CodigoInt"/>, no se espera que cambie nunca del lado del ERP. Null en clientes
+    /// cargados a mano desde el ABM (nunca vinieron del ERP).</summary>
+    public long? IdErp { get; set; }
+    /// <summary>Estado crudo (T_Clientes.estado: 0/1/2/3) tal como viene del ERP. Ver
+    /// <see cref="Articulo.EstadoErp"/> para el mismo criterio de mapeo a <see cref="Activo"/>.</summary>
+    public int? EstadoErp { get; set; }
 
     public ICollection<ClienteEnCuenta> Cuentas { get; set; } = new List<ClienteEnCuenta>();
     public ICollection<Autorizado> Autorizados { get; set; } = new List<Autorizado>();

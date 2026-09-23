@@ -42,6 +42,9 @@ public class PosDbContext : DbContext
     public DbSet<TipoTarjeta> TiposTarjeta => Set<TipoTarjeta>();
     public DbSet<CondicionIva> CondicionesIva => Set<CondicionIva>();
 
+    // Sync ERP
+    public DbSet<SyncCheckpoint> SyncCheckpoints => Set<SyncCheckpoint>();
+
     // Estructura comercial
     public DbSet<Empresa> Empresas => Set<Empresa>();
     public DbSet<Sucursal> Sucursales => Set<Sucursal>();
@@ -176,6 +179,7 @@ public class PosDbContext : DbContext
         b.Entity<ConexionGiftcardsApp>().HasKey(x => x.IdConexionGiftcardsApp);
         b.Entity<PadronIngresosBrutos>().HasKey(x => x.Cuit);
         b.Entity<PadronExcepcionPercepcionIva>().HasKey(x => x.Cuit);
+        b.Entity<SyncCheckpoint>().HasKey(x => x.IdSyncCheckpoint);
 
         // --- Claves compuestas (negocio multi-sucursal) ---
         b.Entity<ClienteEnCuenta>().HasKey(x => new { x.IdCliente, x.IdSucursal });
@@ -291,6 +295,17 @@ public class PosDbContext : DbContext
         b.Entity<Cliente>().HasIndex(x => x.CodigoInt).IsUnique();
         b.Entity<Cliente>().HasIndex(x => x.Cuit);
         b.Entity<Cliente>().HasIndex(x => x.Documento);
+        b.Entity<Cliente>().HasIndex(x => x.IdErp).IsUnique();
+        b.Entity<Articulo>().HasIndex(x => x.IdErp).IsUnique();
+        b.Entity<Presentacion>().HasIndex(x => x.IdErp).IsUnique();
+        b.Entity<Sector>().HasIndex(x => x.CodigoErp).IsUnique();
+        b.Entity<Linea>().HasIndex(x => x.CodigoErp).IsUnique();
+        b.Entity<Familia>().HasIndex(x => x.CodigoErp).IsUnique();
+        b.Entity<ModoIva>().HasIndex(x => x.CodigoErp).IsUnique();
+        b.Entity<CondicionIva>().HasIndex(x => x.CodigoErp).IsUnique();
+        // Una sola fila de checkpoint por fuente ("Lookups"/"Articulos"/"Clientes") — el sync hace
+        // upsert sobre esta clave en vez de ir acumulando historial.
+        b.Entity<SyncCheckpoint>().HasIndex(x => x.Fuente).IsUnique();
         b.Entity<Empresa>().HasIndex(x => x.CodigoInterno).IsUnique();
         b.Entity<CierreZFiscal>().HasIndex(x => new { x.IdSucursal, x.IdCaja, x.FechaHoraUtc });
         b.Entity<CabeceraComprobante>().HasIndex(x => x.Cae);
@@ -388,6 +403,15 @@ public class PosDbContext : DbContext
         b.Entity<MovimientoCaja>().Property(x => x.Concepto).HasMaxLength(200);
         b.Entity<PlanCuota>().Property(x => x.Denominacion).HasMaxLength(60);
         b.Entity<RefreshToken>().Property(x => x.TokenHash).HasMaxLength(64);
+
+        // Sync ERP: códigos cortos tal como vienen del ERP Central.
+        b.Entity<Sector>().Property(x => x.CodigoErp).HasMaxLength(20);
+        b.Entity<Linea>().Property(x => x.CodigoErp).HasMaxLength(20);
+        b.Entity<Familia>().Property(x => x.CodigoErp).HasMaxLength(20);
+        b.Entity<ModoIva>().Property(x => x.CodigoErp).HasMaxLength(20);
+        b.Entity<CondicionIva>().Property(x => x.CodigoErp).HasMaxLength(20);
+        b.Entity<SyncCheckpoint>().Property(x => x.Fuente).HasMaxLength(30);
+        b.Entity<SyncCheckpoint>().Property(x => x.UltimoResultado).HasMaxLength(20);
     }
 
     public override int SaveChanges()

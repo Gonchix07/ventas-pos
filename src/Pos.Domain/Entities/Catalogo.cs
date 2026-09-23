@@ -8,6 +8,9 @@ public class Sector : AuditableEntity, IEntidadLookup
 {
     public int IdSector { get; set; }
     public string Descripcion { get; set; } = "";
+    /// <summary>Código de T_Sectores en el ERP Central, usado por el sync para matchear sin depender
+    /// de que la descripción no cambie. Null en sectores creados a mano desde el ABM.</summary>
+    public string? CodigoErp { get; set; }
     [NotMapped] public int Id => IdSector;
 }
 
@@ -15,6 +18,8 @@ public class Linea : AuditableEntity, IEntidadLookup
 {
     public int IdLinea { get; set; }
     public string Descripcion { get; set; } = "";
+    /// <summary>Código de T_Lineas en el ERP Central. Ver <see cref="Sector.CodigoErp"/>.</summary>
+    public string? CodigoErp { get; set; }
     [NotMapped] public int Id => IdLinea;
 }
 
@@ -41,6 +46,8 @@ public class Familia : AuditableEntity, IEntidadLookup
     /// </summary>
     public int? IdSector { get; set; }
     public Sector? Sector { get; set; }
+    /// <summary>Código de T_Familias en el ERP Central. Ver <see cref="Sector.CodigoErp"/>.</summary>
+    public string? CodigoErp { get; set; }
     [NotMapped] public int Id => IdFamilia;
 }
 
@@ -52,6 +59,8 @@ public class ModoIva : AuditableEntity
     public decimal Alicuota { get; set; }
     /// <summary>Porcentaje de percepción de IVA para este modo (configurable).</summary>
     public decimal PorcentajePercepcion { get; set; }
+    /// <summary>Código (idModoIVA) de T_ModoIVA en el ERP Central. Ver <see cref="Sector.CodigoErp"/>.</summary>
+    public string? CodigoErp { get; set; }
 }
 
 public class Articulo : AuditableEntity
@@ -100,6 +109,15 @@ public class Articulo : AuditableEntity
     /// </summary>
     public decimal MinimaUnidadVenta { get; set; } = 1m;
 
+    /// <summary>idArticulo de T_Articulos en el ERP Central. Clave de matcheo del sync — a
+    /// diferencia de <see cref="CodigoInterno"/>, no se espera que cambie nunca del lado del ERP.
+    /// Null en artículos cargados a mano desde el ABM (nunca vinieron del ERP).</summary>
+    public long? IdErp { get; set; }
+    /// <summary>Estado crudo (T_Articulos.estado: 0/1/2/3) tal como viene del ERP, guardado sin
+    /// perder información aunque hoy <see cref="Activo"/> solo distinga activo/inactivo (0,1,2 →
+    /// activo — el 2 es "suspendido" pero igual se puede vender —, 3 → inactivo).</summary>
+    public int? EstadoErp { get; set; }
+
     public ICollection<Presentacion> Presentaciones { get; set; } = new List<Presentacion>();
 }
 
@@ -111,6 +129,8 @@ public class Presentacion : AuditableEntity
     /// <summary>Unidades por bulto (1 = unidad suelta).</summary>
     public decimal UnidadXBulto { get; set; } = 1m;
     public string? DescripcionTicket { get; set; }
+    /// <summary>idPresentacion de T_Presentaciones en el ERP Central. Ver <see cref="Articulo.IdErp"/>.</summary>
+    public long? IdErp { get; set; }
     public ICollection<Barra> Barras { get; set; } = new List<Barra>();
 }
 
