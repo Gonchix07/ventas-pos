@@ -467,8 +467,8 @@ public class ErpSyncRunner
     /// 36.914 duplicados en la primera corrida completa (2026-09-23), limpiados a mano.</summary>
     private static string NormalizarCodigoArticulo(string codigo)
     {
-        var sinCeros = codigo.TrimStart('0');
-        return sinCeros.Length == 0 ? codigo : sinCeros;
+        var sinCeros = codigo.Trim().TrimStart('0');
+        return sinCeros.Length == 0 ? codigo.Trim() : sinCeros;
     }
 
     /// <summary>El ERP guarda el CUIT formateado con guiones ("30-71012233-4", 13 caracteres);
@@ -484,6 +484,12 @@ public class ErpSyncRunner
         // recorta en vez de romper el lote entero contra el nvarchar(11) local.
         return soloDigitos.Length > 11 ? soloDigitos[..11] : soloDigitos;
     }
+
+    /// <summary>T_Clientes.codigo es nvarchar(5) FIJO en el ERP y viene con espacios de relleno
+    /// ("q    "); el padrón legacy de pos-mayorista lo tiene sin ellos ("q"). SQL Server ignora esos
+    /// espacios al comparar strings, pero un Dictionary de C# no — ver comentario en
+    /// SincronizarClientesAsync (bug real, 2026-09-24, mismo patrón que NormalizarCodigoArticulo).</summary>
+    private static string NormalizarCodigoCliente(string codigo) => codigo.Trim();
 
     // ----- Clientes -----
 
@@ -503,12 +509,19 @@ public class ErpSyncRunner
             // SincronizarCodBarrasAsync (bug de performance real, 2026-09-23): una consulta por fila
             // hacía que un lote de cientos de clientes tardara varios minutos.
             var idsErpDelLote = lote.Select(f => f.IdErp).ToList();
-            var codigosDelLote = lote.Select(f => f.Codigo).ToList();
+            var codigosDelLote = lote.Select(f => NormalizarCodigoCliente(f.Codigo)).ToList();
             var clientesExistentes = await _db.Clientes
                 .Where(c => idsErpDelLote.Contains(c.IdErp!.Value) || (c.IdErp == null && codigosDelLote.Contains(c.CodigoInt)))
                 .ToListAsync(ct);
             var clientesPorIdErp = clientesExistentes.Where(c => c.IdErp is not null).ToDictionary(c => c.IdErp!.Value, c => c);
-            var clientesPorCodigo = clientesExistentes.Where(c => c.IdErp is null).ToDictionary(c => c.CodigoInt, c => c);
+            // Clave normalizada (trim): T_Clientes.codigo es nvarchar(5) FIJO y viene con espacios de
+            // relleno del lado del ERP ("q    ") mientras el padrón legacy lo tiene sin ellos ("q").
+            // SQL Server ignora esos espacios al comparar (por eso el query de arriba sí encuentra la
+            // fila), pero un Dictionary<string,_> de C# NO — sin este trim, la fila ya sincronizada
+            // nunca matcheaba y el sync intentaba insertar un duplicado, chocando contra
+            // IX_Clientes_CodigoInt (bug real, 2026-09-24).
+            var clientesPorCodigo = clientesExistentes.Where(c => c.IdErp is null)
+                .ToDictionary(c => NormalizarCodigoCliente(c.CodigoInt), c => c);
 
             foreach (var fila in lote)
             {
@@ -522,7 +535,8 @@ public class ErpSyncRunner
                     continue;
                 }
 
-                var existente = clientesPorIdErp.GetValueOrDefault(fila.IdErp) ?? clientesPorCodigo.GetValueOrDefault(fila.Codigo);
+                var codigoInt = NormalizarCodigoCliente(fila.Codigo);
+                var existente = clientesPorIdErp.GetValueOrDefault(fila.IdErp) ?? clientesPorCodigo.GetValueOrDefault(codigoInt);
 
                 var activo = fila.Estado != 3; // mismo criterio que Articulo.EstadoErp
                 var cuit = NormalizarCuit(fila.Cuit);
@@ -530,7 +544,7 @@ public class ErpSyncRunner
                 {
                     _db.Clientes.Add(new Cliente
                     {
-                        IdErp = fila.IdErp, CodigoInt = fila.Codigo, Descripcion = fila.RazonSocial,
+                        IdErp = fila.IdErp, CodigoInt = codigoInt, Descripcion = fila.RazonSocial,
                         NombreFantasia = fila.NombreFantasia, Domicilio = fila.Domicilio, Localidad = fila.Localidad,
                         Cuit = cuit, IdCondIva = idCondIva, Email = fila.Email, Activo = activo,
                         EstadoErp = fila.Estado, CreatedBy = AutorSync, UltimaSincronizacionErpUtc = DateTime.UtcNow
@@ -540,7 +554,7 @@ public class ErpSyncRunner
                 else
                 {
                     existente.IdErp = fila.IdErp;
-                    existente.CodigoInt = fila.Codigo;
+                    existente.CodigoInt = codigoInt;
                     existente.Descripcion = fila.RazonSocial;
                     existente.NombreFantasia = fila.NombreFantasia;
                     existente.Domicilio = fila.Domicilio;
