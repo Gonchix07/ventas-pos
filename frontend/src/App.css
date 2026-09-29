@@ -77,6 +77,10 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
    de estirado a todo el ancho, debajo de Salir. */
 .admin-user .ayuda-link { align-self: center; margin-top: 2px; }
 .app-main { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
+/* Pantallas con tablas anchas (ej. PreventaMayoristaPage, con detalle de precargas de muchas
+   columnas): menos margen a los costados para que la tabla tenga más lugar, sin tocar el resto de
+   las pantallas que comparten .app-main. */
+.app-main--ancho { max-width: 1400px; padding-left: 12px; padding-right: 12px; }
 
 /* Margen extra para pantallas que quedaban pegadas al borde: Tesorería (dentro de admin-content,
    que ya tiene su propio padding) y Etiquetas (ruta suelta, sin ningún contenedor con margen). No
@@ -97,6 +101,9 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .badge.off { color: #a3372e; background: #f6e3e0; }
 /* Estado a mitad de camino (ej. venta a medio escanear en la recuperación de operaciones). */
 .badge.warn { color: #6b5518; background: #fdf6e3; }
+/* Rosa: "No" en toggles Sí/No que no son un estado de alta/baja (ej. "Admite presupuesto" en
+   PreventaMayoristaPage) — el rojo de .badge.off se lee como error/alarma, acá es solo un dato. */
+.badge.rosa { color: #a3266b; background: #fbe1ef; }
 /* Listas de precios del negocio, con los colores con los que se las nombra en el mostrador. */
 .badge.lista-azul { color: #10429c; background: #d6e6fb; }
 .badge.lista-roja { color: #b3231c; background: #fbdcdb; }
@@ -249,6 +256,11 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 .check-box:hover { border-color: #bcc7c3; }
 .check-box input { accent-color: var(--petrol); width: 16px; height: 16px; margin: 0; }
+/* Variante en verde para un check que necesita destacar más que el resto de la toolbar (ej.
+   "Incluir Menor Coste" en Preventa Mayorista) — misma altura que los inputs/botones vecinos de
+   un .field-row (padding 8px, font-size 14px), solo el tilde queda un poco más grande. */
+.check-box.grande { padding: 8px 12px; font-size: 14px; gap: 8px; }
+.check-box.grande input { width: 18px; height: 18px; accent-color: #1a7f37; }
 .import-row > button { flex: 0 0 auto; }
 .badge.muted { color: var(--muted); background: #eef1ef; }
 
@@ -440,6 +452,16 @@ table.grid.permisos-table input[type="checkbox"]:disabled { cursor: not-allowed;
    entren mejor (pedido del usuario), igual criterio que .permisos-table. Nombre genérico porque
    ya se usa en más de una pantalla, no solo Clientes. */
 table.grid.tabla-compacta th, table.grid.tabla-compacta td { font-size: 12.5px; padding: 8px 12px; }
+
+/* PreventaMayoristaPage: cabecera por cliente ordenable (click en columna) con fila expandible
+   mostrando el detalle de líneas. Genérico por si otra pantalla necesita el mismo patrón. */
+table.grid tr.clickable { cursor: pointer; }
+table.grid tr.clickable:hover > td { background: #f4f7f5; }
+table.grid th.ordenable { cursor: pointer; user-select: none; }
+table.grid th.ordenable:hover { color: var(--petrol-ink); }
+table.grid .tabla-detalle { margin: 6px 0 10px; background: #f9faf9; }
+/* Línea de precarga con descuento aplicado: se destaca en naranja para que salte a la vista. */
+table.grid .tabla-detalle tr.fila-con-descuento > td { color: #c2560a; }
 .picker-table thead, .picker-table tbody { display: table; width: 100%; table-layout: fixed; }
 .picker-table thead th { position: sticky; top: 0; z-index: 1; background: #eef1ef; }
 .picker-table tbody tr:hover > td { background: #f4f7f5; }

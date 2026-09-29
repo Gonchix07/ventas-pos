@@ -16,6 +16,7 @@ const MODULOS = [
   // "label" solo para el título de la tarjeta: la sigla CAEA va en mayúsculas, a diferencia de
   // "key" (que tiene que coincidir tal cual con Modulo.Descripcion del backend/permisos).
   { key: "FacturacionCaea", label: "Facturación CAEA", desc: "Comprobantes emitidos en contingencia (CAEA) pendientes de informar a ARCA", to: "/facturacion-caea" },
+  { key: "PreventaMayorista", label: "Preventa Mayorista", desc: "Pedidos pendientes de la app de preventa", to: "/preventa-mayorista" },
   // Al final a propósito: es el módulo con más opciones y el que menos se usa día a día.
   // "label" solo para el título de la tarjeta (más claro para el usuario que "Administración");
   // "key" no se toca porque tiene que coincidir con Modulo.Descripcion del backend/permisos.

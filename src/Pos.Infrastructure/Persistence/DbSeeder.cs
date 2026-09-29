@@ -370,5 +370,25 @@ public static class DbSeeder
                 new Configuracion { Clave = "TimeoutInactividadSeg", Descripcion = "Bloqueo de caja por inactividad (seg)", Valor = "300" });
             await db.SaveChangesAsync(ct);
         }
+
+        // Módulo "Preventa Mayorista" (2026-09-25): consulta de solo lectura de los pedidos
+        // pendientes (pedidos.dbf de la app legacy VFP Mayorista_Release) cruzados contra el padrón
+        // propio. Acceso de back-office (no es mostrador) — mismo criterio que Reimpresión/CAEA.
+        var moduloPreventaMayorista = await db.Modulos.FirstOrDefaultAsync(m => m.Descripcion == "PreventaMayorista", ct);
+        if (moduloPreventaMayorista is null)
+        {
+            moduloPreventaMayorista = new Modulo { Descripcion = "PreventaMayorista" };
+            db.Modulos.Add(moduloPreventaMayorista);
+            await db.SaveChangesAsync(ct);
+        }
+        foreach (var descripcionRol in new[] { "Administrador", "Supervisor" })
+        {
+            var rol = await db.Roles.FirstOrDefaultAsync(r => r.Descripcion == descripcionRol, ct);
+            if (rol is null) continue;
+            if (!await db.Permisos.AnyAsync(p => p.IdRol == rol.IdRol && p.IdModulo == moduloPreventaMayorista.IdModulo, ct))
+                db.Permisos.Add(new Permiso { IdRol = rol.IdRol, IdModulo = moduloPreventaMayorista.IdModulo,
+                    PuedeVer = true, PuedeEditar = true });
+        }
+        await db.SaveChangesAsync(ct);
     }
 }

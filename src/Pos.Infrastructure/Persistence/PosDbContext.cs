@@ -100,6 +100,9 @@ public class PosDbContext : DbContext
     public DbSet<ConexionGiftcardsApp> ConexionesGiftcardsApp => Set<ConexionGiftcardsApp>();
     public DbSet<CaeaCargado> CaeaCargados => Set<CaeaCargado>();
 
+    // Preventa Mayorista
+    public DbSet<RecargoLogistica> RecargosLogistica => Set<RecargoLogistica>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
@@ -180,6 +183,7 @@ public class PosDbContext : DbContext
         b.Entity<PadronIngresosBrutos>().HasKey(x => x.Cuit);
         b.Entity<PadronExcepcionPercepcionIva>().HasKey(x => x.Cuit);
         b.Entity<SyncCheckpoint>().HasKey(x => x.IdSyncCheckpoint);
+        b.Entity<RecargoLogistica>().HasKey(x => x.IdRecargoLogistica);
 
         // --- Claves compuestas (negocio multi-sucursal) ---
         b.Entity<ClienteEnCuenta>().HasKey(x => new { x.IdCliente, x.IdSucursal });

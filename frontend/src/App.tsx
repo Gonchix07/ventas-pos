@@ -38,6 +38,7 @@ import { EtiquetasPage } from "./modules/etiquetas/EtiquetasPage";
 import { ReimpresionPage } from "./modules/reimpresion/ReimpresionPage";
 import { VentasPage } from "./modules/ventas/VentasPage";
 import { FacturacionCaeaPage } from "./modules/caea/FacturacionCaeaPage";
+import { PreventaMayoristaPage } from "./modules/preventaMayorista/PreventaMayoristaPage";
 import { ToastProvider, ToastBridge } from "./shared/ui/toast";
 import "./App.css";
 
@@ -119,6 +120,9 @@ function AnimatedRoutes() {
         } />
         <Route path="/facturacion-caea" element={
           <RequireAuth roles={["Tesorero", "Administrador"]} modulo="FacturacionCaea"><FacturacionCaeaPage /></RequireAuth>
+        } />
+        <Route path="/preventa-mayorista" element={
+          <RequireAuth roles={["Administrador", "Supervisor"]} modulo="PreventaMayorista"><PreventaMayoristaPage /></RequireAuth>
         } />
         <Route path="/admin" element={
           <RequireAuth roles={["Administrador"]} modulo="Administracion"><AdminLayout /></RequireAuth>
