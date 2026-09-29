@@ -147,7 +147,7 @@ export function PreventaMayoristaPage() {
               <span className="kpi-label">Cantidad de clientes</span>
               <span className="kpi-valor">{stats.cantidadClientes}</span>
             </div>
-            <div className="kpi-card">
+            <div className="kpi-card kpi-card--bultos">
               <span className="kpi-label">Total bultos</span>
               <span className="kpi-valor">{Math.round(stats.totalBultos).toLocaleString("es-AR")}</span>
             </div>
@@ -155,7 +155,7 @@ export function PreventaMayoristaPage() {
               <span className="kpi-label">Total importe</span>
               <span className="kpi-valor">{formatearMoneda(stats.totalImporte)}</span>
             </div>
-            <div className="kpi-card">
+            <div className="kpi-card kpi-card--recargo">
               <span className="kpi-label">Total recargo logístico</span>
               <span className="kpi-valor">{formatearMoneda(stats.totalRecargo)}</span>
             </div>
@@ -216,9 +216,8 @@ function PreventaClienteFila({ cliente, expandido, onToggle }:
         </td>
         <td className="mono">{formatearMoneda(cliente.importeFinal)}</td>
         <td className="mono" style={{ whiteSpace: "nowrap" }}>
-          {cliente.recargoLogistica > 0
-            ? <span style={{ color: "#1a7f37" }}>+{formatearMoneda(cliente.recargoLogistica)}</span>
-            : "—"}
+          {cliente.recargoLogistica > 0 &&
+            <span style={{ color: "#1a7f37" }}>+{formatearMoneda(cliente.recargoLogistica)}</span>}
         </td>
         <td className="mono">{cliente.cantidadPrecargas}</td>
         <td className="mono">

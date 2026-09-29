@@ -876,6 +876,19 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
 .kpi-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
   padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; container-type: inline-size; }
 .kpi-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+/* Cuadro "Total recargo logístico" (Preventa Mayorista): camioncito de fondo a la derecha,
+   contenido (label + valor) alineado a la izquierda, con padding para no tapar el ícono. */
+.kpi-card--recargo {
+  background-image: url("/recargo.png"); background-repeat: no-repeat;
+  background-position: right 8px center; background-size: 64px auto;
+  padding-right: 82px;
+}
+/* Cuadro "Total bultos" (Preventa Mayorista): mismo criterio que .kpi-card--recargo. */
+.kpi-card--bultos {
+  background-image: url("/cajas.png"); background-repeat: no-repeat;
+  background-position: right 10px center; background-size: 34px auto;
+  padding-right: 54px;
+}
 .kpi-valor { font-size: clamp(14px, 7.5cqi, 22px); font-weight: 700; color: var(--petrol-ink);
   font-family: ui-monospace, Consolas, monospace; white-space: nowrap; }
 .kpi-valor-nc { color: var(--danger); }
