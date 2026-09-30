@@ -154,8 +154,12 @@ public class ArticuloService : IArticuloService
         articulo.VentaPorPeso = input.VentaPorPeso;
         articulo.MinimaUnidadVenta = input.MinimaUnidadVenta <= 0 ? 1m : input.MinimaUnidadVenta;
 
-        // Ya validado que se puede: recién acá se muta la colección.
-        foreach (var p in aEliminar) articulo.Presentaciones.Remove(p);
+        // Ya validado que se puede: recién acá se borra. _db.Presentaciones.Remove (no
+        // articulo.Presentaciones.Remove) marca la entidad como Deleted directamente — el FK hacia
+        // Articulo es obligatorio (no nullable), así que sacarla solo de la colección de navegación
+        // hace que EF intente poner esa FK en null al detectar cambios y explota con
+        // "association... has been severed" en vez de borrar la fila (bug real, 2026-09-30).
+        foreach (var p in aEliminar) _db.Presentaciones.Remove(p);
 
         foreach (var pi in input.Presentaciones)
         {
