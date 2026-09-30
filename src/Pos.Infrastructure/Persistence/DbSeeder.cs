@@ -371,6 +371,16 @@ public static class DbSeeder
             await db.SaveChangesAsync(ct);
         }
 
+        // Backfill individual (no el guard "tabla vacía" de arriba): agregado después de que la
+        // tabla Configuraciones ya tenía datos en producción, así que se controla por clave propia.
+        if (!await db.Configuraciones.AnyAsync(c => c.Clave == "PreventaMayorista:CarpetaDbf", ct))
+        {
+            db.Configuraciones.Add(new Configuracion { Clave = "PreventaMayorista:CarpetaDbf",
+                Descripcion = "Carpeta con los DBF de FOX Legacy",
+                Valor = @"S:\appvfp\Mayorista\Mayorista_Release\Datos" });
+            await db.SaveChangesAsync(ct);
+        }
+
         // Módulo "Preventa Mayorista" (2026-09-25): consulta de solo lectura de los pedidos
         // pendientes (pedidos.dbf de la app legacy VFP Mayorista_Release) cruzados contra el padrón
         // propio. Acceso de back-office (no es mostrador) — mismo criterio que Reimpresión/CAEA.

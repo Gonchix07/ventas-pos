@@ -1,7 +1,6 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Pos.Application.Common;
 using Pos.Application.PreventaMayorista;
@@ -27,21 +26,24 @@ public class PreventaMayoristaService : IPreventaMayoristaService
         { "REPARTO", "CLIENTE", "PRODUCTO", "CANTIDAD", "CANT_ORIG", "PRECIO", "DESCUENTO", "PVENTISTA", "PRECARGA",
           "FPEDIDO", "CERRADO", "CONVENIO", "CODCONV", "NUMERO_PED" };
 
+    // Clave de Configuraciones (ABM "Sistema > Configuraciones", editable sin reiniciar el backend
+    // — se relee en cada refresco del caché de 5 min, ver LeerYCruzarAsync) y valor por defecto si
+    // todavía no está cargada.
+    private const string ClaveCarpetaDbf = "PreventaMayorista:CarpetaDbf";
+    private const string CarpetaDbfPorDefecto = @"S:\appvfp\Mayorista\Mayorista_Release\Datos";
+
     private readonly PosDbContext _db;
     private readonly IMemoryCache _cache;
     private readonly IRecargoLogisticaService _recargoLogistica;
     private readonly ILogger<PreventaMayoristaService> _log;
-    private readonly string _rutaDbf;
 
     public PreventaMayoristaService(PosDbContext db, IMemoryCache cache, IRecargoLogisticaService recargoLogistica,
-        IConfiguration config, ILogger<PreventaMayoristaService> log)
+        ILogger<PreventaMayoristaService> log)
     {
         _db = db;
         _cache = cache;
         _recargoLogistica = recargoLogistica;
         _log = log;
-        _rutaDbf = config["PreventaMayorista:RutaDbf"]
-            ?? @"S:\appvfp\Mayorista\Mayorista_Release\Datos\pedidos.dbf";
     }
 
     public async Task<IReadOnlyList<PreventaClienteDto>> ObtenerPedidosPendientesAsync(
@@ -59,7 +61,8 @@ public class PreventaMayoristaService : IPreventaMayoristaService
 
     private async Task<IReadOnlyList<PreventaClienteDto>> LeerYCruzarAsync(CancellationToken ct)
     {
-        var lineasCrudas = LeerLineasDelDbf();
+        var carpetaDbf = await ObtenerConfigStringAsync(ClaveCarpetaDbf, CarpetaDbfPorDefecto, ct);
+        var lineasCrudas = LeerLineasDelDbf(Path.Combine(carpetaDbf, "pedidos.dbf"));
         if (lineasCrudas.Count == 0) return Array.Empty<PreventaClienteDto>();
 
         var codigosCliente = lineasCrudas.Select(l => l.CodigoCliente).Distinct().ToList();
@@ -141,11 +144,11 @@ public class PreventaMayoristaService : IPreventaMayoristaService
         string PVentista, string Precarga, DateOnly? FechaPedido, int? Cerrado, int? Convenio, string CodConv,
         string NumeroPed);
 
-    private List<LineaCruda> LeerLineasDelDbf()
+    private List<LineaCruda> LeerLineasDelDbf(string rutaDbf)
     {
         try
         {
-            using var reader = new DbfReader(_rutaDbf);
+            using var reader = new DbfReader(rutaDbf);
             var lineas = new List<LineaCruda>();
             foreach (var row in reader.ReadRecords(CamposDbf))
             {
@@ -176,10 +179,23 @@ public class PreventaMayoristaService : IPreventaMayoristaService
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _log.LogError(ex, "No se pudo leer pedidos.dbf en {Ruta} (¿red S:\\ no disponible?).", _rutaDbf);
+            _log.LogError(ex, "No se pudo leer pedidos.dbf en {Ruta} (¿red S:\\ no disponible?).", rutaDbf);
             throw new DomainException("PREVENTA_DBF_INACCESIBLE",
                 "No se pudo leer el archivo de pedidos de Preventa Mayorista (verificar acceso a S:\\).");
         }
+    }
+
+    /// <summary>
+    /// Lee una configuración de texto de la tabla Configuraciones (ABM "Sistema > Configuraciones"),
+    /// mismo criterio que FacturacionService/CierreCajaService.ObtenerConfigDecimalAsync pero para
+    /// string. Sin caché propio: la llama LeerYCruzarAsync, que ya vive detrás del IMemoryCache de
+    /// 5 min del método público — un cambio de configuración se refleja como máximo en ese lapso.
+    /// </summary>
+    private async Task<string> ObtenerConfigStringAsync(string clave, string valorPorDefecto, CancellationToken ct)
+    {
+        var valor = await _db.Configuraciones.AsNoTracking()
+            .Where(c => c.Clave == clave).Select(c => c.Valor).FirstOrDefaultAsync(ct);
+        return string.IsNullOrWhiteSpace(valor) ? valorPorDefecto : valor;
     }
 
     private static decimal ParseDecimal(string valor) =>
