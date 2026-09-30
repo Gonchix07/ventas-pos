@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   clientes, referencias,
-  type Cliente, type ClienteInput, type AutorizadoInput, type Lookup,
+  type Cliente, type ClienteInput, type AutorizadoInput, type Lookup, type ClienteNuevo,
 } from "../../shared/api/admin";
 import { IconEditar, IconBaja } from "../../shared/ui/icons";
 
@@ -46,6 +46,7 @@ export function ClientesPage() {
   // para mostrarlo junto al formulario.
   const [formUltimaSyncErp, setFormUltimaSyncErp] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [vistaImportar, setVistaImportar] = useState(false);
 
   const cargar = async () => {
     setError(null);
@@ -118,11 +119,18 @@ export function ClientesPage() {
       ...f, autorizados: (f.autorizados ?? []).map((a, idx) => idx === i ? { ...a, ...patch } : a),
     } : f);
 
+  if (vistaImportar) {
+    return <ImportarClientesDbf onBack={() => { setVistaImportar(false); void cargar(); }} />;
+  }
+
   return (
     <div>
       <div className="page-head">
         <h1>Clientes</h1>
-        <button className="primary" onClick={nuevo}>Nuevo cliente</button>
+        <div className="row-actions">
+          <button onClick={() => setVistaImportar(true)}>Importar clientes nuevos (DBF)</button>
+          <button className="primary" onClick={nuevo}>Nuevo cliente</button>
+        </div>
       </div>
 
       <div className="toolbar">
@@ -250,6 +258,112 @@ export function ClientesPage() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// ---- Comparador de diferencias / import de clientes nuevos desde clientes.dbf + codtarje.dbf ----
+function ImportarClientesDbf({ onBack }: { onBack: () => void }) {
+  const [nuevos, setNuevos] = useState<ClienteNuevo[] | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const [importando, setImportando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  const cargar = async () => {
+    setError(null); setCargando(true);
+    try { setNuevos(await clientes.nuevosDbf()); }
+    catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+    finally { setCargando(false); }
+  };
+
+  useEffect(() => { void cargar(); }, []);
+
+  // Solo se importan los que tienen tarjeta vigente asignada (codtarje.dbf) — el resto se queda
+  // mostrado en el comparador, sin crear, hasta que tengan una.
+  const conTarjeta = (nuevos ?? []).filter((c) => c.nroTarjeta).length;
+
+  const importar = async () => {
+    if (!confirm(`¿Importar ${conTarjeta} cliente(s) con tarjeta asignada? (de ${nuevos?.length ?? 0} detectados)`)) return;
+    setImportando(true); setError(null); setAviso(null);
+    try {
+      const cantidad = await clientes.importarNuevosDbf();
+      setAviso(`Importados ${cantidad} cliente(s) con tarjeta asignada.`);
+      await cargar();
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+    finally { setImportando(false); }
+  };
+
+  return (
+    <div>
+      <div className="page-head">
+        <h1>Importar clientes nuevos (DBF)</h1>
+        <div className="row-actions">
+          <button className="primary" disabled={importando || cargando || conTarjeta === 0} onClick={importar}>
+            Importar {nuevos ? `(${conTarjeta})` : ""}
+          </button>
+          <button onClick={onBack}>← Volver a clientes</button>
+        </div>
+      </div>
+      <p className="muted">
+        Se muestran todos los detectados en clientes.dbf, pero solo se importan los que tienen
+        tarjeta vigente asignada en codtarje.dbf (los demás quedan afuera, sin crear).
+      </p>
+      <p className="muted">
+        Clientes que están en clientes.dbf (app de preventa) pero todavía no existen acá por código.
+        No se toca ningún cliente ya cargado — esto solo da de alta los nuevos.
+      </p>
+      {error && <p className="error">{error}</p>}
+      {aviso && <p className="ok-msg">{aviso}</p>}
+
+      {(cargando || importando) && (
+        <div className="modal-fondo">
+          <div className="modal-caja" style={{ width: "min(320px, 100%)" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, padding: "24px 0" }}>
+              <div className="spinner" aria-hidden="true" />
+              <p style={{ margin: 0 }}>{importando ? "Importando…" : "Comparando…"}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {nuevos !== null && (
+        <>
+          <p className="resultado-count">
+            {`${nuevos.length} cliente${nuevos.length === 1 ? "" : "s"} nuevo${nuevos.length === 1 ? "" : "s"}` +
+              ` · ${conTarjeta} con tarjeta (se importan) · ${nuevos.length - conTarjeta} sin tarjeta (no se importan)`}
+          </p>
+          <div className="table-scroll">
+            <table className="grid tabla-compacta">
+              <thead>
+                <tr>
+                  <th>Código</th><th>Descripción</th><th>Fantasía</th><th>CUIT/Doc.</th>
+                  <th>Cond. IVA</th><th>Presup.</th><th>Localidad</th><th>Tarjeta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {nuevos.map((c) => (
+                  <tr key={c.codigoInt} className={c.nroTarjeta ? "" : "inactive"} title={c.nroTarjeta ? undefined : "Sin tarjeta: no se importa"}>
+                    <td className="mono">{c.codigoInt}</td>
+                    <td>{c.descripcion}</td>
+                    <td>{c.nombreFantasia ?? <span className="muted">—</span>}</td>
+                    <td className="mono">{c.cuit || c.documento || <span className="muted">—</span>}</td>
+                    <td>{c.condIvaDescripcion}</td>
+                    <td>{c.permitePresupuesto ? "Sí" : "No"}</td>
+                    <td>{c.localidad ?? <span className="muted">—</span>}</td>
+                    <td>
+                      {c.nroTarjeta
+                        ? <span className="mono">{c.tipoTarjetaDescripcion} · {c.nroTarjeta}</span>
+                        : <span className="muted">—</span>}
+                    </td>
+                  </tr>
+                ))}
+                {nuevos.length === 0 && <tr><td colSpan={8} className="muted">Sin clientes nuevos.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

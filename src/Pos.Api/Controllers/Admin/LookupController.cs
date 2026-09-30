@@ -7,7 +7,7 @@ using Pos.Domain.Common;
 
 namespace Pos.Api.Controllers.Admin;
 
-public record LookupDto(int Id, string Descripcion);
+public record LookupDto(int Id, string Descripcion, string? CodigoErp = null);
 public record LookupInput(string Descripcion);
 
 /// <summary>
@@ -23,11 +23,14 @@ public abstract class LookupController<TEntity> : ControllerBase
     private readonly ICrudService<TEntity> _crud;
     protected LookupController(ICrudService<TEntity> crud) => _crud = crud;
 
+    // Solo de lectura (nunca se edita acá): lo carga el sync correspondiente — ver IEntidadConCodigoErp.
+    private static string? CodigoErpDe(TEntity e) => (e as IEntidadConCodigoErp)?.CodigoErp;
+
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var items = (await _crud.GetAllAsync(ct))
-            .Select(e => new LookupDto(e.Id, e.Descripcion))
+            .Select(e => new LookupDto(e.Id, e.Descripcion, CodigoErpDe(e)))
             .OrderBy(x => x.Descripcion)
             .ToList();
         return Ok(ApiResult<IReadOnlyList<LookupDto>>.Success(items));
@@ -39,7 +42,7 @@ public abstract class LookupController<TEntity> : ControllerBase
         var e = await _crud.GetByIdAsync(id, ct);
         return e is null
             ? NotFound(ApiResult<LookupDto>.Fail("NO_ENCONTRADO", "No existe el registro."))
-            : Ok(ApiResult<LookupDto>.Success(new LookupDto(e.Id, e.Descripcion)));
+            : Ok(ApiResult<LookupDto>.Success(new LookupDto(e.Id, e.Descripcion, CodigoErpDe(e))));
     }
 
     [HttpPost]

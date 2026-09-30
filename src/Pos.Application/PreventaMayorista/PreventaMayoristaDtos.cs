@@ -63,13 +63,22 @@ public interface IPreventaMayoristaService
 /// importado a SQL — ImportarAsync sincroniza desde recargo_logistica.dbf.
 /// </summary>
 public record RecargoLogisticaDto(
+    int IdRecargoLogistica,
     decimal Inicio,
     decimal Fin,
     decimal Porcentaje);
 
+public record RecargoLogisticaInput(decimal Inicio, decimal Fin, decimal Porcentaje);
+
 public interface IRecargoLogisticaService
 {
     Task<IReadOnlyList<RecargoLogisticaDto>> ObtenerAsync(CancellationToken ct = default);
+
+    Task<int> CreateAsync(RecargoLogisticaInput input, CancellationToken ct = default);
+
+    Task<bool> UpdateAsync(int id, RecargoLogisticaInput input, CancellationToken ct = default);
+
+    Task<bool> DeleteAsync(int id, CancellationToken ct = default);
 
     /// <summary>Relee recargo_logistica.dbf y reemplaza el contenido de la tabla SQL.</summary>
     /// <returns>Cantidad de tramos importados.</returns>

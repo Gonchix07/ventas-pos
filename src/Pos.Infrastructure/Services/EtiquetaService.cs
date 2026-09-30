@@ -124,6 +124,7 @@ public class EtiquetaService : IEtiquetaService
                 select new CandidatoPrecio(l.Tipo, l.Prioridad, l.FechaInicio, l.FechaFin, p.PrecioFinal,
                     p.ImpuestoInterno, l.IdListaPrecio)
             ).ToListAsync(ct);
+            candidatos.AddRange(await DiferencialListaPrecioResolver.ResolverCandidatosAsync(_db, idSucursal, idPresentacion, ct));
             var resuelto = CalculadoraPrecios.Resolver(candidatos, fecha);
             if (!resuelto.Encontrado) continue; // sin precio vigente: no se genera etiqueta para esta presentación
 
@@ -133,12 +134,12 @@ public class EtiquetaService : IEtiquetaService
             var preciosTarjeta = new List<TipoTarjetaPrecioDto>();
             foreach (var t in tiposTarjeta)
             {
-                var precioLista = await _db.Precios.AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.IdListaPrecio == t.IdListaPrecio!.Value && p.IdPresentacion == idPresentacion, ct);
+                var precioLista = await DiferencialListaPrecioResolver.ResolverPrecioUnicoAsync(
+                    _db, t.IdListaPrecio!.Value, idPresentacion, ct);
                 if (precioLista is null) continue;
-                var pxu = EtiquetaCalculos.PrecioPorUnidadMedida(precioLista.PrecioFinal, info.ContenidoNetoUnitario);
-                var si = EtiquetaCalculos.PrecioSinImpuestosNacionales(precioLista.PrecioFinal, precioLista.ImpuestoInterno, info.Alicuota);
-                preciosTarjeta.Add(new TipoTarjetaPrecioDto(t.Descripcion.ToUpperInvariant(), precioLista.PrecioFinal, pxu, si));
+                var pxu = EtiquetaCalculos.PrecioPorUnidadMedida(precioLista.Value.PrecioFinal, info.ContenidoNetoUnitario);
+                var si = EtiquetaCalculos.PrecioSinImpuestosNacionales(precioLista.Value.PrecioFinal, precioLista.Value.ImpuestoInterno, info.Alicuota);
+                preciosTarjeta.Add(new TipoTarjetaPrecioDto(t.Descripcion.ToUpperInvariant(), precioLista.Value.PrecioFinal, pxu, si));
             }
 
             var compraMinima = ResolverCompraMinima(ofertasVigentes, info.IdArticulo, info.IdSector, info.IdLinea, info.IdFamilia);

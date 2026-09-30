@@ -22,7 +22,7 @@ public class ReferenciasController : ControllerBase
     {
         var items = await _db.ModosIva.AsNoTracking()
             .OrderBy(m => m.Descripcion)
-            .Select(m => new LookupDto(m.IdModoIva, m.Descripcion))
+            .Select(m => new LookupDto(m.IdModoIva, m.Descripcion, null))
             .ToListAsync(ct);
         return Ok(ApiResult<IReadOnlyList<LookupDto>>.Success(items));
     }
@@ -38,7 +38,7 @@ public class ReferenciasController : ControllerBase
     {
         var items = await _db.Sucursales.AsNoTracking()
             .OrderBy(s => s.Descripcion)
-            .Select(s => new LookupDto(s.IdSucursal, s.Descripcion))
+            .Select(s => new LookupDto(s.IdSucursal, s.Descripcion, null))
             .ToListAsync(ct);
         return Ok(ApiResult<IReadOnlyList<LookupDto>>.Success(items));
     }
@@ -48,7 +48,7 @@ public class ReferenciasController : ControllerBase
     {
         var items = await _db.ListasPrecios.AsNoTracking()
             .OrderBy(l => l.CodigoInterno)
-            .Select(l => new LookupDto(l.IdListaPrecio, l.CodigoInterno))
+            .Select(l => new LookupDto(l.IdListaPrecio, l.CodigoInterno, null))
             .ToListAsync(ct);
         return Ok(ApiResult<IReadOnlyList<LookupDto>>.Success(items));
     }
@@ -58,7 +58,7 @@ public class ReferenciasController : ControllerBase
     {
         var items = await _db.CondicionesIva.AsNoTracking()
             .OrderBy(c => c.Descripcion)
-            .Select(c => new LookupDto(c.IdCondIva, c.Descripcion))
+            .Select(c => new LookupDto(c.IdCondIva, c.Descripcion, null))
             .ToListAsync(ct);
         return Ok(ApiResult<IReadOnlyList<LookupDto>>.Success(items));
     }

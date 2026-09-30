@@ -14,6 +14,13 @@ public class ListaPrecio : AuditableEntity
     public DateTime? FechaInicio { get; set; }
     public DateTime? FechaFin { get; set; }
     public ICollection<Precio> Precios { get; set; } = new List<Precio>();
+
+    /// <summary>Solo con valor cuando Tipo=Enlazada: la lista de la que toma los precios base antes
+    /// de aplicarles el recargo de Diferenciales. Nunca apunta a otra lista Enlazada (se valida al
+    /// guardar) — un solo nivel de indirección.</summary>
+    public int? IdListaBase { get; set; }
+    public ListaPrecio? ListaBase { get; set; }
+    public ICollection<DiferencialListaPrecio> Diferenciales { get; set; } = new List<DiferencialListaPrecio>();
 }
 
 public class Precio : AuditableEntity
@@ -27,6 +34,26 @@ public class Precio : AuditableEntity
     public int IdArticulo { get; set; }
     public decimal PrecioFinal { get; set; }
     public decimal ImpuestoInterno { get; set; }
+}
+
+/// <summary>
+/// Recargo porcentual que una lista Tipo=Enlazada aplica sobre el precio de su ListaBase, por línea
+/// completa (IdLinea) o por artículo puntual (IdArticulo) — nunca ambos a la vez en la misma fila.
+/// Si un artículo matchea tanto un diferencial propio como el de su línea, el del artículo puntual
+/// tiene prioridad (ver PricingService/EtiquetaService). Se puede cargar a mano (CRUD en Precios y
+/// Ofertas) o importar desde descxtipocli_art.dbf (ver DiferencialListaPrecioImportService),
+/// filtrando TIPO_TARJE='03' y vigencia (DESDE/HASTA) al momento de importar.
+/// </summary>
+public class DiferencialListaPrecio : AuditableEntity
+{
+    public int IdDiferencial { get; set; }
+    public int IdListaPrecio { get; set; }
+    public ListaPrecio? ListaPrecio { get; set; }
+    public int? IdLinea { get; set; }
+    public Linea? Linea { get; set; }
+    public int? IdArticulo { get; set; }
+    public Articulo? Articulo { get; set; }
+    public decimal Porcentaje { get; set; }
 }
 
 public class Convenio : AuditableEntity

@@ -4,6 +4,9 @@ import { api, unwrap } from "./client";
 export interface Lookup {
   id: number;
   descripcion: string;
+  /** Solo en lookups que lo tienen (ej. Líneas): código de T_Lineas en el ERP Central, de solo
+   *  lectura acá — lo carga el sync, no se edita desde este ABM. */
+  codigoErp?: string | null;
 }
 
 export const lookups = {
@@ -181,6 +184,22 @@ export interface ClienteInput {
   autorizados?: AutorizadoInput[];
 }
 
+/** Cliente de clientes.dbf (app legacy VFP) que todavía no existe en SQL — fila del comparador de
+ *  diferencias, antes de importar. */
+export interface ClienteNuevo {
+  codigoInt: string;
+  descripcion: string;
+  nombreFantasia?: string | null;
+  cuit?: string | null;
+  documento?: string | null;
+  condIvaDescripcion: string;
+  permitePresupuesto: boolean;
+  localidad?: string | null;
+  provincia?: string | null;
+  nroTarjeta?: string | null;
+  tipoTarjetaDescripcion?: string | null;
+}
+
 export const clientes = {
   /** `admiteCuentaCorriente: true` trae solo los habilitados para cuenta corriente. */
   list: (q?: string, admiteCuentaCorriente?: boolean) =>
@@ -190,6 +209,11 @@ export const clientes = {
   create: (input: ClienteInput) => unwrap<number>(api.post(`/admin/clientes`, input)),
   update: (id: number, input: ClienteInput) => unwrap<boolean>(api.put(`/admin/clientes/${id}`, input)),
   remove: (id: number) => unwrap<boolean>(api.delete(`/admin/clientes/${id}`)),
+
+  // ---- Comparador de diferencias / import desde clientes.dbf + codtarje.dbf ----
+  nuevosDbf: () => unwrap<ClienteNuevo[]>(api.get(`/admin/clientes/nuevos-dbf`)),
+  /** Crea los clientes nuevos (nunca toca los que ya existen). Devuelve la cantidad creada. */
+  importarNuevosDbf: () => unwrap<number>(api.post(`/admin/clientes/nuevos-dbf/importar`)),
 };
 
 // ---- Listas de precios + precios ----
@@ -198,12 +222,16 @@ export interface ListaPrecio {
   idSucursal: number;
   sucursalDescripcion?: string | null;
   codigoInterno: string;
-  tipo: number; // 1=Base, 2=Temporal, 3=Folder
+  tipo: number; // 1=Base, 2=Temporal, 3=Folder, 4=Enlazada
   tipoDescripcion: string;
   prioridad: number;
   fechaInicio?: string | null;
   fechaFin?: string | null;
   cantidadPrecios: number;
+  // Solo con valor cuando tipo=4 (Enlazada).
+  idListaBase?: number | null;
+  listaBaseCodigoInterno?: string | null;
+  cantidadDiferenciales: number;
 }
 export interface ListaPrecioInput {
   idSucursal: number;
@@ -212,6 +240,39 @@ export interface ListaPrecioInput {
   prioridad: number;
   fechaInicio?: string | null;
   fechaFin?: string | null;
+  idListaBase?: number | null;
+}
+
+/** Diferencial de una lista Enlazada: recargo % sobre el precio de su lista Base, por línea
+ *  completa o por artículo puntual (exactamente uno de los dos). */
+export interface DiferencialListaPrecio {
+  idDiferencial: number;
+  idListaPrecio: number;
+  idLinea?: number | null;
+  lineaDescripcion?: string | null;
+  idArticulo?: number | null;
+  articuloCodigoInterno?: string | null;
+  articuloDescripcion?: string | null;
+  porcentaje: number;
+}
+export interface DiferencialListaPrecioInput {
+  idLinea?: number | null;
+  idArticulo?: number | null;
+  porcentaje: number;
+}
+
+/** Tramo de recargo logístico (Preventa Mayorista): % que se suma al importe cuando la suma de
+ *  líneas en "Entrega" de un pedido cae en [inicio, fin] (fin=-1 = sin límite superior). */
+export interface RecargoLogistica {
+  idRecargoLogistica: number;
+  inicio: number;
+  fin: number;
+  porcentaje: number;
+}
+export interface RecargoLogisticaInput {
+  inicio: number;
+  fin: number;
+  porcentaje: number;
 }
 export interface PrecioRow {
   idPresentacion: number;
@@ -761,6 +822,29 @@ export const listasPrecios = {
       { precioUnitario, impuestoInternoUnitario })),
   removePrecio: (id: number, idPresentacion: number) =>
     unwrap<boolean>(api.delete(`/admin/listas-precios/${id}/precios/${idPresentacion}`)),
+
+  // ---- Diferenciales (solo listas tipo=4 Enlazada) ----
+  diferenciales: (id: number) =>
+    unwrap<DiferencialListaPrecio[]>(api.get(`/admin/listas-precios/${id}/diferenciales`)),
+  createDiferencial: (id: number, input: DiferencialListaPrecioInput) =>
+    unwrap<number>(api.post(`/admin/listas-precios/${id}/diferenciales`, input)),
+  updateDiferencial: (id: number, idDiferencial: number, input: DiferencialListaPrecioInput) =>
+    unwrap<boolean>(api.put(`/admin/listas-precios/${id}/diferenciales/${idDiferencial}`, input)),
+  removeDiferencial: (id: number, idDiferencial: number) =>
+    unwrap<boolean>(api.delete(`/admin/listas-precios/${id}/diferenciales/${idDiferencial}`)),
+  /** Relee descxtipocli_art.dbf (TIPO_TARJE='03', vigentes) y reemplaza los diferenciales. */
+  importarDiferenciales: (id: number) =>
+    unwrap<number>(api.post(`/admin/listas-precios/${id}/diferenciales/importar`)),
+};
+
+export const recargoLogistica = {
+  list: () => unwrap<RecargoLogistica[]>(api.get(`/admin/recargo-logistica`)),
+  create: (input: RecargoLogisticaInput) => unwrap<number>(api.post(`/admin/recargo-logistica`, input)),
+  update: (id: number, input: RecargoLogisticaInput) =>
+    unwrap<boolean>(api.put(`/admin/recargo-logistica/${id}`, input)),
+  remove: (id: number) => unwrap<boolean>(api.delete(`/admin/recargo-logistica/${id}`)),
+  /** Relee recargo_logistica.dbf y reemplaza todos los tramos. */
+  importar: () => unwrap<number>(api.post(`/admin/recargo-logistica/importar`)),
 };
 
 // ---- Permisos por rol (acceso a los módulos del menú principal) ----

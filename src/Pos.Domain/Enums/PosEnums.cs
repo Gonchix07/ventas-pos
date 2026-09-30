@@ -23,7 +23,13 @@ public enum TipoListaPrecio
 {
     Base = 1,
     Temporal = 2,
-    Folder = 3
+    Folder = 3,
+    /// <summary>No tiene precios propios: toma los de <see cref="Entities.ListaPrecio.IdListaBase"/>
+    /// y les aplica el recargo de <see cref="Entities.DiferencialListaPrecio"/> que matchee (por
+    /// artículo puntual, si no por línea) — ver CalculadoraPrecios/PricingService. Mismo rango de
+    /// prioridad que Base: es una variante calculada de una lista Base, no compite contra
+    /// Temporal/Folder.</summary>
+    Enlazada = 4
 }
 
 /// <summary>

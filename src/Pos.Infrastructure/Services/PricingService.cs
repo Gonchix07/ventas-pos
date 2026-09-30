@@ -27,6 +27,10 @@ public class PricingService : IPricingService
                 p.ImpuestoInterno, l.IdListaPrecio)
         ).ToListAsync(ct);
 
+        var candidatoEnlazadas = await DiferencialListaPrecioResolver.ResolverCandidatosAsync(
+            _db, req.IdSucursal, req.IdPresentacion, ct);
+        candidatos.AddRange(candidatoEnlazadas);
+
         ConvenioInfo? convenio = null;
         if (req.IdCliente is int idc)
         {

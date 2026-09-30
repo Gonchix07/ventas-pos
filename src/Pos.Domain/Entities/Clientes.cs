@@ -60,7 +60,10 @@ public class Cliente : AuditableEntity
     public int? EstadoErp { get; set; }
     /// <summary>Fecha/hora (UTC) de la última vez que el sync ERP tocó este cliente (alta o
     /// actualización). Ver <see cref="Articulo.UltimaSincronizacionErpUtc"/> para el motivo de que
-    /// sea un campo aparte de <see cref="AuditableEntity.UpdatedAtUtc"/>.</summary>
+    /// sea un campo aparte de <see cref="AuditableEntity.UpdatedAtUtc"/>. También lo actualiza el
+    /// importador de clientes.dbf/codtarje.dbf (app legacy VFP "Mayorista" — ver
+    /// ClienteDbfImportService), a pesar del nombre: es el único campo "última sincronización
+    /// externa" que existe, y el ABM ya lo muestra como tal.</summary>
     public DateTime? UltimaSincronizacionErpUtc { get; set; }
 
     public ICollection<ClienteEnCuenta> Cuentas { get; set; } = new List<ClienteEnCuenta>();

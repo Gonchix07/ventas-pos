@@ -39,8 +39,43 @@ public class RecargoLogisticaService : IRecargoLogisticaService
     public async Task<IReadOnlyList<RecargoLogisticaDto>> ObtenerAsync(CancellationToken ct = default) =>
         await _db.RecargosLogistica.AsNoTracking()
             .OrderBy(r => r.Inicio)
-            .Select(r => new RecargoLogisticaDto(r.Inicio, r.Fin, r.Porcentaje))
+            .Select(r => new RecargoLogisticaDto(r.IdRecargoLogistica, r.Inicio, r.Fin, r.Porcentaje))
             .ToListAsync(ct);
+
+    public async Task<int> CreateAsync(RecargoLogisticaInput input, CancellationToken ct = default)
+    {
+        var tramo = new RecargoLogistica
+        {
+            Inicio = input.Inicio,
+            Fin = input.Fin,
+            Porcentaje = input.Porcentaje,
+        };
+        _db.RecargosLogistica.Add(tramo);
+        await _db.SaveChangesAsync(ct);
+        return tramo.IdRecargoLogistica;
+    }
+
+    public async Task<bool> UpdateAsync(int id, RecargoLogisticaInput input, CancellationToken ct = default)
+    {
+        var tramo = await _db.RecargosLogistica.FirstOrDefaultAsync(r => r.IdRecargoLogistica == id, ct);
+        if (tramo is null) return false;
+
+        tramo.Inicio = input.Inicio;
+        tramo.Fin = input.Fin;
+        tramo.Porcentaje = input.Porcentaje;
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
+    {
+        var tramo = await _db.RecargosLogistica.FirstOrDefaultAsync(r => r.IdRecargoLogistica == id, ct);
+        if (tramo is null) return false;
+
+        _db.RecargosLogistica.Remove(tramo);
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
 
     public async Task<int> ImportarAsync(CancellationToken ct = default)
     {

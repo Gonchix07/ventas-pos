@@ -9,3 +9,12 @@ public interface IEntidadLookup
     int Id { get; }
     string Descripcion { get; set; }
 }
+
+/// <summary>
+/// Lookup que además trae un código de otro sistema (ERP Central u otro) — se muestra de solo
+/// lectura en el ABM genérico de lookups, nunca se edita ahí: lo carga el sync correspondiente.
+/// </summary>
+public interface IEntidadConCodigoErp : IEntidadLookup
+{
+    string? CodigoErp { get; }
+}

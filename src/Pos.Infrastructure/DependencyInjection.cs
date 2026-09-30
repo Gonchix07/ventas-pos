@@ -37,7 +37,9 @@ public static class DependencyInjection
         services.AddScoped<Pos.Application.Catalogo.IArticuloService, Services.ArticuloService>();
         services.AddScoped<Pos.Application.Catalogo.IFamiliaService, Services.FamiliaService>();
         services.AddScoped<Pos.Application.Clientes.IClienteService, Services.ClienteService>();
+        services.AddScoped<Pos.Application.Clientes.IClienteDbfImportService, Services.ClienteDbfImportService>();
         services.AddScoped<Pos.Application.Precios.IListaPrecioService, Services.ListaPrecioService>();
+        services.AddScoped<Services.DiferencialListaPrecioImportService>();
         services.AddScoped<Pos.Application.Abm.IPagoAdminService, Services.PagoAdminService>();
         services.AddScoped<Pos.Application.Abm.IEstructuraService, Services.EstructuraService>();
         services.AddScoped<Pos.Application.Facturacion.ICaeaCargadoService, Services.CaeaCargadoService>();

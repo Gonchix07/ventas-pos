@@ -13,7 +13,13 @@ namespace Pos.Api.Controllers.Admin;
 public class ClientesAdminController : ControllerBase
 {
     private readonly IClienteService _service;
-    public ClientesAdminController(IClienteService service) => _service = service;
+    private readonly IClienteDbfImportService _importDbf;
+
+    public ClientesAdminController(IClienteService service, IClienteDbfImportService importDbf)
+    {
+        _service = service;
+        _importDbf = importDbf;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] string? q,
@@ -49,4 +55,17 @@ public class ClientesAdminController : ControllerBase
         return ok ? Ok(ApiResult<bool>.Success(true))
                   : NotFound(ApiResult<bool>.Fail("NO_ENCONTRADO", "No existe el cliente."));
     }
+
+    // ---- Comparador de diferencias / import desde clientes.dbf + codtarje.dbf (app legacy VFP) ----
+
+    /// <summary>Clientes que están en clientes.dbf pero todavía no en SQL (por CodigoInt). Solo
+    /// lectura, no crea nada — es la vista previa antes de "Importar".</summary>
+    [HttpGet("nuevos-dbf")]
+    public async Task<IActionResult> GetNuevosDbf(CancellationToken ct) =>
+        Ok(ApiResult<IReadOnlyList<ClienteNuevoDto>>.Success(await _importDbf.ObtenerNuevosAsync(ct)));
+
+    /// <summary>Crea los clientes nuevos de clientes.dbf (nunca toca los que ya existen).</summary>
+    [HttpPost("nuevos-dbf/importar")]
+    public async Task<IActionResult> ImportarNuevosDbf(CancellationToken ct) =>
+        Ok(ApiResult<int>.Success(await _importDbf.ImportarNuevosAsync(ct)));
 }

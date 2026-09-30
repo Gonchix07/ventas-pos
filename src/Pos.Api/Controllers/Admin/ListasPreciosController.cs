@@ -87,4 +87,48 @@ public class ListasPreciosController : ControllerBase
         return ok ? Ok(ApiResult<bool>.Success(true))
                   : NotFound(ApiResult<bool>.Fail("NO_ENCONTRADO", "No existe el precio."));
     }
+
+    // ---- Diferenciales (solo para listas Tipo=Enlazada: recargo % sobre la lista Base) ----
+
+    [HttpGet("{id:int}/diferenciales")]
+    public async Task<IActionResult> GetDiferenciales(int id, CancellationToken ct) =>
+        Ok(ApiResult<IReadOnlyList<DiferencialListaPrecioDto>>.Success(
+            await _service.GetDiferencialesAsync(id, ct)));
+
+    [HttpPost("{id:int}/diferenciales")]
+    public async Task<IActionResult> CreateDiferencial(int id, [FromBody] DiferencialListaPrecioInput input, CancellationToken ct)
+    {
+        var idDiferencial = await _service.CreateDiferencialAsync(id, input, ct);
+        return idDiferencial is null
+            ? NotFound(ApiResult<int>.Fail("NO_ENCONTRADO", "No existe la lista."))
+            : Ok(ApiResult<int>.Success(idDiferencial.Value));
+    }
+
+    [HttpPut("{id:int}/diferenciales/{idDiferencial:int}")]
+    public async Task<IActionResult> UpdateDiferencial(int id, int idDiferencial,
+        [FromBody] DiferencialListaPrecioInput input, CancellationToken ct)
+    {
+        var ok = await _service.UpdateDiferencialAsync(id, idDiferencial, input, ct);
+        return ok ? Ok(ApiResult<bool>.Success(true))
+                  : NotFound(ApiResult<bool>.Fail("NO_ENCONTRADO", "No existe el diferencial."));
+    }
+
+    [HttpDelete("{id:int}/diferenciales/{idDiferencial:int}")]
+    public async Task<IActionResult> DeleteDiferencial(int id, int idDiferencial, CancellationToken ct)
+    {
+        var ok = await _service.DeleteDiferencialAsync(id, idDiferencial, ct);
+        return ok ? Ok(ApiResult<bool>.Success(true))
+                  : NotFound(ApiResult<bool>.Fail("NO_ENCONTRADO", "No existe el diferencial."));
+    }
+
+    /// <summary>Relee descxtipocli_art.dbf (TIPO_TARJE='03', vigentes) y reemplaza los diferenciales
+    /// de esta lista.</summary>
+    [HttpPost("{id:int}/diferenciales/importar")]
+    public async Task<IActionResult> ImportarDiferenciales(int id, CancellationToken ct)
+    {
+        var cantidad = await _service.ImportarDiferencialesAsync(id, ct);
+        return cantidad is null
+            ? NotFound(ApiResult<int>.Fail("NO_ENCONTRADO", "No existe la lista o no es Tipo=Enlazada."))
+            : Ok(ApiResult<int>.Success(cantidad.Value));
+    }
 }

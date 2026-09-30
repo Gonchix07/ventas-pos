@@ -57,6 +57,7 @@ public class PosDbContext : DbContext
     // Precios / ofertas
     public DbSet<ListaPrecio> ListasPrecios => Set<ListaPrecio>();
     public DbSet<Precio> Precios => Set<Precio>();
+    public DbSet<DiferencialListaPrecio> DiferencialesListaPrecio => Set<DiferencialListaPrecio>();
     public DbSet<Convenio> Convenios => Set<Convenio>();
     public DbSet<CabeceraOferta> CabecerasOfertas => Set<CabeceraOferta>();
     public DbSet<AlcanceOferta> AlcancesOfertas => Set<AlcanceOferta>();
@@ -186,6 +187,7 @@ public class PosDbContext : DbContext
         b.Entity<SyncCheckpoint>().HasKey(x => x.IdSyncCheckpoint);
         b.Entity<RecargoLogistica>().HasKey(x => x.IdRecargoLogistica);
         b.Entity<Vendedor>().HasKey(x => x.IdVendedor);
+        b.Entity<DiferencialListaPrecio>().HasKey(x => x.IdDiferencial);
 
         // --- Claves compuestas (negocio multi-sucursal) ---
         b.Entity<ClienteEnCuenta>().HasKey(x => new { x.IdCliente, x.IdSucursal });
@@ -263,6 +265,15 @@ public class PosDbContext : DbContext
         b.Entity<Precio>().HasOne(x => x.ListaPrecio).WithMany(l => l.Precios).HasForeignKey(x => x.IdListaPrecio);
         b.Entity<Precio>().HasOne(x => x.Presentacion).WithMany().HasForeignKey(x => x.IdPresentacion);
         b.Entity<Convenio>().HasOne(x => x.Cliente).WithMany().HasForeignKey(x => x.IdCliente);
+
+        // Enlazada: mismo criterio Restrict global de abajo (no hay cascada automática) — el
+        // servicio borra los Diferenciales a mano antes de borrar la lista (mismo patrón que Precio)
+        // e impide borrar una lista Base todavía referenciada por alguna Enlazada.
+        b.Entity<ListaPrecio>().HasOne(x => x.ListaBase).WithMany().HasForeignKey(x => x.IdListaBase);
+        b.Entity<DiferencialListaPrecio>().HasOne(x => x.ListaPrecio).WithMany(l => l.Diferenciales)
+            .HasForeignKey(x => x.IdListaPrecio);
+        b.Entity<DiferencialListaPrecio>().HasOne(x => x.Linea).WithMany().HasForeignKey(x => x.IdLinea);
+        b.Entity<DiferencialListaPrecio>().HasOne(x => x.Articulo).WithMany().HasForeignKey(x => x.IdArticulo);
 
         b.Entity<AlcanceOferta>().HasOne<CabeceraOferta>().WithMany(o => o.Alcances)
             .HasForeignKey(x => new { x.IdSucursal, x.IdOferta });

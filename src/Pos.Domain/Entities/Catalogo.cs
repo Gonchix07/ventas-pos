@@ -14,11 +14,15 @@ public class Sector : AuditableEntity, IEntidadLookup
     [NotMapped] public int Id => IdSector;
 }
 
-public class Linea : AuditableEntity, IEntidadLookup
+public class Linea : AuditableEntity, IEntidadConCodigoErp
 {
     public int IdLinea { get; set; }
     public string Descripcion { get; set; } = "";
-    /// <summary>Código de T_Lineas en el ERP Central. Ver <see cref="Sector.CodigoErp"/>.</summary>
+    /// <summary>Código de T_Lineas en el ERP Central. Ver <see cref="Sector.CodigoErp"/>. Confirmado
+    /// (2026-09-30) que coincide 1:1 con el código de 3 dígitos de "línea" de la app legacy VFP
+    /// "Mayorista" (campo LINEA de descxtipocli_art.dbf/lineas.dbf) — el ERP heredó esos códigos al
+    /// migrarse, así que DiferencialListaPrecioImportService lo usa también para matchear
+    /// diferenciales "por línea" al importar, sin necesidad de un campo aparte.</summary>
     public string? CodigoErp { get; set; }
     [NotMapped] public int Id => IdLinea;
 }

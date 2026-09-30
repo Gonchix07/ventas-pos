@@ -60,3 +60,24 @@ public interface IClienteService
     /// </summary>
     Task<ClienteTicketDto?> GetTicketAsync(int idCliente, CancellationToken ct = default);
 }
+
+/// <summary>
+/// Cliente encontrado en clientes.dbf (app legacy VFP "Mayorista") que todavía no existe en SQL por
+/// CodigoInt — fila del "comparador de diferencias" antes de importar. La tarjeta (de codtarje.dbf)
+/// es la vigente del cliente (TIPOTARJE '03'=Roja/'04'=Azul, INHABILITA=0), null si no tiene.
+/// </summary>
+public record ClienteNuevoDto(
+    string CodigoInt, string Descripcion, string? NombreFantasia, string? Cuit, string? Documento,
+    string CondIvaDescripcion, bool PermitePresupuesto, string? Localidad, string? Provincia,
+    string? NroTarjeta, string? TipoTarjetaDescripcion);
+
+public interface IClienteDbfImportService
+{
+    /// <summary>Solo lectura: compara clientes.dbf contra Clientes por CodigoInt, sin tocar SQL.</summary>
+    Task<IReadOnlyList<ClienteNuevoDto>> ObtenerNuevosAsync(CancellationToken ct = default);
+
+    /// <summary>Crea en SQL los clientes de clientes.dbf que todavía no existen (nunca actualiza ni
+    /// borra los que ya están) y les asigna su tarjeta vigente de codtarje.dbf si tienen.</summary>
+    /// <returns>Cantidad de clientes creados.</returns>
+    Task<int> ImportarNuevosAsync(CancellationToken ct = default);
+}

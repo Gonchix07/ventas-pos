@@ -7,8 +7,12 @@ interface Props {
   title: string;
 }
 
+// Resources cuyo lookup trae CodigoErp (ver Lookup.codigoErp) y conviene mostrarlo en la tabla.
+const CON_CODIGO_ERP = new Set(["lineas"]);
+
 export function LookupPage({ resource, title }: Props) {
   const [items, setItems] = useState<Lookup[]>([]);
+  const mostrarCodigoErp = CON_CODIGO_ERP.has(resource);
   const [nuevo, setNuevo] = useState("");
   const [editId, setEditId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
@@ -81,7 +85,11 @@ export function LookupPage({ resource, title }: Props) {
       ) : (
         <table className="grid">
           <thead>
-            <tr><th style={{ width: 80 }}>ID</th><th>Descripción</th><th style={{ width: 160 }}></th></tr>
+            <tr>
+              <th style={{ width: 80 }}>ID</th><th>Descripción</th>
+              {mostrarCodigoErp && <th style={{ width: 120 }}>Código legacy</th>}
+              <th style={{ width: 160 }}></th>
+            </tr>
           </thead>
           <tbody>
             {items.map((it) => (
@@ -94,6 +102,7 @@ export function LookupPage({ resource, title }: Props) {
                     it.descripcion
                   )}
                 </td>
+                {mostrarCodigoErp && <td className="mono">{it.codigoErp ?? <span className="muted">—</span>}</td>}
                 <td className="row-actions">
                   {editId === it.id ? (
                     <>
@@ -112,7 +121,7 @@ export function LookupPage({ resource, title }: Props) {
               </tr>
             ))}
             {items.length === 0 && (
-              <tr><td colSpan={3} className="muted">Sin registros.</td></tr>
+              <tr><td colSpan={mostrarCodigoErp ? 4 : 3} className="muted">Sin registros.</td></tr>
             )}
           </tbody>
         </table>

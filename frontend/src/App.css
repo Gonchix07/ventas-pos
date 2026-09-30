@@ -127,10 +127,17 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .module-card--admin > * { position: relative; }
 
 /* ---- Admin ---- */
-.admin { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+/* Menú y contenido con scroll propio en vez de scrollear la página entera: `.admin` fija la altura
+   al viewport y la reparte entre sus dos columnas (`overflow:hidden` para no duplicar la barra de
+   scroll del body), y cada columna decide si scrollea puertas adentro. */
+.admin { display: grid; grid-template-columns: 240px 1fr; height: 100dvh; overflow: hidden; }
 .admin-side { background: var(--surface); border-right: 1px solid var(--line);
-  display: flex; flex-direction: column; padding: 18px 14px; gap: 18px; }
-.admin-side nav { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+  display: flex; flex-direction: column; padding: 18px 14px; gap: 18px;
+  min-height: 0; overflow: hidden; }
+/* `.brand`/`.admin-user` no scrollean con el menú: solo el <nav> de abajo, que se lleva el resto
+   de la altura disponible del aside. */
+.admin-side > .brand, .admin-side > .admin-user { flex-shrink: 0; }
+.admin-side nav { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; min-height: 0; }
 .admin-side nav a { text-decoration: none; color: var(--ink); padding: 9px 12px; border-radius: 8px; font-size: 14px; }
 .admin-side nav a:hover { background: #eef1ef; }
 .admin-side nav a.active { background: var(--petrol); color: #fff; }
@@ -164,21 +171,23 @@ code { background: #eef1ef; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .admin-user > button:hover, .admin-user-salir:hover {
   background: #e3f5e9; border-color: #a8dcb8; color: #1c6b3c;
 }
-.admin-content { padding: 28px 32px; max-width: 1100px; }
+.admin-content { padding: 28px 32px; max-width: 1100px; overflow-y: auto; min-height: 0; box-sizing: border-box; }
 .admin-content h1 { font-size: 22px; margin: 0 0 18px; }
 
 /* Pantallas angostas (tablet/celular): el sidebar de 240px fijos no deja lugar para el contenido
    (tablas de Artículos/Clientes, sobre todo). Se apila arriba en vez de al costado y se recorta el
    padding, que a este ancho ya sobra. */
 @media (max-width: 860px) {
-  .admin { grid-template-columns: 1fr; }
-  .admin-side { border-right: none; border-bottom: 1px solid var(--line); padding: 14px; }
-  .admin-side nav { max-height: 220px; }
-  .admin-content { padding: 20px 16px; }
+  /* Apilado, vuelve a ser una sola página que scrollea entera (el menú ya no ocupa toda la
+     altura, así que no tiene sentido recortarle el scroll propio). */
+  .admin { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  .admin-side { border-right: none; border-bottom: 1px solid var(--line); padding: 14px; overflow: visible; }
+  .admin-side nav { max-height: 220px; flex: none; }
+  .admin-content { padding: 20px 16px; overflow: visible; }
 }
-/* Ventas: sin el ancho fijo de los ABM, y estirado a todo el alto visible (el sidebar ya fija
-   min-height:100vh en `.admin`, esto hace que el panel de contenido lo acompañe en vez de quedar
-   con la altura justa de lo que tiene adentro). */
+/* Ventas: sin el ancho fijo de los ABM, y estirado a todo el alto visible (`.admin` ya fija
+   height:100dvh, esto hace que el panel de contenido lo acompañe en vez de quedar con la altura
+   justa de lo que tiene adentro). */
 .admin-content-full { max-width: none; width: 100%; box-sizing: border-box;
   display: flex; flex-direction: column; }
 .admin-content-full > * { flex: 1; display: flex; flex-direction: column; min-height: 0; }
