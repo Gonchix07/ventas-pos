@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/auth/auth";
-import { preventaMayorista, type PreventaCliente } from "../../shared/api/preventaMayorista";
+import { preventaMayorista, type PreventaCliente, type Vendedor } from "../../shared/api/preventaMayorista";
 import { formatearMoneda } from "../../shared/ui/moneda";
 
 type Columna = "codigoCliente" | "nombreCliente" | "condicionIva" | "admitePresupuesto"
@@ -33,6 +33,8 @@ export function PreventaMayoristaPage() {
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
   const [busqueda, setBusqueda] = useState("");
   const [incluirMenorCoste, setIncluirMenorCoste] = useState(false);
+  const [vendedores, setVendedores] = useState<Vendedor[]>([]);
+  const [vendedorFiltro, setVendedorFiltro] = useState("");
 
   const cargar = async (forzarRefresco = false) => {
     setError(null); setCargando(true);
@@ -46,6 +48,7 @@ export function PreventaMayoristaPage() {
   };
 
   useEffect(() => { void cargar(); }, []);
+  useEffect(() => { void preventaMayorista.vendedores().then(setVendedores).catch(() => {}); }, []);
 
   const ordenarPor = (col: Columna) =>
     setOrden((o) => (o.col === col ? { col, asc: !o.asc } : { col, asc: true }));
@@ -62,17 +65,19 @@ export function PreventaMayoristaPage() {
       l.codigoArticulo.toLowerCase().includes(textoBusqueda) ||
       !!l.descripcionArticulo?.toLowerCase().includes(textoBusqueda) ||
       l.precarga.toLowerCase().includes(textoBusqueda) ||
-      l.estado.toLowerCase().includes(textoBusqueda));
+      l.estado.toLowerCase().includes(textoBusqueda) ||
+      l.pVentista.toLowerCase().includes(textoBusqueda));
 
   const clientesFiltrados = useMemo(() => {
     if (!clientes) return [];
     let base = incluirMenorCoste
       ? clientes
       : clientes.filter((c) => !c.nombreCliente?.toUpperCase().includes("MENOR COSTE"));
+    if (vendedorFiltro) base = base.filter((c) => c.lineas.some((l) => l.pVentista === vendedorFiltro));
     if (textoBusqueda) base = base.filter((c) => coincideCliente(c) || coincideLinea(c));
     return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientes, textoBusqueda, incluirMenorCoste]);
+  }, [clientes, textoBusqueda, incluirMenorCoste, vendedorFiltro]);
 
   const clientesOrdenados = useMemo(() => {
     const { col, asc } = orden;
@@ -120,13 +125,20 @@ export function PreventaMayoristaPage() {
 
         <div className="field-row">
           <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por cliente, artículo o precarga…" style={{ minWidth: 320 }} />
+            placeholder="Buscar por cliente, artículo, precarga o vendedor…" style={{ minWidth: 320 }} />
           <button className="primary" onClick={() => cargar(true)} disabled={cargando}>Refrescar</button>
           <label className="check-box grande">
             <input type="checkbox" checked={incluirMenorCoste}
               onChange={(e) => setIncluirMenorCoste(e.target.checked)} />
             Incluir Menor Coste
           </label>
+          <select value={vendedorFiltro} onChange={(e) => setVendedorFiltro(e.target.value)}
+            className={vendedorFiltro ? "" : "sin-valor"}>
+            <option value="">Todos los vendedores</option>
+            {vendedores.map((v) => (
+              <option key={v.codigo} value={v.codigo}>{v.codigo} | {v.nombre}</option>
+            ))}
+          </select>
         </div>
         {error && <p className="error">{error}</p>}
 
@@ -239,7 +251,9 @@ function PreventaClienteFila({ cliente, expandido, onToggle }:
               <tbody>
                 {cliente.lineas.map((l, i) => (
                   <tr key={i} className={l.descuento > 0 ? "fila-con-descuento" : undefined}>
-                    <td className="mono">{l.fechaPedido ? new Date(l.fechaPedido).toLocaleDateString("es-AR") : "—"}</td>
+                    <td className="mono">
+                      {l.fechaPedido ? new Date(l.fechaPedido + "T00:00:00").toLocaleDateString("es-AR") : "—"}
+                    </td>
                     <td className="mono">{l.estado}</td>
                     <td className="mono">{l.precarga}</td>
                     <td className="mono">{l.logis}</td>

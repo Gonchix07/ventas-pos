@@ -30,7 +30,13 @@ export interface PreventaCliente {
   lineas: PreventaLinea[];
 }
 
+export interface Vendedor {
+  codigo: string;
+  nombre: string;
+}
+
 export const preventaMayorista = {
   pedidos: (forzarRefresco?: boolean) =>
     unwrap<PreventaCliente[]>(api.get("/preventa-mayorista/pedidos", { params: { forzarRefresco } })),
+  vendedores: () => unwrap<Vendedor[]>(api.get("/preventa-mayorista/vendedores")),
 };

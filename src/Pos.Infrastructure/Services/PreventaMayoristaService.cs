@@ -24,7 +24,7 @@ public class PreventaMayoristaService : IPreventaMayoristaService
         { "PEDIPEND", "PEDIAPP" };
     private static readonly IReadOnlySet<string> CamposDbf = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         { "REPARTO", "CLIENTE", "PRODUCTO", "CANTIDAD", "CANT_ORIG", "PRECIO", "DESCUENTO", "PVENTISTA", "PRECARGA",
-          "FPEDIDO", "CERRADO", "CONVENIO", "CODCONV", "NUMERO_PED" };
+          "FPEDIDO", "CERRADO", "CONVENIO", "CODCONV", "NUMERO_PED", "AUTOCONV" };
 
     // Clave de Configuraciones (ABM "Sistema > Configuraciones", editable sin reiniciar el backend
     // — se relee en cada refresco del caché de 5 min, ver LeerYCruzarAsync) y valor por defecto si
@@ -107,7 +107,7 @@ public class PreventaMayoristaService : IPreventaMayoristaService
                             // aparte en su propia columna. El de la CABECERA sí lo aplica (más abajo).
                             l.Cantidad, l.CantOrig, unitario, l.Descuento, l.Precarga,
                             l.FechaPedido, EstadoPrecarga(l.Reparto, l.Cerrado),
-                            DescuentoAutorizado(l.Descuento, l.Convenio, l.CodConv), Logis(l.NumeroPed));
+                            DescuentoAutorizado(l.Descuento, l.Convenio, l.CodConv, l.Autoconv), Logis(l.NumeroPed));
                         return (Dto: dto, ImporteTotalLinea: importeTotalLinea);
                     })
                     .ToList();
@@ -142,7 +142,7 @@ public class PreventaMayoristaService : IPreventaMayoristaService
     private sealed record LineaCruda(string Reparto, string CodigoCliente, string CodigoArticulo,
         decimal Cantidad, decimal CantOrig, decimal Precio, decimal Descuento,
         string PVentista, string Precarga, DateOnly? FechaPedido, int? Cerrado, int? Convenio, string CodConv,
-        string NumeroPed);
+        string NumeroPed, int? Autoconv);
 
     private List<LineaCruda> LeerLineasDelDbf(string rutaDbf)
     {
@@ -173,7 +173,7 @@ public class PreventaMayoristaService : IPreventaMayoristaService
                     cantidad, ParseDecimal(row["CANT_ORIG"]),
                     ParseDecimal(row["PRECIO"]), ParseDecimal(row["DESCUENTO"]),
                     row["PVENTISTA"], row["PRECARGA"], ParseFechaYmd(row["FPEDIDO"]), ParseInt(row["CERRADO"]),
-                    ParseInt(row["CONVENIO"]), row["CODCONV"], row["NUMERO_PED"]));
+                    ParseInt(row["CONVENIO"]), row["CODCONV"], row["NUMERO_PED"], ParseInt(row["AUTOCONV"])));
             }
             return lineas;
         }
@@ -260,11 +260,12 @@ public class PreventaMayoristaService : IPreventaMayoristaService
 
     /// <summary>
     /// "Autorizado" según lo pedido por el usuario: solo aplica a líneas con descuento (null si
-    /// Descuento=0, la columna no tiene sentido ahí). Si CONVENIO=1 y CODCONV viene cargado en el
-    /// DBF → true (el descuento está respaldado por un convenio); en cualquier otro caso → false.
+    /// Descuento=0, la columna no tiene sentido ahí). Si CONVENIO=1, CODCONV viene cargado en el DBF
+    /// y además AUTOCONV=1 → true (el descuento está respaldado por un convenio Y autorizado); en
+    /// cualquier otro caso → false.
     /// </summary>
-    private static bool? DescuentoAutorizado(decimal descuento, int? convenio, string codConv) =>
-        descuento <= 0 ? null : convenio == 1 && !string.IsNullOrEmpty(codConv);
+    private static bool? DescuentoAutorizado(decimal descuento, int? convenio, string codConv, int? autoconv) =>
+        descuento <= 0 ? null : convenio == 1 && !string.IsNullOrEmpty(codConv) && autoconv == 1;
 
     /// <summary>
     /// LOGIS: según lo pedido por el usuario, se deriva del código en NUMERO_PED (generado por la

@@ -75,3 +75,18 @@ public interface IRecargoLogisticaService
     /// <returns>Cantidad de tramos importados.</returns>
     Task<int> ImportarAsync(CancellationToken ct = default);
 }
+
+/// <summary>
+/// Un vendedor (ver <see cref="Pos.Domain.Entities.Vendedor"/>), ya importado a SQL — ImportarAsync
+/// sincroniza desde operator.dbf.
+/// </summary>
+public record VendedorDto(string Codigo, string Nombre);
+
+public interface IVendedorService
+{
+    Task<IReadOnlyList<VendedorDto>> ObtenerAsync(CancellationToken ct = default);
+
+    /// <summary>Relee operator.dbf y reemplaza el contenido de la tabla SQL.</summary>
+    /// <returns>Cantidad de vendedores importados.</returns>
+    Task<int> ImportarAsync(CancellationToken ct = default);
+}

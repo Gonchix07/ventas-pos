@@ -75,6 +75,7 @@ public static class DependencyInjection
         services.AddScoped<Pos.Application.Etiquetas.IEtiquetaService, Services.EtiquetaService>();
         services.AddScoped<Pos.Application.PreventaMayorista.IPreventaMayoristaService, Services.PreventaMayoristaService>();
         services.AddScoped<Pos.Application.PreventaMayorista.IRecargoLogisticaService, Services.RecargoLogisticaService>();
+        services.AddScoped<Pos.Application.PreventaMayorista.IVendedorService, Services.VendedorService>();
         services.AddScoped<Pos.Application.Estadisticas.IEstadisticasService, Services.EstadisticasService>();
         services.AddScoped<Pos.Application.Abstractions.Interfase.IInterfaseContableService, Services.InterfaseContableService>();
         services.AddScoped<IUsuarioRepository, UsuarioRepository>();

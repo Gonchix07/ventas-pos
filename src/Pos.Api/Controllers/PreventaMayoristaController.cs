@@ -19,11 +19,14 @@ public class PreventaMayoristaController : ControllerBase
 {
     private readonly IPreventaMayoristaService _service;
     private readonly IRecargoLogisticaService _recargoLogistica;
+    private readonly IVendedorService _vendedores;
 
-    public PreventaMayoristaController(IPreventaMayoristaService service, IRecargoLogisticaService recargoLogistica)
+    public PreventaMayoristaController(IPreventaMayoristaService service, IRecargoLogisticaService recargoLogistica,
+        IVendedorService vendedores)
     {
         _service = service;
         _recargoLogistica = recargoLogistica;
+        _vendedores = vendedores;
     }
 
     /// <param name="forzarRefresco">true = ignora el caché de 5 minutos y vuelve a leer el DBF.</param>
@@ -41,4 +44,14 @@ public class PreventaMayoristaController : ControllerBase
     [HttpPost("recargo-logistica/importar")]
     public async Task<IActionResult> ImportarRecargoLogistica(CancellationToken ct) =>
         Ok(ApiResult<int>.Success(await _recargoLogistica.ImportarAsync(ct)));
+
+    /// <summary>Vendedores ya importados a SQL (ver POST .../importar).</summary>
+    [HttpGet("vendedores")]
+    public async Task<IActionResult> GetVendedores(CancellationToken ct) =>
+        Ok(ApiResult<IReadOnlyList<VendedorDto>>.Success(await _vendedores.ObtenerAsync(ct)));
+
+    /// <summary>Relee operator.dbf y reemplaza el contenido de la tabla SQL.</summary>
+    [HttpPost("vendedores/importar")]
+    public async Task<IActionResult> ImportarVendedores(CancellationToken ct) =>
+        Ok(ApiResult<int>.Success(await _vendedores.ImportarAsync(ct)));
 }

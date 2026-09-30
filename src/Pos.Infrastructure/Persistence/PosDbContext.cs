@@ -102,6 +102,7 @@ public class PosDbContext : DbContext
 
     // Preventa Mayorista
     public DbSet<RecargoLogistica> RecargosLogistica => Set<RecargoLogistica>();
+    public DbSet<Vendedor> Vendedores => Set<Vendedor>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -184,6 +185,7 @@ public class PosDbContext : DbContext
         b.Entity<PadronExcepcionPercepcionIva>().HasKey(x => x.Cuit);
         b.Entity<SyncCheckpoint>().HasKey(x => x.IdSyncCheckpoint);
         b.Entity<RecargoLogistica>().HasKey(x => x.IdRecargoLogistica);
+        b.Entity<Vendedor>().HasKey(x => x.IdVendedor);
 
         // --- Claves compuestas (negocio multi-sucursal) ---
         b.Entity<ClienteEnCuenta>().HasKey(x => new { x.IdCliente, x.IdSucursal });
