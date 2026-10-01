@@ -3,6 +3,20 @@ namespace Pos.Application.Etiquetas;
 public record ArticuloParaEtiquetaDto(
     int IdArticulo, int IdPresentacion, string CodigoInterno, string Descripcion, string? DescripcionTicket);
 
+/// <summary>Artículo con cambio de precio programado para mañana. Si EsPrecioUnico es false viene de
+/// LISTAS_PROG.DBF (PrecioNuevo = PFINAL, el Azul nuevo; el Rojo se simula). Si es true viene de
+/// PREC_PROG.DBF (PrecioNuevo = PRECIO, un solo precio para Azul y Rojo) y ImpuestoInterno es el IMP_INT.</summary>
+public record ArticuloCambioPrecioDto(
+    int IdArticulo, int IdPresentacion, string CodigoInterno, string Descripcion, string? DescripcionTicket,
+    decimal PrecioNuevo, bool EsPrecioUnico = false, decimal ImpuestoInterno = 0m);
+
+/// <summary>Precio único programado (PREC_PROG.DBF) para una presentación: Azul y Rojo valen lo mismo.</summary>
+public record PrecioUnicoNuevoDto(decimal Precio, decimal ImpuestoInterno);
+
+/// <param name="Detectados">Artículos distintos que cumplen el filtro en los DBF (cambios + precios únicos).</param>
+/// <param name="SinMatch">Códigos del DBF que no existen como artículo activo con presentación unitaria.</param>
+public record CambioPreciosDto(List<ArticuloCambioPrecioDto> Items, int Detectados, List<string> SinMatch);
+
 public record TipoTarjetaPrecioDto(
     string NombreTarjeta, decimal Precio, decimal? PrecioPorUnidadMedida, decimal PrecioSinImpuestos);
 
@@ -32,7 +46,18 @@ public interface IEtiquetaService
     Task<ArticuloParaEtiquetaDto?> BuscarExactoAsync(string codigo, CancellationToken ct = default);
     Task<IReadOnlyList<ArticuloParaEtiquetaDto>> PorClasificacionAsync(
         int? idSector, int? idLinea, int? idFamilia, CancellationToken ct = default);
-    Task<IReadOnlyList<EtiquetaDto>> GenerarAsync(int idSucursal, List<int> idsPresentacion, CancellationToken ct = default);
+    /// <summary>Artículos con cambio de precio programado para mañana, lista 2068: LISTAS_PROG.DBF
+    /// (HECHO vacío, Azul nuevo en PFINAL) y PREC_PROG.DBF (F_DESDE = mañana, precio único en PRECIO).
+    /// Si un artículo está en los dos gana el precio único. Listos para sumar a la lista de etiquetas.</summary>
+    Task<CambioPreciosDto> CambioDePreciosAsync(CancellationToken ct = default);
+    /// <param name="preciosAzulNuevos">Solo para "Cambio de Precios": idPresentacion → Azul nuevo (PFINAL).
+    /// Para esas presentaciones la etiqueta sale con ese Azul y con el Rojo simulado (Azul nuevo + el
+    /// diferencial de la lista Rojo); el resto de las presentaciones no se toca.</param>
+    /// <param name="preciosUnicosNuevos">Solo para "Cambio de Precios": idPresentacion → precio único
+    /// (PREC_PROG.DBF). La etiqueta sale con un solo precio ("Precio Único"), sin importar las listas.</param>
+    Task<IReadOnlyList<EtiquetaDto>> GenerarAsync(int idSucursal, List<int> idsPresentacion,
+        IReadOnlyDictionary<int, decimal>? preciosAzulNuevos = null,
+        IReadOnlyDictionary<int, PrecioUnicoNuevoDto>? preciosUnicosNuevos = null, CancellationToken ct = default);
     Task<ClasificacionesDto> GetClasificacionesAsync(CancellationToken ct = default);
     Task<IReadOnlyList<LookupSimpleDto>> GetSucursalesAsync(CancellationToken ct = default);
 }

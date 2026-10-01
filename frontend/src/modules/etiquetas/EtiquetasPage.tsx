@@ -3,12 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/auth/auth";
 import {
   etiquetas, type ArticuloParaEtiqueta, type Clasificaciones, type Etiqueta, type LookupSimple,
+  type PrecioUnicoNuevo, type PreciosSimulados,
 } from "../../shared/api/etiquetas";
 import { abrirPestañaParaPdf, generarYAbrirPdf, type FormatoEtiqueta } from "./EtiquetaPdf";
 import { IconAgregar } from "../../shared/ui/icons";
 import { useToast } from "../../shared/ui/toast";
 
 type Formato = FormatoEtiqueta;
+
+// Cambio de precio programado para mañana de una presentación: `unico` = precio único (Azul = Roja).
+type CambioProgramado = { precio: number; impuestoInterno: number; unico: boolean };
 
 export function EtiquetasPage() {
   const { logout, idSucursalPredeterminada } = useAuth();
@@ -35,6 +39,11 @@ export function EtiquetasPage() {
   const [formato, setFormato] = useState<Formato>("Fleje");
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+  // "Cambio de Precios": lee LISTAS_PROG.DBF (archivo de ~400 MB) y puede tardar — bloquea la
+  // pantalla con spinner mientras tanto. preciosNuevos = cambio programado por presentación: Azul nuevo
+  // (PFINAL, el Rojo se simula) o precio único (PREC_PROG.DBF).
+  const [importandoCambio, setImportandoCambio] = useState(false);
+  const [preciosNuevos, setPreciosNuevos] = useState<Map<number, CambioProgramado>>(new Map());
   // El cajero escanea en cadena: el foco tiene que volver siempre al campo de código, tanto al
   // cargar la página como después de agregar cada artículo (si no, el siguiente código escaneado
   // se pierde tipeando en otro lado).
@@ -73,10 +82,26 @@ export function EtiquetasPage() {
   // esperar a "Generar PDF" — mismo endpoint que ya usa el PDF, así que el precio que se ve acá es
   // el mismo que sale impreso. Best-effort: si falla, la fila simplemente queda sin precio (no
   // bloquea agregar/buscar artículos, que es la acción principal de la pantalla).
-  const cargarPrecios = async (idsPresentacion: number[]) => {
+  // Azul nuevo (Cambio de Precios) de las presentaciones pedidas, o undefined si ninguna lo tiene.
+  const simuladosDe = (ids: number[], fuente: Map<number, CambioProgramado>): PreciosSimulados | undefined => {
+    const azules: Record<number, number> = {};
+    const unicos: Record<number, PrecioUnicoNuevo> = {};
+    ids.forEach((id) => {
+      const c = fuente.get(id);
+      if (!c) return;
+      if (c.unico) unicos[id] = { precio: c.precio, impuestoInterno: c.impuestoInterno };
+      else azules[id] = c.precio;
+    });
+    const out: PreciosSimulados = {};
+    if (Object.keys(azules).length > 0) out.preciosAzulNuevos = azules;
+    if (Object.keys(unicos).length > 0) out.preciosUnicosNuevos = unicos;
+    return out.preciosAzulNuevos || out.preciosUnicosNuevos ? out : undefined;
+  };
+
+  const cargarPrecios = async (idsPresentacion: number[], nuevos: Map<number, CambioProgramado> = preciosNuevos) => {
     if (!idSucursal || idsPresentacion.length === 0) return;
     try {
-      const r = await etiquetas.generar(idSucursal, idsPresentacion);
+      const r = await etiquetas.generar(idSucursal, idsPresentacion, simuladosDe(idsPresentacion, nuevos));
       setPrecios((p) => {
         const m = new Map(p);
         r.forEach((e) => m.set(e.idPresentacion, e));
@@ -152,11 +177,36 @@ export function EtiquetasPage() {
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
   };
 
+  const cambioDePrecios = async () => {
+    setError(null);
+    setImportandoCambio(true);
+    try {
+      const r = await etiquetas.cambioDePrecios();
+      if (r.detectados === 0) { notificar("No hay cambios de precios programados para mañana"); return; }
+      const existentes = new Set(lista.map((x) => x.idPresentacion));
+      const nuevos = r.items.filter((i) => !existentes.has(i.idPresentacion));
+      const mapa = new Map(preciosNuevos);
+      r.items.forEach((i) => mapa.set(i.idPresentacion,
+        { precio: i.precioNuevo, impuestoInterno: i.impuestoInterno, unico: i.esPrecioUnico }));
+      setPreciosNuevos(mapa);
+      setLista((l) => [...nuevos, ...l]);
+      // Se recalculan TODOS los del cambio (también los que ya estaban en la lista) para que pasen a
+      // mostrar el Azul nuevo y el Rojo simulado.
+      cargarPrecios(r.items.map((x) => x.idPresentacion), mapa);
+      const sinMatch = r.sinMatch.length > 0 ? ` · ${r.sinMatch.length} código(s) del DBF sin artículo` : "";
+      notificar(`${nuevos.length} artículo${nuevos.length === 1 ? "" : "s"} agregado${nuevos.length === 1 ? "" : "s"} (de ${r.detectados} con cambio de precio)${sinMatch}`);
+    } catch (e) { setError(e instanceof Error ? e.message : "Error al leer los cambios de precios"); }
+    finally { setImportandoCambio(false); }
+  };
+
   const quitar = (idPresentacion: number) => {
     setLista((l) => l.filter((x) => x.idPresentacion !== idPresentacion));
     setPrecios((p) => { const m = new Map(p); m.delete(idPresentacion); return m; });
+    setPreciosNuevos((p) => { const m = new Map(p); m.delete(idPresentacion); return m; });
   };
-  const quitarTodo = () => { if (confirm("¿Vaciar toda la lista armada?")) { setLista([]); setPrecios(new Map()); } };
+  const quitarTodo = () => {
+    if (confirm("¿Vaciar toda la lista armada?")) { setLista([]); setPrecios(new Map()); setPreciosNuevos(new Map()); }
+  };
 
   // El precio vigente es por sucursal: si se cambia la sucursal con artículos ya en la lista, hay
   // que volver a resolverlos todos (los que había quedan con el precio viejo hasta que llega esto).
@@ -177,7 +227,8 @@ export function EtiquetasPage() {
     // await, el navegador ya no lo asocia al click y lo bloquea como popup.
     const ventana = abrirPestañaParaPdf();
     try {
-      const r = await etiquetas.generar(idSucursal, lista.map((x) => x.idPresentacion));
+      const ids = lista.map((x) => x.idPresentacion);
+      const r = await etiquetas.generar(idSucursal, ids, simuladosDe(ids, preciosNuevos));
       if (r.length === 0) {
         setError("Ningún artículo tiene precio vigente en esta sucursal.");
         ventana?.close();
@@ -219,6 +270,7 @@ export function EtiquetasPage() {
         </div>
       </header>
       {cargando && <PantallaBloqueada mensaje="Generando PDF…" />}
+      {importandoCambio && <PantallaBloqueada mensaje="Importando cambio de precios…" />}
       <div className="page-shell etiquetas-compact">
         {error && <p className="error">{error}</p>}
 
@@ -328,6 +380,10 @@ export function EtiquetasPage() {
               <button className="primary" disabled={lista.length === 0 || cargando} onClick={generar}>
                 {cargando ? "Generando PDF…" : "Generar PDF"}
               </button>
+              <button className="primary" disabled={importandoCambio || cargando} onClick={cambioDePrecios}
+                title="Agrega los artículos con cambio de precio programado para mañana, lista 2068 (LISTAS_PROG.DBF: Azul nuevo y Roja simulada; PREC_PROG.DBF: precio único)">
+                {importandoCambio ? "Importando…" : "Cambio de Precios"}
+              </button>
             </div>
           </div>
           <div className="table-scroll">
@@ -353,7 +409,14 @@ export function EtiquetasPage() {
                   const claseUnico = esUnico ? "precio-etiqueta-unico" : undefined;
                   return (
                     <tr key={a.idPresentacion}>
-                      <td><span className="mono">{a.codigoInterno}</span> | {a.descripcion}</td>
+                      <td>
+                        <span className="mono">{a.codigoInterno}</span> | {a.descripcion}
+                        {preciosNuevos.has(a.idPresentacion) && (
+                          preciosNuevos.get(a.idPresentacion)!.unico
+                            ? <span className="muted" title="Precio único de mañana (PREC_PROG.DBF): Azul y Roja valen lo mismo"> · precio único nuevo</span>
+                            : <span className="muted" title="Precios de mañana: Azul nuevo (LISTAS_PROG.DBF) y Roja simulada"> · precio nuevo</span>
+                        )}
+                      </td>
                       <td className={`mono ${claseUnico ?? ""}`}>{azul != null ? formatearSinDecimales(azul) : "—"}</td>
                       <td className={`mono ${claseUnico ?? ""}`}>{roja != null ? formatearSinDecimales(roja) : "—"}</td>
                       <td><button className="danger" onClick={() => quitar(a.idPresentacion)}>Quitar</button></td>

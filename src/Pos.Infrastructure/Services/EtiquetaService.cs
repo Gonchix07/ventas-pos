@@ -69,6 +69,83 @@ public class EtiquetaService : IEtiquetaService
         ).FirstOrDefaultAsync(ct);
     }
 
+    private const string ClaveCarpetaDbf = "PreventaMayorista:CarpetaDbf";
+    private const string CarpetaDbfPorDefecto = @"S:\appvfp\Mayorista\Mayorista_Release\Datos";
+    private const string ListaPrecioAzul = "2068";
+    private static readonly IReadOnlySet<string> CamposListasProg = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "FECHA", "LISTA", "ARTICULO", "HECHO", "PFINAL" };
+    private static readonly IReadOnlySet<string> CamposPrecProg = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "LISTA", "ARTICULO", "F_DESDE", "PRECIO", "IMP_INT" };
+
+    public async Task<CambioPreciosDto> CambioDePreciosAsync(CancellationToken ct = default)
+    {
+        var valor = await _db.Configuraciones.AsNoTracking()
+            .Where(c => c.Clave == ClaveCarpetaDbf).Select(c => c.Valor).FirstOrDefaultAsync(ct);
+        var carpeta = string.IsNullOrWhiteSpace(valor) ? CarpetaDbfPorDefecto : valor;
+        // Argentina (UTC-3): "mañana" se toma en hora local, no UTC (a la noche UTC ya es otro día).
+        var manana = DateTime.UtcNow.AddHours(-3).Date.AddDays(1).ToString("yyyyMMdd");
+
+        // LISTAS_PROG pesa ~400 MB y 1,5 millones de registros: se lee en un hilo aparte para no bloquear el request.
+        var (azules, unicos) = await Task.Run(() =>
+        {
+            var azules = new Dictionary<string, decimal>();
+            var unicos = new Dictionary<string, (decimal Precio, decimal ImpuestoInterno)>();
+            try
+            {
+                using (var reader = new Pos.Infrastructure.Adapters.Dbf.DbfReader(Path.Combine(carpeta, "LISTAS_PROG.DBF")))
+                    foreach (var row in reader.ReadRecords(CamposListasProg))
+                    {
+                        if (row["LISTA"] != ListaPrecioAzul || row["HECHO"].Length != 0 || row["FECHA"] != manana) continue;
+                        var codigo = row["ARTICULO"].TrimStart('0');
+                        if (codigo.Length == 0) continue;
+                        // Si el DBF repite el artículo para la misma fecha, vale la última fila.
+                        azules[codigo] = ParseDecimalDbf(row["PFINAL"]);
+                    }
+
+                // Precios únicos programados: un solo precio para Azul y Rojo, vigente desde F_DESDE.
+                using (var reader = new Pos.Infrastructure.Adapters.Dbf.DbfReader(Path.Combine(carpeta, "PREC_PROG.DBF")))
+                    foreach (var row in reader.ReadRecords(CamposPrecProg))
+                    {
+                        if (row["LISTA"] != ListaPrecioAzul || row["F_DESDE"] != manana) continue;
+                        var codigo = row["ARTICULO"].TrimStart('0');
+                        if (codigo.Length == 0) continue;
+                        unicos[codigo] = (ParseDecimalDbf(row["PRECIO"]), ParseDecimalDbf(row["IMP_INT"]));
+                    }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                throw new Pos.Application.Common.DomainException("LISTAS_PROG_DBF_INACCESIBLE",
+                    "No se pudo leer LISTAS_PROG.DBF / PREC_PROG.DBF (verificar acceso a S:\\).");
+            }
+            return (azules, unicos);
+        }, ct);
+
+        // Si un artículo está en las dos tablas gana el precio único: es un precio específico para esa fecha.
+        var codigos = azules.Keys.Union(unicos.Keys).ToList();
+        var articulos = await (
+            from a in _db.Articulos.AsNoTracking().Where(x => x.Activo && codigos.Contains(x.CodigoInterno))
+            join pr in _db.Presentaciones.AsNoTracking().Where(p => p.UnidadXBulto == 1m) on a.IdArticulo equals pr.IdArticulo
+            orderby a.Descripcion
+            select new { a.IdArticulo, pr.IdPresentacion, a.CodigoInterno, a.Descripcion, pr.DescripcionTicket }
+        ).ToListAsync(ct);
+
+        // Un artículo puede tener más de una presentación unitaria: una sola etiqueta por artículo.
+        var items = articulos.GroupBy(x => x.IdArticulo).Select(g => g.First())
+            .Select(x => unicos.TryGetValue(x.CodigoInterno, out var u)
+                ? new ArticuloCambioPrecioDto(x.IdArticulo, x.IdPresentacion, x.CodigoInterno, x.Descripcion,
+                    x.DescripcionTicket, u.Precio, EsPrecioUnico: true, ImpuestoInterno: u.ImpuestoInterno)
+                : new ArticuloCambioPrecioDto(x.IdArticulo, x.IdPresentacion, x.CodigoInterno, x.Descripcion,
+                    x.DescripcionTicket, azules[x.CodigoInterno]))
+            .ToList();
+        var encontradosCodigos = items.Select(i => i.CodigoInterno).ToHashSet();
+        var sinMatch = codigos.Where(c => !encontradosCodigos.Contains(c)).OrderBy(c => c).ToList();
+        return new CambioPreciosDto(items, codigos.Count, sinMatch);
+    }
+
+    private static decimal ParseDecimalDbf(string valor) =>
+        decimal.TryParse(valor, System.Globalization.NumberStyles.Number,
+            System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 0m;
+
     public async Task<IReadOnlyList<ArticuloParaEtiquetaDto>> PorClasificacionAsync(
         int? idSector, int? idLinea, int? idFamilia, CancellationToken ct = default)
     {
@@ -85,7 +162,9 @@ public class EtiquetaService : IEtiquetaService
         ).Take(500).ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<EtiquetaDto>> GenerarAsync(int idSucursal, List<int> idsPresentacion, CancellationToken ct = default)
+    public async Task<IReadOnlyList<EtiquetaDto>> GenerarAsync(int idSucursal, List<int> idsPresentacion,
+        IReadOnlyDictionary<int, decimal>? preciosAzulNuevos = null,
+        IReadOnlyDictionary<int, PrecioUnicoNuevoDto>? preciosUnicosNuevos = null, CancellationToken ct = default)
     {
         _currentUser.AsegurarSucursal(idSucursal);
 
@@ -94,6 +173,9 @@ public class EtiquetaService : IEtiquetaService
         var fecha = DateTime.UtcNow;
 
         var tiposTarjeta = await _db.TiposTarjeta.AsNoTracking().Where(t => t.IdListaPrecio != null).ToListAsync(ct);
+        // Cambio de Precios: la tarjeta Azul es la lista base de la Roja (Enlazada). Si no se puede
+        // identificar, no se simula nada y se sigue con los precios vigentes.
+        var idListaAzul = tiposTarjeta.FirstOrDefault(t => t.Descripcion.Contains("AZUL", StringComparison.OrdinalIgnoreCase))?.IdListaPrecio;
         var ofertasVigentes = await _db.CabecerasOfertas.AsNoTracking()
             .Where(o => o.IdSucursal == idSucursal && o.FechaInicio <= fecha && o.FechaFin >= fecha)
             .Include(o => o.Alcances).Include(o => o.Acciones)
@@ -116,6 +198,19 @@ public class EtiquetaService : IEtiquetaService
             var codigoBarra = await _db.Barras.AsNoTracking().Where(b => b.IdPresentacion == idPresentacion)
                 .Select(b => b.CodigoBarra).FirstOrDefaultAsync(ct);
 
+            // Cambio de Precios — precio único programado (PREC_PROG.DBF): una sola línea para Azul y
+            // Rojo, igual que un folder. No depende de las listas, así que sale aunque hoy no tenga precio.
+            if (preciosUnicosNuevos is not null && preciosUnicosNuevos.TryGetValue(idPresentacion, out var unico))
+            {
+                var pxuUnico = EtiquetaCalculos.PrecioPorUnidadMedida(unico.Precio, info.ContenidoNetoUnitario);
+                var siUnico = EtiquetaCalculos.PrecioSinImpuestosNacionales(unico.Precio, unico.ImpuestoInterno, info.Alicuota);
+                resultado.Add(new EtiquetaDto(idPresentacion, info.CodigoInterno, info.Descripcion, info.DescripcionTicket,
+                    codigoBarra, unico.Precio, pxuUnico, siUnico, new List<TipoTarjetaPrecioDto>(),
+                    ResolverCompraMinima(ofertasVigentes, info.IdArticulo, info.IdSector, info.IdLinea, info.IdFamilia),
+                    TextoUnidadMedida(info.UnidadMedida), "Precio Único"));
+                continue;
+            }
+
             var candidatos = await (
                 from p in _db.Precios.AsNoTracking().Where(x => x.IdPresentacion == idPresentacion)
                 join l in _db.ListasPrecios.AsNoTracking().Where(x => x.IdSucursal == idSucursal) on p.IdListaPrecio equals l.IdListaPrecio
@@ -132,10 +227,15 @@ public class EtiquetaService : IEtiquetaService
             var sinImpuestos = EtiquetaCalculos.PrecioSinImpuestosNacionales(resuelto.PrecioVigente, resuelto.ImpuestoInterno, info.Alicuota);
 
             var preciosTarjeta = new List<TipoTarjetaPrecioDto>();
+            var azulNuevo = idListaAzul is not null && preciosAzulNuevos is not null &&
+                preciosAzulNuevos.TryGetValue(idPresentacion, out var pn) ? pn : (decimal?)null;
             foreach (var t in tiposTarjeta)
             {
-                var precioLista = await DiferencialListaPrecioResolver.ResolverPrecioUnicoAsync(
-                    _db, t.IdListaPrecio!.Value, idPresentacion, ct);
+                var precioLista = azulNuevo is decimal nuevo
+                    ? await ResolverPrecioSimuladoAsync(t.IdListaPrecio!.Value, idListaAzul!.Value, nuevo,
+                        info.IdArticulo, info.IdLinea, idPresentacion, ct)
+                    : await DiferencialListaPrecioResolver.ResolverPrecioUnicoAsync(
+                        _db, t.IdListaPrecio!.Value, idPresentacion, ct);
                 if (precioLista is null) continue;
                 var pxu = EtiquetaCalculos.PrecioPorUnidadMedida(precioLista.Value.PrecioFinal, info.ContenidoNetoUnitario);
                 var si = EtiquetaCalculos.PrecioSinImpuestosNacionales(precioLista.Value.PrecioFinal, precioLista.Value.ImpuestoInterno, info.Alicuota);
@@ -176,6 +276,34 @@ public class EtiquetaService : IEtiquetaService
         }
 
         return resultado;
+    }
+
+    /// <summary>
+    /// Precio de una tarjeta SIMULANDO que el Azul ya vale <paramref name="azulNuevo"/>: la lista Azul
+    /// devuelve ese precio; una lista Enlazada cuya base es el Azul aplica su diferencial (artículo
+    /// puntual &gt; línea, como en producción) sobre el Azul nuevo; cualquier otra lista no cambia.
+    /// El impuesto interno se toma del precio vigente del Azul (el DBF solo trae PFINAL).
+    /// </summary>
+    private async Task<(decimal PrecioFinal, decimal ImpuestoInterno)?> ResolverPrecioSimuladoAsync(
+        int idListaTarjeta, int idListaAzul, decimal azulNuevo, int idArticulo, int idLinea, int idPresentacion,
+        CancellationToken ct)
+    {
+        var lista = await _db.ListasPrecios.AsNoTracking().Where(l => l.IdListaPrecio == idListaTarjeta)
+            .Select(l => new { l.Tipo, l.IdListaBase }).FirstOrDefaultAsync(ct);
+        if (lista is null) return null;
+
+        var esAzul = idListaTarjeta == idListaAzul;
+        var esEnlazadaDelAzul = lista.Tipo == TipoListaPrecio.Enlazada && lista.IdListaBase == idListaAzul;
+        if (!esAzul && !esEnlazadaDelAzul)
+            return await DiferencialListaPrecioResolver.ResolverPrecioUnicoAsync(_db, idListaTarjeta, idPresentacion, ct);
+
+        var impuestoInterno = await _db.Precios.AsNoTracking()
+            .Where(p => p.IdListaPrecio == idListaAzul && p.IdPresentacion == idPresentacion)
+            .Select(p => (decimal?)p.ImpuestoInterno).FirstOrDefaultAsync(ct) ?? 0m;
+        if (esAzul) return (azulNuevo, impuestoInterno);
+
+        var porcentaje = await DiferencialListaPrecioResolver.ObtenerPorcentajeAsync(_db, idListaTarjeta, idArticulo, idLinea, ct);
+        return (Math.Round(azulNuevo * (1 + porcentaje / 100m), 4, MidpointRounding.AwayFromZero), impuestoInterno);
     }
 
     /// <summary>

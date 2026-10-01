@@ -38,9 +38,17 @@ public class EtiquetasController : ControllerBase
         Ok(ApiResult<IReadOnlyList<ArticuloParaEtiquetaDto>>.Success(
             await _service.PorClasificacionAsync(idSector, idLinea, idFamilia, ct)));
 
-    public record GenerarRequest(int IdSucursal, List<int> IdsPresentacion);
+    [HttpGet("cambio-de-precios")]
+    public async Task<IActionResult> CambioDePrecios(CancellationToken ct) =>
+        Ok(ApiResult<CambioPreciosDto>.Success(await _service.CambioDePreciosAsync(ct)));
+
+    public record GenerarRequest(int IdSucursal, List<int> IdsPresentacion,
+        Dictionary<int, decimal>? PreciosAzulNuevos = null,
+        Dictionary<int, PrecioUnicoNuevoDto>? PreciosUnicosNuevos = null);
 
     [HttpPost("generar")]
     public async Task<IActionResult> Generar([FromBody] GenerarRequest req, CancellationToken ct) =>
-        Ok(ApiResult<IReadOnlyList<EtiquetaDto>>.Success(await _service.GenerarAsync(req.IdSucursal, req.IdsPresentacion, ct)));
+        Ok(ApiResult<IReadOnlyList<EtiquetaDto>>.Success(
+            await _service.GenerarAsync(req.IdSucursal, req.IdsPresentacion, req.PreciosAzulNuevos,
+                req.PreciosUnicosNuevos, ct)));
 }
