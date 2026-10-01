@@ -64,6 +64,7 @@ export function EtiquetasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
   // La familia pertenece a un sector: al elegir sector el combo muestra solo sus familias (las que
   // no tienen sector, el cajón "SIN FAMILIA", se ofrecen siempre).
   const familiasDelSector = (clasif?.familias ?? [])
@@ -384,6 +385,9 @@ export function EtiquetasPage() {
                 title="Agrega los artículos con cambio de precio programado para mañana, lista 2068 (LISTAS_PROG.DBF: Azul nuevo y Roja simulada; PREC_PROG.DBF: precio único)">
                 {importandoCambio ? "Importando…" : "Cambio de Precios"}
               </button>
+              <span className="muted" title="Artículos en la lista a imprimir">
+                {lista.length} artículo{lista.length === 1 ? "" : "s"}
+              </span>
             </div>
           </div>
           <div className="table-scroll">

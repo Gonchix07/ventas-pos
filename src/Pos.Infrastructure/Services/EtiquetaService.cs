@@ -221,14 +221,18 @@ public class EtiquetaService : IEtiquetaService
             ).ToListAsync(ct);
             candidatos.AddRange(await DiferencialListaPrecioResolver.ResolverCandidatosAsync(_db, idSucursal, idPresentacion, ct));
             var resuelto = CalculadoraPrecios.Resolver(candidatos, fecha);
-            if (!resuelto.Encontrado) continue; // sin precio vigente: no se genera etiqueta para esta presentación
-
-            var precioPorUnidad = EtiquetaCalculos.PrecioPorUnidadMedida(resuelto.PrecioVigente, info.ContenidoNetoUnitario);
-            var sinImpuestos = EtiquetaCalculos.PrecioSinImpuestosNacionales(resuelto.PrecioVigente, resuelto.ImpuestoInterno, info.Alicuota);
-
-            var preciosTarjeta = new List<TipoTarjetaPrecioDto>();
             var azulNuevo = idListaAzul is not null && preciosAzulNuevos is not null &&
                 preciosAzulNuevos.TryGetValue(idPresentacion, out var pn) ? pn : (decimal?)null;
+            // Sin precio vigente no se genera etiqueta... salvo en Cambio de Precios: ahí el artículo puede
+            // no tener todavía ningún precio cargado y el Azul nuevo del DBF es justamente su primer precio.
+            if (!resuelto.Encontrado && azulNuevo is null) continue;
+            var precioVigente = resuelto.Encontrado ? resuelto.PrecioVigente : azulNuevo!.Value;
+            var impuestoVigente = resuelto.Encontrado ? resuelto.ImpuestoInterno : 0m;
+
+            var precioPorUnidad = EtiquetaCalculos.PrecioPorUnidadMedida(precioVigente, info.ContenidoNetoUnitario);
+            var sinImpuestos = EtiquetaCalculos.PrecioSinImpuestosNacionales(precioVigente, impuestoVigente, info.Alicuota);
+
+            var preciosTarjeta = new List<TipoTarjetaPrecioDto>();
             foreach (var t in tiposTarjeta)
             {
                 var precioLista = azulNuevo is decimal nuevo
@@ -249,7 +253,7 @@ public class EtiquetaService : IEtiquetaService
             // configuradas (Rojo/Azul) terminaron coincidiendo en el mismo precio. En cualquiera de los
             // dos casos se muestra una sola línea con la aclaración; si no, la etiqueta sigue mostrando
             // un precio por tarjeta como hasta ahora.
-            var precioFinal = resuelto.PrecioVigente;
+            var precioFinal = precioVigente;
             var pxuFinal = precioPorUnidad;
             var siFinal = sinImpuestos;
             string? aclaracion = null;
