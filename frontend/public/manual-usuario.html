@@ -290,6 +290,7 @@
     <a class="rol-cajero" href="#clientes">5. Módulo Clientes</a>
     <a class="rol-cajero" href="#verificar-precios">6. Verificar Precios</a>
     <a class="rol-cajero" href="#etiquetas">7. Etiquetas de precios</a>
+    <a class="rol-cajero" href="#etiquetas-cambio-precios">7.1 Cambio de Precios</a>
   </div>
 
   <div class="grupo-titulo">Integraciones</div>
@@ -311,7 +312,8 @@
 
   <div class="grupo-titulo">Administrador</div>
   <div class="grupo">
-    <a class="rol-admin" href="#ventas">12. Ventas (estadísticas)</a>
+    <a class="rol-admin" href="#ventas">12.1 Ventas (estadísticas)</a>
+    <a class="rol-admin" href="#preventa-mayorista">12.2 Preventa Mayorista</a>
     <a class="rol-admin" href="#admin">13. Administración</a>
   </div>
 
@@ -551,6 +553,20 @@
     <li><strong>Generar PDF</strong>: se abre en una pestaña nueva, listo para imprimir.</li>
   </ol>
   <p>Cada etiqueta muestra automáticamente: precio por cada lista/tarjeta que tenga el artículo, precio por unidad de medida (por Kg o por Lt, cuando corresponde) y precio sin impuestos nacionales, además de la <strong>compra mínima</strong> si el artículo tiene una oferta de bonificación vigente por cantidad.</p>
+
+  <h3 id="etiquetas-cambio-precios">7.1 Cambio de Precios (etiquetar con el precio de mañana)</h3>
+  <p>El botón <strong>"Cambio de Precios"</strong>, al lado de "Generar PDF", sirve para imprimir hoy la cartelería con el precio que va a regir <strong>a partir de mañana</strong>, sin esperar a que el cambio quede vigente en el sistema.</p>
+  <ol class="pasos">
+    <li>Se presiona <strong>Cambio de Precios</strong>: la pantalla se bloquea unos instantes con el aviso "Importando cambio de precios…" (el archivo que lee es pesado).</li>
+    <li>El sistema agrega <strong>solos</strong> a la lista armada todos los artículos que tengan un cambio de precio programado para mañana, sin duplicar los que ya estuvieran agregados a mano.</li>
+    <li>Al terminar, muestra un aviso con cuántos artículos se agregaron, cuántos tenían cambio programado en total y cuántos códigos del archivo de origen no se pudieron relacionar con ningún artículo del sistema.</li>
+    <li>En la lista armada, cada artículo con cambio programado queda marcado junto a su descripción como <strong>"· precio nuevo"</strong> (cambia la lista Azul; la Roja se recalcula sola aplicando su diferencial de siempre sobre ese nuevo Azul) o <strong>"· precio único nuevo"</strong> (un solo precio nuevo que vale igual para Azul y Roja).</li>
+    <li>Se genera el PDF como siempre: esos artículos salen con el precio de mañana ya impreso.</li>
+  </ol>
+  <div class="callout info">
+    <span class="ico">ℹ️</span>
+    <div><b>No cambia ningún precio real.</b> Esto es solo para la cartelería: el precio vigente en el sistema sigue siendo el de hoy hasta que el cambio se cargue por el camino normal (Listas de precios / Diferenciales, sección 13). Si un artículo todavía no tenía ningún precio cargado, igual se genera su etiqueta usando este precio nuevo como si fuera el primero.</div>
+  </div>
 </section>
 
 <!-- =================== INTEGRACIONES =================== -->
@@ -653,8 +669,25 @@
 
 <!-- =================== ADMIN =================== -->
 <section id="ventas">
-  <h2><span class="rol-tag tag-admin">Administrador</span> 12. Ventas (estadísticas)</h2>
+  <h2><span class="rol-tag tag-admin">Administrador</span> 12.1 Ventas (estadísticas)</h2>
   <p>Tablero con gráficos y estadísticas generales de ventas del sistema.</p>
+</section>
+
+<section id="preventa-mayorista">
+  <h2><span class="rol-tag tag-admin">Administrador</span> 12.2 Preventa Mayorista</h2>
+  <p class="lead">Pantalla de <strong>consulta</strong> (no genera ninguna venta ni factura) sobre los pedidos que los vendedores/repartidores toman en la calle con la app de preventa del sistema anterior. Sirve para que Administración y Supervisión vean qué se está por entregar, en paralelo a que se facture en Caja. También accesible por Supervisor.</p>
+  <ol class="pasos">
+    <li>Al entrar se cargan solos los <strong>pedidos pendientes</strong> (solo los que todavía están en trámite — armándose o reservados; los ya despachados o descartados no se muestran), agrupados por cliente.</li>
+    <li><strong>Filtros</strong>: buscador libre (cliente, artículo, precarga, estado o vendedor), tilde para incluir/excluir clientes "Menor Coste", selector de <strong>Vendedor</strong> y botón <strong>Refrescar</strong> (los datos se guardan en caché unos minutos; Refrescar fuerza a releerlos de la fuente).</li>
+    <li>Arriba se muestran los <strong>totales del filtro actual</strong>: cantidad de clientes, bultos, importe y recargo logístico.</li>
+    <li>La tabla principal trae una fila por cliente: código, cliente, condición de IVA, si admite presupuesto, cantidad reservado/original (se resalta si no coinciden), importe final, recargo logístico, cantidad de precargas y una columna <strong>Revisión</strong> que muestra ⚠️ si algún artículo de ese cliente tiene un descuento sin autorizar.</li>
+    <li>Haciendo clic en una fila se expande el <strong>detalle línea por línea</strong>: fecha, estado del armado, tipo de logística (Entrega / Retiro / Fox / Sugerido / Consolidado), vendedor, artículo, cantidad reservada/original, precio unitario, % de descuento y si ese descuento está autorizado según el convenio vigente del cliente.</li>
+  </ol>
+  <div class="callout info">
+    <span class="ico">ℹ️</span>
+    <div><b>No reemplaza a Caja.</b> Es solo informativa: no factura, no descuenta stock ni genera ninguna operación — el pedido se termina de facturar normalmente en el módulo Caja cuando el cliente pasa a retirar o se reparte.</div>
+  </div>
+  <p class="lead">El <strong>recargo logístico</strong> se calcula por tramos de importe sobre las líneas con logística "Entrega". Los tramos se administran desde Administración → Listas de precios → <strong>Recargo logística</strong> (ver <a href="#admin">sección 13</a>); el padrón de vendedores se sincroniza desde los archivos del sistema legado.</p>
 </section>
 
 <section id="admin">
@@ -677,11 +710,12 @@
 
   <h4>Precios y ofertas</h4>
   <ul>
-    <li><strong>Listas de precios</strong>: alta de listas y carga de precios por artículo.</li>
+    <li><strong>Listas de precios</strong>: alta de listas y carga de precios por artículo. Además del tipo tradicional, existe el tipo <strong>Enlazada</strong>: no carga precios propios, sino que toma los de otra lista ("lista base") y les aplica un % de recargo o descuento — cargado por <em>artículo puntual</em> o por <em>línea completa</em> en la pantalla "Diferenciales" (si un artículo tiene las dos reglas, gana la del artículo puntual). Los diferenciales se pueden cargar a mano o importar en bloque desde el sistema legado, con confirmación previa porque la importación reemplaza todos los existentes.</li>
     <li><strong>Ofertas</strong>: descuentos y bonificaciones por Cluster, Sector, Línea, Familia o Artículo puntual, con vigencia y reglas de acumulación.</li>
     <li><strong>Ofertas por medio de pago</strong>: descuentos según el medio o la cantidad de cuotas usada al cobrar.</li>
     <li><strong>Convenios</strong>: porcentaje de descuento y/o lista de precios especial por cliente y sucursal.</li>
     <li><strong>Tarjetas</strong>: tipos de tarjeta de cliente (cada una con su lista de precios asociada) y asignación de número de tarjeta.</li>
+    <li><strong>Recargo logística</strong>: tramos de recargo por importe (Desde / Hasta / Recargo %; "Hasta = -1" significa sin límite superior) que <a href="#preventa-mayorista">Preventa Mayorista</a> aplica a la logística "Entrega". Se accede con el botón <strong>"Recargo logística"</strong> de la pantalla Listas de precios. Los tramos se pueden cargar a mano (Nuevo tramo / editar / eliminar) o traer todos de una con <strong>"Actualizar desde DBF"</strong> (pide confirmación porque reemplaza todos los tramos existentes).</li>
   </ul>
 
   <h4>Caja y pagos</h4>
@@ -716,6 +750,7 @@
     <tr><td>Etiquetas</td><td><span class="badge-rol">Repositor</span><span class="badge-rol">Tesorero</span><span class="badge-rol">Cajero</span><span class="badge-rol">Supervisor</span><span class="badge-rol">Administrador</span></td></tr>
     <tr><td>Reimpresión</td><td><span class="badge-rol">Supervisor</span><span class="badge-rol">Tesorero</span><span class="badge-rol">Administrador</span></td></tr>
     <tr><td>Ventas</td><td><span class="badge-rol">Administrador</span></td></tr>
+    <tr><td>Preventa Mayorista</td><td><span class="badge-rol">Administrador</span><span class="badge-rol">Supervisor</span></td></tr>
     <tr><td>Facturación CAEA</td><td><span class="badge-rol">Tesorero</span><span class="badge-rol">Administrador</span></td></tr>
     <tr><td>Administración</td><td><span class="badge-rol">Administrador</span></td></tr>
   </table>
@@ -752,6 +787,11 @@
     <tr><td><strong>CAEA</strong></td><td>Código de autorización de contingencia, precargado, para usar cuando ARCA no responde al facturar; se debe informar a ARCA dentro de las 48 hs.</td></tr>
     <tr><td><strong>Convenio</strong></td><td>Condición comercial especial de un cliente: descuento fijo y/o lista de precios propia.</td></tr>
     <tr><td><strong>Cluster</strong></td><td>Agrupación de clientes usada para definir a quién le aplica una oferta o un medio de pago restringido.</td></tr>
+    <tr><td><strong>Lista enlazada</strong></td><td>Lista de precios sin precios propios: calcula los suyos en vivo tomando otra lista ("lista base") y sumándole/restándole un % ("diferencial").</td></tr>
+    <tr><td><strong>Diferencial</strong></td><td>Porcentaje de recargo o descuento que una lista enlazada aplica sobre la lista base, por artículo puntual o por línea completa de artículos.</td></tr>
+    <tr><td><strong>Preventa Mayorista</strong></td><td>Módulo de consulta de los pedidos que los vendedores toman en la calle con la app de preventa; no genera ventas, solo informa.</td></tr>
+    <tr><td><strong>Recargo logístico</strong></td><td>Porcentaje adicional que se suma al importe de un pedido de Preventa Mayorista cuando su logística es "Entrega", según en qué tramo de importe caiga.</td></tr>
+    <tr><td><strong>Cambio de Precios (Etiquetas)</strong></td><td>Botón que trae del sistema legado los artículos con precio nuevo para mañana y los agrega a la lista de etiquetas con ese precio simulado, sin modificar todavía ningún precio real.</td></tr>
   </table>
   </div>
 </section>
@@ -845,12 +885,13 @@
 
       <!-- Precios y Ofertas (izquierda) -->
       <g font-family="Segoe UI, sans-serif">
-        <rect x="56" y="434" width="228" height="132" rx="16" fill="#eceff3" stroke="#4a5766" stroke-width="2" />
-        <rect x="56" y="434" width="228" height="34" rx="16" fill="#4a5766" />
-        <text x="170" y="457" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Precios y Ofertas</text>
-        <text x="74" y="491" font-size="14.5" fill="#1b2733">• Listas de precios</text>
-        <text x="74" y="515" font-size="14.5" fill="#1b2733">• Ofertas</text>
-        <text x="74" y="539" font-size="14.5" fill="#1b2733">• Convenios</text>
+        <rect x="56" y="424" width="228" height="156" rx="16" fill="#eceff3" stroke="#4a5766" stroke-width="2" />
+        <rect x="56" y="424" width="228" height="34" rx="16" fill="#4a5766" />
+        <text x="170" y="447" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Precios y Ofertas</text>
+        <text x="74" y="481" font-size="14.5" fill="#1b2733">• Listas de precios</text>
+        <text x="74" y="505" font-size="14.5" fill="#1b2733">• Listas enlazadas</text>
+        <text x="74" y="529" font-size="14.5" fill="#1b2733">• Ofertas</text>
+        <text x="74" y="553" font-size="14.5" fill="#1b2733">• Convenios</text>
       </g>
 
       <!-- Administración (arriba izquierda) -->
@@ -977,7 +1018,8 @@
       <tr><td><span class="metodo get">GET</span> <span class="endpoint">/etiquetas/sucursales</span></td><td>—</td><td><code>IReadOnlyList&lt;LookupSimpleDto&gt;</code></td></tr>
       <tr><td><span class="metodo get">GET</span> <span class="endpoint">/etiquetas/buscar</span></td><td>Query: <code>q</code></td><td><code>IReadOnlyList&lt;ArticuloParaEtiquetaDto&gt;</code></td></tr>
       <tr><td><span class="metodo get">GET</span> <span class="endpoint">/etiquetas/por-clasificacion</span></td><td>Query: <code>idSector</code>, <code>idLinea</code>, <code>idFamilia</code> (todos opcionales)</td><td><code>IReadOnlyList&lt;ArticuloParaEtiquetaDto&gt;</code></td></tr>
-      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/etiquetas/generar</span></td><td>Body: <code>GenerarRequest</code> (idSucursal, lista de idsPresentacion)</td><td><code>IReadOnlyList&lt;EtiquetaDto&gt;</code> — precio base + por tarjeta + por unidad de medida + compra mínima.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/etiquetas/cambio-de-precios</span></td><td>—</td><td><code>CambioPreciosDto</code> — artículos con cambio de precio programado para mañana (lista Azul 2068) leídos de <code>LISTAS_PROG.DBF</code>/<code>PREC_PROG.DBF</code>, más los códigos sin match.</td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/etiquetas/generar</span></td><td>Body: <code>GenerarRequest</code> (idSucursal, lista de idsPresentacion, y opcionalmente <code>preciosAzulNuevos</code>/<code>preciosUnicosNuevos</code> devueltos por <code>/cambio-de-precios</code>, para simular el precio de mañana en el PDF)</td><td><code>IReadOnlyList&lt;EtiquetaDto&gt;</code> — precio base + por tarjeta + por unidad de medida + compra mínima.</td></tr>
     </table></div>
   </section>
 
@@ -1027,13 +1069,14 @@
       <tr><td>Clientes (ABM)</td><td class="endpoint">/admin/clientes</td><td>GET (?q,soloCuentaCorriente), GET /{id}, POST, PUT /{id}, DELETE /{id} (baja lógica)</td><td><code>ClienteDto</code> / <code>ClienteInput</code></td></tr>
       <tr><td>Familias</td><td class="endpoint">/admin/familias</td><td>GET (?idSector), GET /{id}, POST, PUT /{id}, DELETE /{id}</td><td><code>FamiliaDto</code> / <code>FamiliaInput</code></td></tr>
       <tr><td>Lookups simples<br><small class="muted">sectores, líneas, tipos-oferta, motivos-diferencia, motivos-cierre, bancos</small></td><td class="endpoint">/admin/{recurso}</td><td>GET, GET /{id}, POST, PUT /{id}, DELETE /{id} (tipos-oferta es solo lectura)</td><td><code>LookupDto</code> / <code>LookupInput</code></td></tr>
-      <tr><td>Listas de precios</td><td class="endpoint">/admin/listas-precios</td><td>GET, GET /{id}, POST, PUT /{id}, DELETE /{id}; GET /{id}/precios (?texto,idsArticulos), PUT/DELETE /{id}/precios/{idPresentacion}, PUT /{id}/articulos/{idArticulo}/precio</td><td><code>ListaPrecioDto</code> / <code>PrecioDto</code></td></tr>
+      <tr><td>Listas de precios</td><td class="endpoint">/admin/listas-precios</td><td>GET, GET /{id}, POST, PUT /{id}, DELETE /{id}; GET /{id}/precios (?texto,idsArticulos), PUT/DELETE /{id}/precios/{idPresentacion}, PUT /{id}/articulos/{idArticulo}/precio; GET /{id}/diferenciales, POST /{id}/diferenciales, PUT /{id}/diferenciales/{idDiferencial}, DELETE /{id}/diferenciales/{idDiferencial}, POST /{id}/diferenciales/importar (reemplaza todos, solo listas Enlazada)</td><td><code>ListaPrecioDto</code> / <code>PrecioDto</code> / <code>DiferencialListaPrecioDto</code></td></tr>
       <tr><td>Tipos / medios de pago</td><td class="endpoint">/admin/tipos-pago, /admin/medios-pago</td><td>GET, POST, PUT /{id}, DELETE /{id}; GET/POST /medios-pago/{id}/planes, PUT/DELETE /planes/{id}</td><td><code>TipoPagoDto</code> / <code>MedioPagoDto</code> / <code>PlanCuotaDto</code></td></tr>
       <tr><td>Ofertas por artículo</td><td class="endpoint">/admin/sucursales/{idSucursal}/ofertas</td><td>GET, GET /{idOferta}, POST, PUT /{idOferta}, DELETE /{idOferta}</td><td><code>OfertaListItem</code> / <code>OfertaDetail</code> / <code>OfertaInput</code></td></tr>
       <tr><td>Ofertas por medio de pago</td><td class="endpoint">/admin/sucursales/{idSucursal}/ofertas-medio-pago</td><td>GET, POST, PUT /{id}, DELETE /{id}</td><td><code>OfertaMedioPagoDto</code></td></tr>
       <tr><td>Convenios</td><td class="endpoint">/admin/sucursales/{idSucursal}/convenios</td><td>GET, POST, PUT /{id}, DELETE /{id}</td><td><code>ConvenioDto</code></td></tr>
       <tr><td>Clusters</td><td class="endpoint">/admin/clusters</td><td>GET, POST, PUT /{idCluster} (renombrar), DELETE /{idCluster}; GET /{idCluster}/miembros, POST/PUT (set masivo) /{idCluster}/miembros, DELETE /{idCluster}/miembros/{idCliente}</td><td><code>ClusterDto</code> / <code>ClusterMiembroDto</code></td></tr>
       <tr><td>Tipos de tarjeta / tarjetas por cliente</td><td class="endpoint">/admin/tipos-tarjeta, /admin/clientes/{idCliente}/tarjetas</td><td>GET, POST, PUT /{id}, DELETE /{id}; POST/DELETE tarjetas por cliente</td><td><code>TipoTarjetaDto</code> / <code>TarjetaClienteDto</code></td></tr>
+      <tr><td>Recargo logística</td><td class="endpoint">/admin/recargo-logistica</td><td>GET, POST, PUT /{id}, DELETE /{id}, POST /importar (reemplaza todos los tramos)</td><td><code>RecargoLogisticaDto</code> / <code>RecargoLogisticaInput</code></td></tr>
       <tr><td>Cuenta corriente (límites)</td><td class="endpoint">/admin/sucursales/{idSucursal}/cuenta-corriente</td><td>GET, PUT /{idCliente} (upsert límite), DELETE /{idCliente}</td><td><code>CuentaCorrienteLimiteDto</code></td></tr>
       <tr><td>Padrones (IIBB / exención IVA)</td><td class="endpoint">/admin/padrones/{iibb|excepcion-iva}</td><td>GET (?q), PUT/POST, DELETE /{cuit}; POST /iibb/importar y /excepcion-iva/importar (multipart, reemplaza todo el padrón)</td><td><code>PadronIibbDto</code> / <code>PadronExIvaDto</code> / <code>ImportacionPadronDto</code></td></tr>
       <tr><td>Empresas / Sucursales</td><td class="endpoint">/admin/empresas, /admin/sucursales</td><td>GET, POST, PUT /{id}, DELETE /{id}</td><td><code>EmpresaDto</code> / <code>SucursalDto</code></td></tr>
@@ -1044,6 +1087,19 @@
       <tr><td>Conexiones externas<br><small class="muted">MySQL, puntos-app, giftcards-app</small></td><td class="endpoint">/admin/conexion-externa, -puntos-app, -giftcards-app</td><td>GET, PUT, POST /probar (prueba real sin guardar)</td><td><code>ConexionExternaMySqlDto</code> / <code>ConexionPuntosAppDto</code> / <code>ConexionGiftcardsAppDto</code> / <code>ProbarConexionResultado</code></td></tr>
       <tr><td>Referencias (lookups de solo lectura)</td><td class="endpoint">/admin/referencias/{modos-iva|sucursales|listas-precios|condiciones-iva}</td><td>GET</td><td><code>LookupDto</code></td></tr>
       <tr><td>Estadísticas de ventas</td><td class="endpoint">/admin/estadisticas/ventas</td><td>GET (?periodo, idSucursal)</td><td><code>EstadisticasVentasResponse</code></td></tr>
+    </table></div>
+  </section>
+
+  <section class="sub" id="api-preventa-mayorista">
+    <h3 class="api-grupo">18.10 Preventa Mayorista</h3>
+    <p>Exige rol <strong>Administrador</strong> o <strong>Supervisor</strong> (módulo <code>PreventaMayorista</code>). Es de solo lectura sobre datos externos (DBF del sistema legado): no crea ni modifica ninguna venta.</p>
+    <div class="tabla-wrap"><table class="api">
+      <tr><th>Endpoint</th><th>Parámetros</th><th>Respuesta</th></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/preventa-mayorista/pedidos</span></td><td>Query: <code>forzarRefresco</code> (bool, opcional)</td><td><code>IReadOnlyList&lt;PreventaClienteDto&gt;</code> — pedidos pendientes cruzados contra Clientes y Artículos.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/preventa-mayorista/vendedores</span></td><td>—</td><td><code>IReadOnlyList&lt;VendedorDto&gt;</code></td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/preventa-mayorista/vendedores/importar</span></td><td>—</td><td><code>ImportacionResultadoDto</code> — relee el padrón de vendedores del sistema legado.</td></tr>
+      <tr><td><span class="metodo get">GET</span> <span class="endpoint">/preventa-mayorista/recargo-logistica</span></td><td>—</td><td><code>IReadOnlyList&lt;TramoRecargoLogisticaDto&gt;</code></td></tr>
+      <tr><td><span class="metodo post">POST</span> <span class="endpoint">/preventa-mayorista/recargo-logistica/importar</span></td><td>—</td><td><code>ImportacionResultadoDto</code> — relee los tramos del sistema legado.</td></tr>
     </table></div>
   </section>
 </section>
