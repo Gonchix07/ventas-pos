@@ -194,8 +194,12 @@ public class EstadisticasService : IEstadisticasService
             .ToListAsync(ct);
 
         var ids = agrupado.Where(x => x.IdCliente.HasValue).Select(x => x.IdCliente!.Value).ToList();
-        var nombres = await _db.Clientes.AsNoTracking().Where(c => ids.Contains(c.IdCliente))
-            .ToDictionaryAsync(c => c.IdCliente, c => c.NombreFantasia ?? c.Descripcion, ct);
+        // El ERP trae el nombre de fantasía con relleno ("." / "-") en decenas de miles de clientes:
+        // si no tiene ninguna letra o número, se muestra la razón social.
+        var nombres = (await _db.Clientes.AsNoTracking().Where(c => ids.Contains(c.IdCliente))
+                .Select(c => new { c.IdCliente, c.NombreFantasia, c.Descripcion }).ToListAsync(ct))
+            .ToDictionary(c => c.IdCliente,
+                c => c.NombreFantasia is not null && c.NombreFantasia.Any(char.IsLetterOrDigit) ? c.NombreFantasia : c.Descripcion);
 
         return agrupado
             .Select(x => new TopClienteDto(x.IdCliente,

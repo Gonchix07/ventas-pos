@@ -92,28 +92,59 @@ public class ErpSyncRunner
     // watermark) y se crea lo que falte — CondicionIva es la única excepción: no se auto-crea porque
     // alimenta la letra de facturación ARCA (ver comentario en la entidad). -----
 
+    // Si una fila del ERP no matchea por CodigoErp, antes de insertar se "adopta" una fila local
+    // equivalente sin CodigoErp (cargada por la importación legacy o a mano) asignándole el código.
+    // Sin esto el sync insertaba un duplicado al lado de cada fila legacy (bug real: 416 Líneas,
+    // 22 Sectores y 184 Familias duplicadas, fusionadas a mano el 2026-09-30). Los ids adoptados se
+    // recuerdan porque la adopción no se guarda hasta el SaveChanges: sin eso, dos filas del ERP con
+    // la misma descripción adoptarían la misma fila local.
     private async Task SincronizarLookupsAsync(SyncCheckpoint checkpoint, CancellationToken ct)
     {
+        var sectoresAdoptados = new HashSet<int>();
         await UpsertLookupAsync(await _lookups.GetSectoresAsync(ct),
             async r =>
             {
                 var existente = await _db.Sectores.FirstOrDefaultAsync(x => x.CodigoErp == r.Codigo, ct);
-                if (existente is null) { _db.Sectores.Add(new Sector { CodigoErp = r.Codigo, Descripcion = r.Descripcion, CreatedBy = AutorSync }); checkpoint.Insertados++; }
+                if (existente is null)
+                {
+                    var huerfano = (await _db.Sectores.Where(x => x.CodigoErp == null && x.Descripcion == r.Descripcion).ToListAsync(ct))
+                        .FirstOrDefault(x => sectoresAdoptados.Add(x.IdSector));
+                    if (huerfano is not null) { huerfano.CodigoErp = r.Codigo; huerfano.Descripcion = r.Descripcion; huerfano.UpdatedBy = AutorSync; checkpoint.Actualizados++; }
+                    else { _db.Sectores.Add(new Sector { CodigoErp = r.Codigo, Descripcion = r.Descripcion, CreatedBy = AutorSync }); checkpoint.Insertados++; }
+                }
                 else if (existente.Descripcion != r.Descripcion) { existente.Descripcion = r.Descripcion; existente.UpdatedBy = AutorSync; checkpoint.Actualizados++; }
             }, ct);
 
+        var lineasAdoptadas = new HashSet<int>();
         await UpsertLookupAsync(await _lookups.GetLineasAsync(ct),
             async r =>
             {
                 var existente = await _db.Lineas.FirstOrDefaultAsync(x => x.CodigoErp == r.Codigo, ct);
-                if (existente is null) { _db.Lineas.Add(new Linea { CodigoErp = r.Codigo, Descripcion = r.Descripcion, CreatedBy = AutorSync }); checkpoint.Insertados++; }
+                if (existente is null)
+                {
+                    var huerfana = (await _db.Lineas.Where(x => x.CodigoErp == null && x.Descripcion == r.Descripcion).ToListAsync(ct))
+                        .FirstOrDefault(x => lineasAdoptadas.Add(x.IdLinea));
+                    if (huerfana is not null) { huerfana.CodigoErp = r.Codigo; huerfana.Descripcion = r.Descripcion; huerfana.UpdatedBy = AutorSync; checkpoint.Actualizados++; }
+                    else { _db.Lineas.Add(new Linea { CodigoErp = r.Codigo, Descripcion = r.Descripcion, CreatedBy = AutorSync }); checkpoint.Insertados++; }
+                }
                 else if (existente.Descripcion != r.Descripcion) { existente.Descripcion = r.Descripcion; existente.UpdatedBy = AutorSync; checkpoint.Actualizados++; }
             }, ct);
 
+        var modosAdoptados = new HashSet<int>();
         await UpsertLookupAsync(await _lookups.GetModosIvaAsync(ct),
             async r =>
             {
                 var existente = await _db.ModosIva.FirstOrDefaultAsync(x => x.CodigoErp == r.Codigo, ct);
+                if (existente is null)
+                {
+                    // Solo si coinciden alícuota Y percepción: hay modos locales con el mismo nombre
+                    // pero percepción 0% que son otra cosa (adoptarlos cambiaría lo que se cobra).
+                    var alicuota = r.Alicuota / 100m;
+                    existente = (await _db.ModosIva.Where(x => x.CodigoErp == null && x.Descripcion == r.Descripcion
+                            && x.Alicuota == alicuota && x.PorcentajePercepcion == r.Percepcion).ToListAsync(ct))
+                        .FirstOrDefault(x => modosAdoptados.Add(x.IdModoIva));
+                    if (existente is not null) { existente.CodigoErp = r.Codigo; existente.UpdatedBy = AutorSync; checkpoint.Actualizados++; return; }
+                }
                 if (existente is null)
                 {
                     _db.ModosIva.Add(new ModoIva
@@ -144,11 +175,27 @@ public class ErpSyncRunner
         // ERP NO es único globalmente (solo dentro de su sector — ver comentario en PosDbContext),
         // así que la clave de matcheo es el PAR (sector, código), no el código solo.
         var sectoresPorCodigo = await _db.Sectores.Where(s => s.CodigoErp != null).ToDictionaryAsync(s => s.CodigoErp!, s => s.IdSector, ct);
+        var familiasAdoptadas = new HashSet<int>();
         await UpsertLookupAsync(await _lookups.GetFamiliasAsync(ct),
             async r =>
             {
                 var idSector = r.CodigoSectorErp is not null && sectoresPorCodigo.TryGetValue(r.CodigoSectorErp, out var id) ? id : (int?)null;
                 var existente = await _db.Familias.FirstOrDefaultAsync(x => x.CodigoErp == r.Codigo && x.IdSector == idSector, ct);
+                if (existente is null)
+                {
+                    // Mismo nombre Y mismo sector: hay familias homónimas legítimas en sectores distintos.
+                    // "SIN FAMILIA" queda afuera, es la fila local de ObtenerOCrearSinFamiliaAsync.
+                    existente = (await _db.Familias.Where(x => x.CodigoErp == null && x.Descripcion == r.Descripcion
+                            && x.IdSector == idSector && x.Descripcion != "SIN FAMILIA").ToListAsync(ct))
+                        .FirstOrDefault(x => familiasAdoptadas.Add(x.IdFamilia));
+                    if (existente is not null)
+                    {
+                        existente.CodigoErp = r.Codigo;
+                        existente.UpdatedBy = AutorSync;
+                        checkpoint.Actualizados++;
+                        return;
+                    }
+                }
                 if (existente is null)
                 {
                     _db.Familias.Add(new Familia { CodigoErp = r.Codigo, Descripcion = r.Descripcion, IdSector = idSector, CreatedBy = AutorSync });
@@ -300,6 +347,15 @@ public class ErpSyncRunner
             var idsErpDelLote = lote.Select(f => f.IdErp).ToList();
             var presentacionesExistentes = await _db.Presentaciones.Where(p => idsErpDelLote.Contains(p.IdErp!.Value))
                 .ToDictionaryAsync(p => p.IdErp!.Value, p => p, ct);
+            // Presentaciones legacy (sin IdErp) de los artículos del lote: si el ERP trae una que no
+            // existe por IdErp, se adopta la legacy del mismo artículo y misma UnidadXBulto en vez de
+            // crear otra al lado (bug real: ~10.800 presentaciones duplicadas así). Se sacan de la
+            // lista al adoptarlas para que dos filas del ERP no adopten la misma.
+            var idsArticulosLocales = articulosPorIdErp.Values.ToList();
+            var legacyPorArticulo = (await _db.Presentaciones
+                    .Where(p => p.IdErp == null && idsArticulosLocales.Contains(p.IdArticulo))
+                    .OrderBy(p => p.IdPresentacion).ToListAsync(ct))
+                .GroupBy(p => p.IdArticulo).ToDictionary(g => g.Key, g => g.ToList());
 
             foreach (var fila in lote)
             {
@@ -323,6 +379,17 @@ public class ErpSyncRunner
                 }
 
                 var existente = presentacionesExistentes.GetValueOrDefault(fila.IdErp);
+                var unidadXBulto = fila.Fraccion <= 0 ? 1m : fila.Fraccion;
+                if (existente is null && legacyPorArticulo.TryGetValue(idArticulo.Value, out var legacy))
+                {
+                    existente = legacy.FirstOrDefault(p => p.UnidadXBulto == unidadXBulto);
+                    if (existente is not null)
+                    {
+                        legacy.Remove(existente);
+                        existente.IdErp = fila.IdErp;
+                        presentacionesExistentes[fila.IdErp] = existente;
+                    }
+                }
                 if (existente is null)
                 {
                     _db.Presentaciones.Add(new Presentacion
