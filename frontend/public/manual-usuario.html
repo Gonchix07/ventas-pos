@@ -315,6 +315,7 @@
     <a class="rol-admin" href="#ventas">12.1 Ventas (estadísticas)</a>
     <a class="rol-admin" href="#preventa-mayorista">12.2 Preventa Mayorista</a>
     <a class="rol-admin" href="#admin">13. Administración</a>
+    <a class="rol-admin" href="#importadores">13.1 Importadores (DBF)</a>
   </div>
 
   <div class="grupo-titulo">Referencia</div>
@@ -696,13 +697,13 @@
 
   <h4>Artículos</h4>
   <ul>
-    <li><strong>Artículos</strong>: alta y edición de productos (código, descripción, sector/línea/familia, condición de IVA, unidad de medida, presentaciones y códigos de barra).</li>
+    <li><strong>Artículos</strong>: alta y edición de productos (código, descripción, sector/línea/familia, condición de IVA, unidad de medida, presentaciones y códigos de barra). El botón <strong>"Importar artículos nuevos (DBF)"</strong> abre un comparador con los artículos del sistema anterior (<code>articulo.dbf</code>) que todavía no existen acá; <strong>Importar</strong> da de alta solo esos, sin tocar los ya cargados (ver <a href="#importadores">13.1 Importadores desde el sistema anterior</a>).</li>
     <li><strong>Líneas, Sectores, Familias</strong>: listas de clasificación de artículos (la Familia depende del Sector elegido).</li>
   </ul>
 
   <h4>Clientes</h4>
   <ul>
-    <li><strong>Clientes</strong>: alta y edición de clientes, datos fiscales, permisos (presupuesto, cuenta corriente) y personas <strong>Autorizadas</strong> a comprar en su nombre.</li>
+    <li><strong>Clientes</strong>: alta y edición de clientes, datos fiscales, permisos (presupuesto, cuenta corriente) y personas <strong>Autorizadas</strong> a comprar en su nombre. El botón <strong>"Importar clientes nuevos (DBF)"</strong> funciona igual que el de artículos (ver <a href="#importadores">13.1</a>).</li>
     <li><strong>Clusters</strong>: agrupaciones de clientes, usadas como alcance de ofertas y restricciones de medios de pago.</li>
     <li><strong>Cuentas corrientes</strong>: habilitación y <strong>límite de crédito</strong> por cliente y sucursal.</li>
     <li><strong>Padrones</strong>: padrón de percepción de Ingresos Brutos y de excepción de percepción de IVA, con carga manual o importación masiva de archivo.</li>
@@ -710,7 +711,7 @@
 
   <h4>Precios y ofertas</h4>
   <ul>
-    <li><strong>Listas de precios</strong>: alta de listas y carga de precios por artículo. Además del tipo tradicional, existe el tipo <strong>Enlazada</strong>: no carga precios propios, sino que toma los de otra lista ("lista base") y les aplica un % de recargo o descuento — cargado por <em>artículo puntual</em> o por <em>línea completa</em> en la pantalla "Diferenciales" (si un artículo tiene las dos reglas, gana la del artículo puntual). Los diferenciales se pueden cargar a mano o importar en bloque desde el sistema legado, con confirmación previa porque la importación reemplaza todos los existentes.</li>
+    <li><strong>Listas de precios</strong>: alta de listas y carga de precios por artículo. Además del tipo tradicional, existe el tipo <strong>Enlazada</strong>: no carga precios propios, sino que toma los de otra lista ("lista base") y les aplica un % de recargo o descuento — cargado por <em>artículo puntual</em> o por <em>línea completa</em> en la pantalla "Diferenciales" (si un artículo tiene las dos reglas, gana la del artículo puntual). Los diferenciales se pueden cargar a mano o importar en bloque desde el sistema legado, con confirmación previa porque la importación reemplaza todos los existentes. En las listas <strong>Base</strong> y <strong>Folder</strong>, la pantalla de precios tiene además el botón <strong>"Importar desde DBF"</strong> para cargar los precios del sistema anterior (ver <a href="#importadores">13.1</a>).</li>
     <li><strong>Ofertas</strong>: descuentos y bonificaciones por Cluster, Sector, Línea, Familia o Artículo puntual, con vigencia y reglas de acumulación.</li>
     <li><strong>Ofertas por medio de pago</strong>: descuentos según el medio o la cantidad de cuotas usada al cobrar.</li>
     <li><strong>Convenios</strong>: porcentaje de descuento y/o lista de precios especial por cliente y sucursal.</li>
@@ -734,6 +735,25 @@
     <li><strong>Permisos por rol</strong>: matriz que decide qué tarjetas de módulo ve cada rol en la pantalla principal.</li>
     <li><strong>Configuraciones</strong>: parámetros generales del sistema (por ejemplo, el límite de efectivo en caja) y las <strong>tres integraciones</strong> con sistemas externos: conexión a base de datos externa, Puntos de fidelización (puntos-app) y Gift Card (giftcards-app) — URL, clave de acceso y botón de prueba de conexión para cada una.</li>
   </ul>
+
+  <section class="sub" id="importadores">
+    <h3>13.1 Importadores desde el sistema anterior (DBF)</h3>
+    <p>Para no cargar a mano lo que ya existe en la app de preventa anterior, Administración puede traer datos de sus archivos DBF. Todos leen de la carpeta configurada en Configuraciones → <code>PreventaMayorista:CarpetaDbf</code> (por defecto, la carpeta de datos de red del sistema anterior) y requieren que ese acceso de red esté disponible. Mientras trabajan muestran un aviso con un spinner; no hay que cerrar la pantalla.</p>
+    <div class="tabla-wrap">
+    <table>
+      <tr><th>Importador</th><th>Dónde está</th><th>Qué hace</th></tr>
+      <tr><td><strong>Precios de lista Base</strong></td><td>Listas de precios → <em>Precios</em> de una lista Base → "Importar desde DBF"</td><td>Lee <code>listas.dbf</code> (lista 2068). El precio del archivo es por bulto: se divide por las unidades por bulto del artículo y cada presentación se valoriza multiplicando por sus unidades. Carga los precios nuevos y <strong>pisa</strong> los existentes; <strong>no borra</strong> precios de artículos que no vengan en el archivo.</td></tr>
+      <tr><td><strong>Precios de lista Folder</strong></td><td>Listas de precios → <em>Precios</em> de una lista Folder → "Importar desde DBF"</td><td>Lee <code>prec_prog.dbf</code> (lista 2068): solo las filas cuya vigencia (Desde / Hasta) incluye el día de hoy. Acá los precios ya son unitarios (no se dividen). <strong>Borra todos los precios actuales de la lista</strong> y carga los del archivo en una sola operación: si algo falla, queda la lista anterior. Pide confirmación.</td></tr>
+      <tr><td><strong>Artículos nuevos</strong></td><td>Artículos → "Importar artículos nuevos (DBF)"</td><td>Compara <code>articulo.dbf</code> con los artículos cargados (por código) y muestra los que faltan. <strong>Importar</strong> crea solo esos, con su presentación unitaria, la de bulto si el artículo viene en bulto, y los códigos de barra de <code>cbarras.dbf</code> (EAN en la unidad, DUN en el bulto). Sin sector o familia equivalente quedan en "SIN SECTOR" / "SIN FAMILIA"; sin línea o IVA equivalente <strong>no se importan</strong> (el comparador muestra el motivo). Los artículos dados de baja en el sistema anterior se crean como inactivos.</td></tr>
+      <tr><td><strong>Clientes nuevos</strong></td><td>Clientes → "Importar clientes nuevos (DBF)"</td><td>Compara <code>clientes.dbf</code> con los clientes cargados (por código). Solo se importan los que tienen tarjeta vigente asignada (Roja o Azul); los demás se ven en el comparador pero no se crean. Nunca modifica clientes existentes.</td></tr>
+      <tr><td><strong>Diferenciales y recargo logístico</strong></td><td>Listas Enlazadas → "Diferenciales"; Listas de precios → "Recargo logística"</td><td>Ver las secciones 12.2 y 13: reemplazan todos los diferenciales / tramos existentes tras una confirmación.</td></tr>
+    </table>
+    </div>
+    <div class="callout warn">
+      <span class="ico">⚠️</span>
+      <div><b>Antes de importar, revisar el comparador.</b> Los importadores de artículos y clientes solo agregan lo que falta, pero los de precios Folder, diferenciales y recargo logístico <strong>reemplazan</strong> lo existente. Si el archivo de origen está desactualizado, la lista puede quedar casi vacía: conviene confirmar con Sistemas que el DBF sea el vigente.</div>
+    </div>
+  </section>
 </section>
 
 <!-- =================== REFERENCIA =================== -->
@@ -1065,11 +1085,11 @@
     <p>Todos bajo <code>/admin/...</code>, exigen rol <strong>Administrador</strong> (o el módulo correspondiente habilitado) y siguen el mismo patrón CRUD: <span class="metodo get">GET</span> lista/detalle, <span class="metodo post">POST</span> crea (responde el <code>int</code> del nuevo id), <span class="metodo put">PUT</span> actualiza y <span class="metodo delete">DELETE</span> borra (responden <code>bool</code>) — todos devuelven 404 <code>NO_ENCONTRADO</code> si el id no existe. Los campos de entrada de cada <code>...Input</code> son los mismos que su formulario en la sección 13.</p>
     <div class="tabla-wrap"><table class="api">
       <tr><th>Recurso</th><th>Base</th><th>Verbos / rutas extra</th><th>Tipos</th></tr>
-      <tr><td>Artículos</td><td class="endpoint">/admin/articulos</td><td>GET (?texto,idSector,idLinea,idFamilia,activo), GET /{id}, POST, PUT /{id}, DELETE /{id}</td><td><code>ArticuloListItem</code> / <code>ArticuloDetail</code> / <code>ArticuloInput</code></td></tr>
-      <tr><td>Clientes (ABM)</td><td class="endpoint">/admin/clientes</td><td>GET (?q,soloCuentaCorriente), GET /{id}, POST, PUT /{id}, DELETE /{id} (baja lógica)</td><td><code>ClienteDto</code> / <code>ClienteInput</code></td></tr>
+      <tr><td>Artículos</td><td class="endpoint">/admin/articulos</td><td>GET (?texto,idSector,idLinea,idFamilia,activo), GET /{id}, POST, PUT /{id}, DELETE /{id}; GET /nuevos-dbf (comparador de artículos de <code>articulo.dbf</code> que faltan), POST /nuevos-dbf/importar (crea solo los nuevos, con presentaciones y barras)</td><td><code>ArticuloListItem</code> / <code>ArticuloDetail</code> / <code>ArticuloInput</code> / <code>ComparadorArticulosDto</code> / <code>ImportacionArticulosResultado</code></td></tr>
+      <tr><td>Clientes (ABM)</td><td class="endpoint">/admin/clientes</td><td>GET (?q,soloCuentaCorriente), GET /{id}, POST, PUT /{id}, DELETE /{id} (baja lógica); GET /nuevos-dbf (comparador de <code>clientes.dbf</code>), POST /nuevos-dbf/importar (solo los nuevos con tarjeta vigente)</td><td><code>ClienteDto</code> / <code>ClienteInput</code> / <code>ClienteNuevoDto</code></td></tr>
       <tr><td>Familias</td><td class="endpoint">/admin/familias</td><td>GET (?idSector), GET /{id}, POST, PUT /{id}, DELETE /{id}</td><td><code>FamiliaDto</code> / <code>FamiliaInput</code></td></tr>
       <tr><td>Lookups simples<br><small class="muted">sectores, líneas, tipos-oferta, motivos-diferencia, motivos-cierre, bancos</small></td><td class="endpoint">/admin/{recurso}</td><td>GET, GET /{id}, POST, PUT /{id}, DELETE /{id} (tipos-oferta es solo lectura)</td><td><code>LookupDto</code> / <code>LookupInput</code></td></tr>
-      <tr><td>Listas de precios</td><td class="endpoint">/admin/listas-precios</td><td>GET, GET /{id}, POST, PUT /{id}, DELETE /{id}; GET /{id}/precios (?texto,idsArticulos), PUT/DELETE /{id}/precios/{idPresentacion}, PUT /{id}/articulos/{idArticulo}/precio; GET /{id}/diferenciales, POST /{id}/diferenciales, PUT /{id}/diferenciales/{idDiferencial}, DELETE /{id}/diferenciales/{idDiferencial}, POST /{id}/diferenciales/importar (reemplaza todos, solo listas Enlazada)</td><td><code>ListaPrecioDto</code> / <code>PrecioDto</code> / <code>DiferencialListaPrecioDto</code></td></tr>
+      <tr><td>Listas de precios</td><td class="endpoint">/admin/listas-precios</td><td>GET, GET /{id}, POST, PUT /{id}, DELETE /{id}; GET /{id}/precios (?texto,idsArticulos), PUT/DELETE /{id}/precios/{idPresentacion}, PUT /{id}/articulos/{idArticulo}/precio; GET /{id}/diferenciales, POST /{id}/diferenciales, PUT /{id}/diferenciales/{idDiferencial}, DELETE /{id}/diferenciales/{idDiferencial}, POST /{id}/diferenciales/importar (reemplaza todos, solo listas Enlazada); POST /{id}/precios/importar (listas Base: carga/pisa desde <code>listas.dbf</code>; listas Folder: reemplaza todo desde <code>prec_prog.dbf</code> vigente hoy)</td><td><code>ListaPrecioDto</code> / <code>PrecioDto</code> / <code>DiferencialListaPrecioDto</code> / <code>ImportacionPreciosResultado</code></td></tr>
       <tr><td>Tipos / medios de pago</td><td class="endpoint">/admin/tipos-pago, /admin/medios-pago</td><td>GET, POST, PUT /{id}, DELETE /{id}; GET/POST /medios-pago/{id}/planes, PUT/DELETE /planes/{id}</td><td><code>TipoPagoDto</code> / <code>MedioPagoDto</code> / <code>PlanCuotaDto</code></td></tr>
       <tr><td>Ofertas por artículo</td><td class="endpoint">/admin/sucursales/{idSucursal}/ofertas</td><td>GET, GET /{idOferta}, POST, PUT /{idOferta}, DELETE /{idOferta}</td><td><code>OfertaListItem</code> / <code>OfertaDetail</code> / <code>OfertaInput</code></td></tr>
       <tr><td>Ofertas por medio de pago</td><td class="endpoint">/admin/sucursales/{idSucursal}/ofertas-medio-pago</td><td>GET, POST, PUT /{id}, DELETE /{id}</td><td><code>OfertaMedioPagoDto</code></td></tr>
