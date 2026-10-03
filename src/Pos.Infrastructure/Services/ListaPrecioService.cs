@@ -15,11 +15,14 @@ public class ListaPrecioService : IListaPrecioService
 
     private readonly PosDbContext _db;
     private readonly DiferencialListaPrecioImportService _importDiferenciales;
+    private readonly PrecioListaImportService _importPrecios;
 
-    public ListaPrecioService(PosDbContext db, DiferencialListaPrecioImportService importDiferenciales)
+    public ListaPrecioService(PosDbContext db, DiferencialListaPrecioImportService importDiferenciales,
+        PrecioListaImportService importPrecios)
     {
         _db = db;
         _importDiferenciales = importDiferenciales;
+        _importPrecios = importPrecios;
     }
 
     private static string TipoDesc(TipoListaPrecio t) => t switch
@@ -357,5 +360,77 @@ public class ListaPrecioService : IListaPrecioService
         await _db.DiferencialesListaPrecio.AddRangeAsync(nuevos, ct);
         await _db.SaveChangesAsync(ct);
         return nuevos.Count;
+    }
+    public async Task<ImportacionPreciosResultado?> ImportarPreciosAsync(int idListaPrecio, CancellationToken ct = default)
+    {
+        var lista = await _db.ListasPrecios.AsNoTracking()
+            .FirstOrDefaultAsync(l => l.IdListaPrecio == idListaPrecio, ct);
+        if (lista is null || (lista.Tipo != TipoListaPrecio.Base && lista.Tipo != TipoListaPrecio.Folder)) return null;
+        var esFolder = lista.Tipo == TipoListaPrecio.Folder;
+
+        var filas = esFolder
+            ? await _importPrecios.LeerPrecProgAsync(ct)
+            : await _importPrecios.LeerDbfAsync(ct);
+        var codigos = filas.Select(f => f.CodigoInterno).ToList();
+        var articulos = await _db.Articulos.AsNoTracking()
+            .Where(a => codigos.Contains(a.CodigoInterno))
+            .ToDictionaryAsync(a => a.CodigoInterno, a => new { a.IdArticulo, a.UnidadXBulto }, ct);
+
+        var idsArticulos = articulos.Values.Select(a => a.IdArticulo).ToList();
+        var presentacionesPorArticulo = (await _db.Presentaciones.AsNoTracking()
+                .Where(p => idsArticulos.Contains(p.IdArticulo)).ToListAsync(ct))
+            .ToLookup(p => p.IdArticulo);
+
+        // Folder se reemplaza entera (borrar + insertar en una sola transacción: si algo falla queda
+        // la lista anterior). Base solo pisa/agrega, no borra lo que no venga en el DBF.
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        int eliminados = 0;
+        if (esFolder)
+            eliminados = await _db.Precios.Where(p => p.IdListaPrecio == idListaPrecio).ExecuteDeleteAsync(ct);
+        var existentes = esFolder
+            ? new Dictionary<int, Precio>()
+            : await _db.Precios.Where(p => p.IdListaPrecio == idListaPrecio).ToDictionaryAsync(p => p.IdPresentacion, ct);
+
+        int creados = 0, actualizados = 0, sinMatch = 0, sinPresentaciones = 0;
+        foreach (var fila in filas)
+        {
+            if (!articulos.TryGetValue(fila.CodigoInterno, out var art)) { sinMatch++; continue; }
+            var presentaciones = presentacionesPorArticulo[art.IdArticulo].ToList();
+            if (presentaciones.Count == 0) { sinPresentaciones++; continue; }
+
+            // listas.dbf trae PPUBLICO/IMPINT por bulto del artículo (se pasan a unitarios);
+            // prec_prog.dbf ya los trae unitarios. Cada presentación se valoriza como en el alta
+            // manual (unitario x unidades de la presentación).
+            var bulto = fila.PorBulto ? (art.UnidadXBulto <= 0 ? 1m : art.UnidadXBulto) : 1m;
+            var unitario = fila.Precio / bulto;
+            var impuestoUnitario = fila.ImpuestoInterno / bulto;
+            foreach (var pres in presentaciones)
+            {
+                var precioFinal = PrecioPorBulto.Calcular(unitario, pres.UnidadXBulto);
+                var impuesto = PrecioPorBulto.Calcular(impuestoUnitario, pres.UnidadXBulto);
+                if (existentes.TryGetValue(pres.IdPresentacion, out var precio))
+                {
+                    precio.PrecioFinal = precioFinal;
+                    precio.ImpuestoInterno = impuesto;
+                    actualizados++;
+                }
+                else
+                {
+                    _db.Precios.Add(new Precio
+                    {
+                        IdListaPrecio = idListaPrecio,
+                        IdPresentacion = pres.IdPresentacion,
+                        IdArticulo = art.IdArticulo,
+                        PrecioFinal = precioFinal,
+                        ImpuestoInterno = impuesto
+                    });
+                    creados++;
+                }
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return new ImportacionPreciosResultado(creados, actualizados, sinMatch, sinPresentaciones, eliminados);
     }
 }

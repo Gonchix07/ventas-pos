@@ -66,7 +66,19 @@ public interface IListaPrecioService
     /// reemplaza los diferenciales de esta lista. Devuelve la cantidad importada, o null si la lista
     /// no existe o no es Tipo=Enlazada.</summary>
     Task<int?> ImportarDiferencialesAsync(int idListaPrecio, CancellationToken ct = default);
+
+    /// <summary>Tipo=Base: relee listas.dbf (NUMERO=2068) y carga/actualiza los precios. Tipo=Folder:
+    /// borra los precios actuales y carga los de prec_prog.dbf (lista 2068) vigentes hoy. Devuelve
+    /// null si la lista no existe o es de otro tipo.</summary>
+    Task<ImportacionPreciosResultado?> ImportarPreciosAsync(int idListaPrecio, CancellationToken ct = default);
 }
+
+/// <param name="Eliminados">Precios borrados antes de cargar (solo listas Folder, que se reemplazan enteras).</param>
+/// <param name="Creados">Precios nuevos (presentaciones que no tenían precio en la lista).</param>
+/// <param name="Actualizados">Precios que ya existían y se pisaron con el del DBF.</param>
+/// <param name="SinMatch">Códigos del DBF que no existen como artículo en el sistema.</param>
+/// <param name="SinPresentaciones">Artículos encontrados pero sin presentaciones a las que asignarles precio.</param>
+public record ImportacionPreciosResultado(int Creados, int Actualizados, int SinMatch, int SinPresentaciones, int Eliminados = 0);
 
 public record DiferencialListaPrecioDto(
     int IdDiferencial, int IdListaPrecio, int? IdLinea, string? LineaDescripcion,

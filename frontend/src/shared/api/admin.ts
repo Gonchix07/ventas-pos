@@ -109,6 +109,23 @@ export interface ArticuloInput {
   presentaciones: Presentacion[];
 }
 
+/** Artículo de articulo.dbf (app legacy VFP) que todavía no existe en SQL — fila del comparador. `motivo`
+ *  viene solo si no se puede importar. */
+export interface ArticuloNuevo {
+  codigoInterno: string;
+  descripcion: string;
+  sector?: string | null;
+  linea?: string | null;
+  familia?: string | null;
+  modoIva?: string | null;
+  unidadXBulto: number;
+  activo: boolean;
+  cantidadBarras: number;
+  motivo?: string | null;
+}
+export interface ComparadorArticulos { total: number; importables: number; items: ArticuloNuevo[]; }
+export interface ImportacionArticulos { articulos: number; presentaciones: number; barras: number; noImportables: number; }
+
 export const articulos = {
   list: (filtro?: ArticuloFiltro) =>
     unwrap<ArticuloListItem[]>(api.get(`/admin/articulos`, { params: filtro })),
@@ -119,6 +136,11 @@ export const articulos = {
   create: (input: ArticuloInput) => unwrap<number>(api.post(`/admin/articulos`, input)),
   update: (id: number, input: ArticuloInput) => unwrap<boolean>(api.put(`/admin/articulos/${id}`, input)),
   remove: (id: number) => unwrap<boolean>(api.delete(`/admin/articulos/${id}`)),
+
+  // ---- Comparador de diferencias / import desde articulo.dbf + cbarras.dbf ----
+  nuevosDbf: () => unwrap<ComparadorArticulos>(api.get(`/admin/articulos/nuevos-dbf`)),
+  /** Crea los artículos nuevos (nunca toca los que ya existen) con presentaciones y barras. */
+  importarNuevosDbf: () => unwrap<ImportacionArticulos>(api.post(`/admin/articulos/nuevos-dbf/importar`)),
 };
 
 // ---- Clientes ----
@@ -255,6 +277,10 @@ export interface DiferencialListaPrecio {
   articuloDescripcion?: string | null;
   porcentaje: number;
 }
+export interface ImportacionPrecios {
+  creados: number; actualizados: number; sinMatch: number; sinPresentaciones: number; eliminados: number;
+}
+
 export interface DiferencialListaPrecioInput {
   idLinea?: number | null;
   idArticulo?: number | null;
@@ -835,6 +861,9 @@ export const listasPrecios = {
   /** Relee descxtipocli_art.dbf (TIPO_TARJE='03', vigentes) y reemplaza los diferenciales. */
   importarDiferenciales: (id: number) =>
     unwrap<number>(api.post(`/admin/listas-precios/${id}/diferenciales/importar`)),
+  /** Base: relee listas.dbf (2068) y carga/actualiza. Folder: reemplaza todo por prec_prog.dbf (vigentes hoy). */
+  importarPrecios: (id: number) =>
+    unwrap<ImportacionPrecios>(api.post(`/admin/listas-precios/${id}/precios/importar`)),
 };
 
 export const recargoLogistica = {

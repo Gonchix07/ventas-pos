@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pos.Api.Common;
+using Pos.Application.Articulos;
 using Pos.Application.Catalogo;
 using Pos.Application.Common;
 
@@ -13,7 +14,26 @@ namespace Pos.Api.Controllers.Admin;
 public class ArticulosController : ControllerBase
 {
     private readonly IArticuloService _service;
-    public ArticulosController(IArticuloService service) => _service = service;
+    private readonly IArticuloDbfImportService _importDbf;
+
+    public ArticulosController(IArticuloService service, IArticuloDbfImportService importDbf)
+    {
+        _service = service;
+        _importDbf = importDbf;
+    }
+
+    // ---- Comparador de diferencias / import desde articulo.dbf + cbarras.dbf (app legacy VFP) ----
+
+    /// <summary>Artículos de articulo.dbf que todavía no están en SQL (por CodigoInterno). Solo
+    /// lectura — vista previa antes de "Importar".</summary>
+    [HttpGet("nuevos-dbf")]
+    public async Task<IActionResult> GetNuevosDbf(CancellationToken ct) =>
+        Ok(ApiResult<ComparadorArticulosDto>.Success(await _importDbf.ObtenerNuevosAsync(ct)));
+
+    /// <summary>Crea los artículos nuevos con presentaciones y códigos de barra (nunca toca los que ya existen).</summary>
+    [HttpPost("nuevos-dbf/importar")]
+    public async Task<IActionResult> ImportarNuevosDbf(CancellationToken ct) =>
+        Ok(ApiResult<ImportacionArticulosResultado>.Success(await _importDbf.ImportarNuevosAsync(ct)));
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] string? texto, [FromQuery] int? idSector,

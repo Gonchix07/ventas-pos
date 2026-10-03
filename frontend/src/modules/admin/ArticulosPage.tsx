@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   articulos, familias as familiasApi, lookups, referencias,
   type ArticuloListItem, type ArticuloInput, type Familia, type Lookup, type Presentacion,
+  type ComparadorArticulos,
 } from "../../shared/api/admin";
 import { IconEditar, IconBaja } from "../../shared/ui/icons";
 
@@ -47,6 +48,7 @@ export function ArticulosPage() {
   // se guarda aparte solo para mostrarlo junto al formulario.
   const [formUltimaSyncErp, setFormUltimaSyncErp] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [vistaImportar, setVistaImportar] = useState(false);
 
   // ---- Filtros del listado (se resuelven en el backend, ver ArticuloFiltro) ----
   const [texto, setTexto] = useState("");
@@ -168,11 +170,18 @@ export function ArticulosPage() {
   const setPres = (i: number, patch: Partial<Presentacion>) =>
     setForm((f) => f ? { ...f, presentaciones: f.presentaciones.map((p, idx) => idx === i ? { ...p, ...patch } : p) } : f);
 
+  if (vistaImportar) {
+    return <ImportarArticulosDbf onBack={() => { setVistaImportar(false); void cargar(); }} />;
+  }
+
   return (
     <div>
       <div className="page-head">
         <h1>Artículos</h1>
-        <button className="primary" onClick={nuevo}>Nuevo artículo</button>
+        <div className="row-actions">
+          <button onClick={() => setVistaImportar(true)}>Importar artículos nuevos (DBF)</button>
+          <button className="primary" onClick={nuevo}>Nuevo artículo</button>
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -379,6 +388,110 @@ export function ArticulosPage() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// ---- Comparador de diferencias / import de artículos nuevos desde articulo.dbf + cbarras.dbf ----
+function ImportarArticulosDbf({ onBack }: { onBack: () => void }) {
+  const [comparador, setComparador] = useState<ComparadorArticulos | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const [importando, setImportando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  const cargar = async () => {
+    setError(null); setCargando(true);
+    try { setComparador(await articulos.nuevosDbf()); }
+    catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+    finally { setCargando(false); }
+  };
+
+  useEffect(() => { void cargar(); }, []);
+
+  const importables = comparador?.importables ?? 0;
+
+  const importar = async () => {
+    if (!confirm(`¿Importar ${importables} artículo(s) nuevo(s) con sus presentaciones y códigos de barra? ` +
+      `(de ${comparador?.total ?? 0} detectados). Los ya cargados no se tocan.`)) return;
+    setImportando(true); setError(null); setAviso(null);
+    try {
+      const r = await articulos.importarNuevosDbf();
+      setAviso(`Importados ${r.articulos} artículo(s), ${r.presentaciones} presentaciones y ${r.barras} códigos de barra` +
+        (r.noImportables > 0 ? ` · ${r.noImportables} sin línea/IVA equivalente quedaron afuera.` : "."));
+      await cargar();
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+    finally { setImportando(false); }
+  };
+
+  return (
+    <div>
+      <div className="page-head">
+        <h1>Importar artículos nuevos (DBF)</h1>
+        <div className="row-actions">
+          <button className="primary" disabled={importando || cargando || importables === 0} onClick={importar}>
+            Importar {comparador ? `(${importables})` : ""}
+          </button>
+          <button onClick={onBack}>← Volver a artículos</button>
+        </div>
+      </div>
+      <p className="muted">
+        Artículos que están en articulo.dbf (app de preventa) pero todavía no existen acá por código. No se
+        toca ningún artículo ya cargado: solo se dan de alta los nuevos, con su presentación unitaria, la de
+        bulto (si viene en bulto) y los códigos de barra de cbarras.dbf (EAN en la unidad, DUN en el bulto).
+        Los que no tienen sector o familia equivalente quedan en "SIN SECTOR" / "SIN FAMILIA"; los que no
+        tienen línea o IVA equivalente no se importan.
+      </p>
+      {error && <p className="error">{error}</p>}
+      {aviso && <p className="ok-msg">{aviso}</p>}
+
+      {(cargando || importando) && (
+        <div className="modal-fondo">
+          <div className="modal-caja" style={{ width: "min(320px, 100%)" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, padding: "24px 0" }}>
+              <div className="spinner" aria-hidden="true" />
+              <p style={{ margin: 0 }}>{importando ? "Importando…" : "Comparando…"}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {comparador !== null && (
+        <>
+          <p className="resultado-count">
+            {`${comparador.total} artículo${comparador.total === 1 ? "" : "s"} nuevo${comparador.total === 1 ? "" : "s"}` +
+              ` · ${importables} importable${importables === 1 ? "" : "s"}` +
+              ` · ${comparador.total - importables} sin línea/IVA equivalente (no se importan)`}
+            {comparador.items.length < comparador.total && ` · mostrando ${comparador.items.length}`}
+          </p>
+          <div className="table-scroll">
+            <table className="grid tabla-compacta">
+              <thead>
+                <tr>
+                  <th>Código</th><th>Descripción</th><th>Sector</th><th>Línea</th><th>Familia</th>
+                  <th>IVA</th><th>Un. x bulto</th><th>Barras</th><th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparador.items.map((a) => (
+                  <tr key={a.codigoInterno} className={a.motivo ? "inactive" : ""} title={a.motivo ?? undefined}>
+                    <td className="mono">{a.codigoInterno}</td>
+                    <td>{a.descripcion}</td>
+                    <td>{a.sector ?? <span className="muted">—</span>}</td>
+                    <td>{a.linea ?? <span className="muted">—</span>}</td>
+                    <td>{a.familia ?? <span className="muted">—</span>}</td>
+                    <td>{a.modoIva ?? <span className="muted">—</span>}</td>
+                    <td className="money">{a.unidadXBulto}</td>
+                    <td className="money">{a.cantidadBarras}</td>
+                    <td>{a.motivo ? <span className="error">{a.motivo}</span> : a.activo ? "Activo" : "Inactivo"}</td>
+                  </tr>
+                ))}
+                {comparador.items.length === 0 && <tr><td colSpan={9} className="muted">Sin artículos nuevos.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

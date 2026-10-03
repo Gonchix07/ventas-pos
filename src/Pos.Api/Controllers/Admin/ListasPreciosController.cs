@@ -131,4 +131,16 @@ public class ListasPreciosController : ControllerBase
             ? NotFound(ApiResult<int>.Fail("NO_ENCONTRADO", "No existe la lista o no es Tipo=Enlazada."))
             : Ok(ApiResult<int>.Success(cantidad.Value));
     }
+
+    /// <summary>Base: relee listas.dbf (NUMERO=2068) y carga/actualiza precios (PPUBLICO/IMPINT por
+    /// bulto, se dividen por las unidades del artículo). Folder: reemplaza todos los precios por los
+    /// de prec_prog.dbf (lista 2068) vigentes hoy.</summary>
+    [HttpPost("{id:int}/precios/importar")]
+    public async Task<IActionResult> ImportarPrecios(int id, CancellationToken ct)
+    {
+        var resultado = await _service.ImportarPreciosAsync(id, ct);
+        return resultado is null
+            ? NotFound(ApiResult<ImportacionPreciosResultado>.Fail("NO_ENCONTRADO", "No existe la lista o no es Tipo=Base ni Folder."))
+            : Ok(ApiResult<ImportacionPreciosResultado>.Success(resultado));
+    }
 }

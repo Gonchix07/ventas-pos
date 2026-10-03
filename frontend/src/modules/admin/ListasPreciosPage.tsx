@@ -10,6 +10,8 @@ import { MonedaInput, formatearMoneda } from "../../shared/ui/moneda";
 import { IconEditar, IconEliminar } from "../../shared/ui/icons";
 import { useAuth } from "../../shared/auth/auth";
 
+const TIPO_BASE = 1;
+const TIPO_FOLDER = 3;
 const TIPO_ENLAZADA = 4;
 const TIPOS = [
   { v: 1, l: "Base" },
@@ -199,6 +201,7 @@ function PreciosEditor({ lista, onBack }: { lista: ListaPrecio; onBack: () => vo
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [importando, setImportando] = useState(false);
 
   const cargarPrecios = async (filtro = filtroPrecios) => {
     try { setPrecios(await listasPrecios.precios(lista.idListaPrecio, filtro.trim() || undefined)); }
@@ -292,6 +295,29 @@ function PreciosEditor({ lista, onBack }: { lista: ListaPrecio; onBack: () => vo
     finally { setGuardando(false); }
   };
 
+  const importarPrecios = async () => {
+    const mensaje = lista.tipo === TIPO_FOLDER
+      ? "Esto BORRA todos los precios actuales de esta lista y los reemplaza por los de prec_prog.dbf " +
+        "(lista 2068) vigentes hoy. ¿Continuar?"
+      : "Esto trae de listas.dbf (lista 2068) el precio de cada artículo y pisa el que ya " +
+        "tenga cargado en esta lista. ¿Continuar?";
+    if (!confirm(mensaje)) return;
+    setImportando(true); setError(null); setAviso(null);
+    try {
+      const r = await listasPrecios.importarPrecios(lista.idListaPrecio);
+      const avisos = [
+        r.sinMatch > 0 ? `${r.sinMatch} código(s) del DBF sin artículo` : "",
+        r.sinPresentaciones > 0 ? `${r.sinPresentaciones} artículo(s) sin presentaciones` : "",
+      ].filter(Boolean).join(" · ");
+      const detalle = lista.tipo === TIPO_FOLDER
+        ? `${r.eliminados} borrados, ${r.creados} cargados`
+        : `${r.creados} nuevos, ${r.actualizados} actualizados`;
+      setAviso(`Precios importados: ${detalle}${avisos ? ` · ${avisos}` : ""}.`);
+      await Promise.all([cargarPrecios(), cargarPreciosResultados()]);
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+    finally { setImportando(false); }
+  };
+
   const eliminarPrecio = async (idPresentacion: number) => {
     try { await listasPrecios.removePrecio(lista.idListaPrecio, idPresentacion); await cargarPrecios(); }
     catch (e) { setError(e instanceof Error ? e.message : "Error"); }
@@ -315,10 +341,28 @@ function PreciosEditor({ lista, onBack }: { lista: ListaPrecio; onBack: () => vo
     <div>
       <div className="page-head">
         <h1>Precios · {lista.codigoInterno} <span className="muted">({lista.tipoDescripcion} · {lista.sucursalDescripcion})</span></h1>
-        <button onClick={onBack}>← Volver a listas</button>
+        <div className="row-actions">
+          {(lista.tipo === TIPO_BASE || lista.tipo === TIPO_FOLDER) && (
+            <button disabled={importando} onClick={importarPrecios}>
+              {importando ? "Importando…" : "Importar desde DBF"}
+            </button>
+          )}
+          <button onClick={onBack}>← Volver a listas</button>
+        </div>
       </div>
       {error && <p className="error">{error}</p>}
       {aviso && <p className="ok-msg">{aviso}</p>}
+
+      {importando && (
+        <div className="modal-fondo">
+          <div className="modal-caja" style={{ width: "min(320px, 100%)" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, padding: "24px 0" }}>
+              <div className="spinner" aria-hidden="true" />
+              <p style={{ margin: 0 }}>Importando precios…</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="card form">
         <h3>Asignar precio a un artículo</h3>
