@@ -76,14 +76,11 @@ Al arrancar, el log deja la línea `BD destino: servidor ..., base ... — confi
 
 ### Envío de facturas por mail (Brevo)
 
-El botón **Enviar por mail** de Caja (junto a Imprimir y Nueva venta; solo Factura A y B) manda el comprobante por la API de Brevo, con el mismo remitente verificado que usa la app de Gift Cards (`info@hergo.com.ar`). Hace falta la API key de Brevo (si es la misma cuenta de Brevo que usa Gift Cards, sirve la `BREVO_API_KEY` que está en Vercel):
+El botón **Enviar por mail** de Caja y de Reimpresión (solo Factura A y B) manda el comprobante por la API de Brevo, con el remitente verificado `info@hergo.com.ar` (el mismo de la app de Gift Cards).
 
-```bash
-cd src/Pos.Api
-dotnet user-secrets set "Mail:Brevo:ApiKey" "<BREVO_API_KEY>"
-```
+**Dónde se carga la API key:** en la pantalla **Administración > Configuraciones > "Envío de mails (Brevo)"** (solo Administrador): remitente, nombre y API key, con un botón **Probar conexión** que valida la key y que el remitente esté verificado en Brevo, sin mandar ningún mail. La key se guarda cifrada (Data Protection) y no se vuelve a mostrar; guardar con el campo vacío conserva la anterior. Se lee en cada envío, no hace falta reiniciar. Si Gift Cards usa la misma cuenta de Brevo, sirve su `BREVO_API_KEY`.
 
-En un servidor: variable de entorno `Mail__Brevo__ApiKey`. Opcionales: `Mail:FromEmail` / `Mail:FromName` (default `info@hergo.com.ar` / `HERGO`). Sin la API key el botón responde "El envío de mails no está configurado" (no finge enviar). Para desarrollo sin clave: `Mail:Provider=Mock` solo registra en consola.
+**Respaldo por servidor:** si en la pantalla no hay nada cargado, se usa `Mail:Brevo:ApiKey` (user-secrets en desarrollo, variable de entorno `Mail__Brevo__ApiKey` en el servidor; opcionales `Mail:FromEmail` / `Mail:FromName`). Sin ninguna de las dos el botón avisa "El envío de mails no está configurado" (no finge enviar). `Mail:Provider=Mock` solo registra en consola, para desarrollo.
 
 El mail que el cajero completa en el popup se guarda en la ficha del cliente (`Cliente.Email`) tras un envío exitoso, y viene prellenado la próxima vez. Cada envío queda en la auditoría (módulo `Facturacion`, acción `EnviarMail`).
 

@@ -172,3 +172,21 @@ public interface IConexionGiftcardsAppAdminService
     /// Nunca lanza por un fallo de red: eso es un resultado (Ok=false), no una excepción.</summary>
     Task<ProbarConexionResultado> ProbarConexionAsync(ConexionGiftcardsAppInput input, CancellationToken ct = default);
 }
+
+// ---- Cuenta de Brevo para el envío de mails (factura al cliente) ----
+// Fila única (singleton). "ApiKey" nunca vuelve del backend: solo TieneApiKey. Vacía al guardar =
+// conserva la ya guardada. TieneApiKeyServidor = hay una key en la config del servidor
+// (user-secrets / variable de entorno) que se usa mientras no se cargue una acá.
+public record ConexionMailDto(string FromEmail, string FromName, bool TieneApiKey, bool TieneApiKeyServidor);
+public record ConexionMailInput(string FromEmail, string FromName, string? ApiKey);
+
+public interface IConexionMailAdminService
+{
+    Task<ConexionMailDto> GetAsync(CancellationToken ct = default);
+    /// <exception cref="Pos.Application.Common.DomainException">EMAIL_INVALIDO si el remitente no tiene formato de mail.</exception>
+    Task UpdateAsync(ConexionMailInput input, CancellationToken ct = default);
+    /// <summary>Verifica contra Brevo (sin mandar ningún mail): que la API key sea válida y que el
+    /// remitente esté entre los verificados de la cuenta. Usa la key ingresada o, si viene vacía, la
+    /// ya guardada / la del servidor. Nunca lanza por un fallo de red: eso es un resultado (Ok=false).</summary>
+    Task<ProbarConexionResultado> ProbarAsync(ConexionMailInput input, CancellationToken ct = default);
+}

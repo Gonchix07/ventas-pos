@@ -99,6 +99,7 @@ public class PosDbContext : DbContext
     public DbSet<ConexionExternaMySql> ConexionesExternasMySql => Set<ConexionExternaMySql>();
     public DbSet<ConexionPuntosApp> ConexionesPuntosApp => Set<ConexionPuntosApp>();
     public DbSet<ConexionGiftcardsApp> ConexionesGiftcardsApp => Set<ConexionGiftcardsApp>();
+    public DbSet<ConexionMail> ConexionesMail => Set<ConexionMail>();
     public DbSet<CaeaCargado> CaeaCargados => Set<CaeaCargado>();
 
     // Preventa Mayorista
@@ -182,6 +183,9 @@ public class PosDbContext : DbContext
         b.Entity<ConexionExternaMySql>().HasKey(x => x.IdConexionExterna);
         b.Entity<ConexionPuntosApp>().HasKey(x => x.IdConexionPuntosApp);
         b.Entity<ConexionGiftcardsApp>().HasKey(x => x.IdConexionGiftcardsApp);
+        b.Entity<ConexionMail>().HasKey(x => x.IdConexionMail);
+        b.Entity<ConexionMail>().Property(x => x.FromEmail).HasMaxLength(120);
+        b.Entity<ConexionMail>().Property(x => x.FromName).HasMaxLength(80);
         b.Entity<PadronIngresosBrutos>().HasKey(x => x.Cuit);
         b.Entity<PadronExcepcionPercepcionIva>().HasKey(x => x.Cuit);
         b.Entity<SyncCheckpoint>().HasKey(x => x.IdSyncCheckpoint);

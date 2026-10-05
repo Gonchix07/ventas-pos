@@ -557,6 +557,21 @@ export const conexionGiftcardsApp = {
     unwrap<ProbarConexionResultado>(api.post(`/admin/conexion-giftcards-app/probar`, i)),
 };
 
+// ---- Cuenta de Brevo para el envío de mails (factura al cliente) ----
+export interface ConexionMail {
+  fromEmail: string; fromName: string; tieneApiKey: boolean;
+  /** Hay una API key en la config del servidor (user-secrets / variable de entorno): se usa mientras no se cargue una acá. */
+  tieneApiKeyServidor: boolean;
+}
+export interface ConexionMailInput { fromEmail: string; fromName: string; apiKey?: string | null }
+
+export const conexionMail = {
+  get: () => unwrap<ConexionMail>(api.get(`/admin/conexion-mail`)),
+  update: (i: ConexionMailInput) => unwrap<boolean>(api.put(`/admin/conexion-mail`, i)),
+  probar: (i: ConexionMailInput) =>
+    unwrap<ProbarConexionResultado>(api.post(`/admin/conexion-mail/probar`, i)),
+};
+
 // ---- Estructura de caja (por sucursal) ----
 /** Catálogo FIJO: ELECTRONICA / FISCAL / PRESUPUESTO. No se dan de alta ni se borran. */
 export interface TipoPuntoVenta {

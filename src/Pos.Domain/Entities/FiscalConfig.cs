@@ -103,3 +103,20 @@ public class ConexionGiftcardsApp : AuditableEntity
     public string? TokenProtegido { get; set; }
     public bool Habilitada { get; set; }
 }
+
+/// <summary>
+/// Cuenta de Brevo para enviar mails (hoy: la factura al cliente, ver
+/// <c>ComprobanteMailService</c>). Tabla singleton (una sola fila), mismo criterio que
+/// <see cref="ConexionGiftcardsApp"/>. Lo cargado acá manda sobre <c>Mail:Brevo:ApiKey</c> del
+/// servidor (user-secrets / variable de entorno), que queda como respaldo si esta tabla está vacía.
+/// </summary>
+public class ConexionMail : AuditableEntity
+{
+    public int IdConexionMail { get; set; }
+    /// <summary>Remitente verificado en Brevo (ej. info@hergo.com.ar).</summary>
+    public string FromEmail { get; set; } = "";
+    public string FromName { get; set; } = "";
+    /// <summary>API key de Brevo, cifrada en reposo con Data Protection (purpose propio
+    /// "Pos.ConexionMail") — nunca se expone descifrada de vuelta al frontend.</summary>
+    public string? ApiKeyProtegida { get; set; }
+}

@@ -159,18 +159,22 @@ public static class DependencyInjection
         // Mail: Brevo (API REST, remitente info@hergo.com.ar como la app de Gift Cards) por defecto;
         // Mail:Provider=Mock solo registra en consola, para desarrollo sin API key. La API key
         // (Mail:Brevo:ApiKey) va en user-secrets / variable de entorno, nunca en appsettings.json.
+        // La cuenta cargada en Administración > Configuraciones (tabla ConexionMail) manda sobre esto;
+        // lo del servidor es el respaldo (ver BrevoConfigProvider).
+        var brevo = new BrevoMailOptions { ApiKey = config["Mail:Brevo:ApiKey"] ?? "" };
+        if (!string.IsNullOrWhiteSpace(config["Mail:FromEmail"])) brevo.FromEmail = config["Mail:FromEmail"]!;
+        if (!string.IsNullOrWhiteSpace(config["Mail:FromName"])) brevo.FromName = config["Mail:FromName"]!;
+        services.AddSingleton(brevo);
         if (string.Equals(config["Mail:Provider"], "Mock", StringComparison.OrdinalIgnoreCase))
         {
             services.AddSingleton<IMailSender, MockMailSender>();
         }
         else
         {
-            var brevo = new BrevoMailOptions { ApiKey = config["Mail:Brevo:ApiKey"] ?? "" };
-            if (!string.IsNullOrWhiteSpace(config["Mail:FromEmail"])) brevo.FromEmail = config["Mail:FromEmail"]!;
-            if (!string.IsNullOrWhiteSpace(config["Mail:FromName"])) brevo.FromName = config["Mail:FromName"]!;
-            services.AddSingleton(brevo);
+            services.AddScoped<IBrevoConfigProvider, BrevoConfigProvider>();
             services.AddHttpClient<IMailSender, BrevoMailSender>(c => c.Timeout = TimeSpan.FromSeconds(20));
         }
+        services.AddHttpClient<Pos.Application.Abm.IConexionMailAdminService, Services.ConexionMailAdminService>();
         services.AddScoped<Pos.Application.Facturacion.IComprobanteMailService, Services.ComprobanteMailService>();
         services.AddSingleton<IErpGateway, DisabledErpGateway>();
 

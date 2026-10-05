@@ -115,8 +115,28 @@ public class BrevoMailSenderTests
         }
     }
 
-    private static BrevoMailSender Crear(FakeHandler h, string apiKey = "KEY-DE-PRUEBA") =>
-        new(new HttpClient(h), new BrevoMailOptions { ApiKey = apiKey }, NullLogger<BrevoMailSender>.Instance);
+    private sealed class ConfigFija : IBrevoConfigProvider
+    {
+        private readonly BrevoMailOptions _o;
+        public ConfigFija(BrevoMailOptions o) => _o = o;
+        public Task<BrevoMailOptions> ObtenerAsync(CancellationToken ct) => Task.FromResult(_o);
+    }
+
+    private static BrevoMailSender Crear(FakeHandler h, string apiKey = "KEY-DE-PRUEBA", string? fromEmail = null) =>
+        new(new HttpClient(h),
+            new ConfigFija(fromEmail is null ? new BrevoMailOptions { ApiKey = apiKey }
+                                              : new BrevoMailOptions { ApiKey = apiKey, FromEmail = fromEmail, FromName = "Otra Marca" }),
+            NullLogger<BrevoMailSender>.Instance);
+
+    [Fact]
+    public async Task Usa_el_remitente_de_la_configuracion_cargada()
+    {
+        var h = new FakeHandler();
+        await Crear(h, fromEmail: "ventas@otra.com").SendAsync("a@b.com", "s", "b", CancellationToken.None);
+        using var doc = JsonDocument.Parse(h.Body!);
+        Assert.Equal("ventas@otra.com", doc.RootElement.GetProperty("sender").GetProperty("email").GetString());
+        Assert.Equal("Otra Marca", doc.RootElement.GetProperty("sender").GetProperty("name").GetString());
+    }
 
     [Fact]
     public async Task Arma_el_request_de_Brevo_con_el_remitente_info_de_hergo()

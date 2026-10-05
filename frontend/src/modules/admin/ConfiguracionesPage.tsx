@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  configuraciones, conexionExterna, conexionPuntosApp, conexionGiftcardsApp,
-  type Configuracion, type ConexionExternaMySql, type ConexionPuntosApp, type ConexionGiftcardsApp,
+  configuraciones, conexionExterna, conexionPuntosApp, conexionGiftcardsApp, conexionMail,
+  type Configuracion, type ConexionExternaMySql, type ConexionPuntosApp, type ConexionGiftcardsApp, type ConexionMail,
 } from "../../shared/api/admin";
 import { IconEditar, IconEliminar } from "../../shared/ui/icons";
 
@@ -82,6 +82,7 @@ export function ConfiguracionesPage() {
       <ConexionExternaSection />
       <ConexionPuntosAppSection />
       <ConexionGiftcardsAppSection />
+      <ConexionMailSection />
     </div>
   );
 }
@@ -375,6 +376,91 @@ function ConexionGiftcardsAppSection() {
         resultadoPrueba.ok
           ? <p className="muted">✔ Conexión exitosa.</p>
           : <p className="error">✘ No se pudo conectar: {resultadoPrueba.error}</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Cuenta de Brevo para enviar la factura por mail desde Caja y Reimpresión. Fila única; la API key
+ * se guarda cifrada y nunca vuelve del backend — dejar el campo vacío al guardar conserva la que
+ * ya está guardada. Lo cargado acá manda sobre la key del servidor (user-secrets / variable de entorno).
+ */
+function ConexionMailSection() {
+  const [datos, setDatos] = useState<ConexionMail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+  const [probando, setProbando] = useState(false);
+  const [resultadoPrueba, setResultadoPrueba] = useState<{ ok: boolean; error?: string | null } | null>(null);
+
+  const [fromEmail, setFromEmail] = useState("");
+  const [fromName, setFromName] = useState("");
+  const [apiKey, setApiKey] = useState("");
+
+  const cargar = async () => {
+    setError(null);
+    try {
+      const d = await conexionMail.get();
+      setDatos(d);
+      setFromEmail(d.fromEmail); setFromName(d.fromName); setApiKey("");
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+  };
+  useEffect(() => { void cargar(); }, []);
+
+  const input = () => ({ fromEmail: fromEmail.trim(), fromName: fromName.trim(), apiKey: apiKey.trim() || null });
+
+  const guardar = async () => {
+    setError(null); setOk(false); setResultadoPrueba(null);
+    try {
+      await conexionMail.update(input());
+      await cargar();
+      setOk(true);
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+  };
+
+  const probar = async () => {
+    setError(null); setOk(false); setResultadoPrueba(null); setProbando(true);
+    try {
+      setResultadoPrueba(await conexionMail.probar(input()));
+    } catch (e) {
+      setResultadoPrueba({ ok: false, error: e instanceof Error ? e.message : "Error" });
+    } finally {
+      setProbando(false);
+    }
+  };
+
+  const hayKey = !!datos && (datos.tieneApiKey || datos.tieneApiKeyServidor);
+  return (
+    <div className="card form">
+      <h3>Envío de mails (Brevo)</h3>
+      <p className="muted">
+        Cuenta de Brevo con la que Caja y Reimpresión mandan la factura al cliente. El remitente tiene que
+        estar verificado en Brevo. La API key se crea en Brevo (SMTP y API &gt; API Keys); si Gift Cards usa la
+        misma cuenta, sirve la misma. Se guarda cifrada y no se vuelve a mostrar.
+      </p>
+      {error && <p className="error">{error}</p>}
+      {ok && !error && <p className="muted">Guardado.</p>}
+      <div className="field-row">
+        <label>Mail remitente<input value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} placeholder="info@hergo.com.ar" /></label>
+        <label>Nombre del remitente<input value={fromName} onChange={(e) => setFromName(e.target.value)} placeholder="HERGO" /></label>
+        <label>
+          API key de Brevo
+          <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} autoComplete="new-password"
+            placeholder={datos?.tieneApiKey ? "•••••••• (dejar vacío para no cambiarla)"
+              : datos?.tieneApiKeyServidor ? "Sin cargar acá: se usa la configurada en el servidor" : "Sin configurar"} />
+        </label>
+      </div>
+      <div className="row-actions">
+        <button className="primary" disabled={!fromEmail.trim()} onClick={() => void guardar()}>Guardar</button>
+        <button className="success-solid" disabled={probando || !fromEmail.trim() || (!apiKey.trim() && !hayKey)}
+          onClick={() => void probar()}>
+          {probando ? "Probando…" : "Probar conexión"}
+        </button>
+      </div>
+      {resultadoPrueba && (
+        resultadoPrueba.ok
+          ? <p className="muted">✔ Conexión exitosa: la API key es válida y el remitente está verificado en Brevo.</p>
+          : <p className="error">✘ {resultadoPrueba.error}</p>
       )}
     </div>
   );
