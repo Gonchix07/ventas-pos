@@ -1000,7 +1000,7 @@ public class FacturacionService : IFacturacionService
                 .Where(c => c.IdCliente == idc)
                 .Select(c => new ClienteComprobanteDto(c.Descripcion, c.Cuit, c.Documento,
                     c.CondicionIva != null ? c.CondicionIva.Descripcion : null,
-                    c.Domicilio, c.Localidad, c.Provincia, c.CodigoPostal))
+                    c.Domicilio, c.Localidad, c.Provincia, c.CodigoPostal, c.IdCliente, c.Email))
                 .FirstOrDefaultAsync(ct)
             : null;
         // Sin cliente identificado la B se emite a consumidor final, como el ticket de mostrador.

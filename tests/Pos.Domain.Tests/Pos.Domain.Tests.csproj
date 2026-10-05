@@ -22,6 +22,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Pos.Domain\Pos.Domain.csproj" />
+    <!-- Para probar el armado del mail de factura (Application) y el request a Brevo (Infrastructure)
+         sin red: ver ComprobanteMailHtmlTests / BrevoMailSenderTests. -->
+    <ProjectReference Include="..\..\src\Pos.Application\Pos.Application.csproj" />
+    <ProjectReference Include="..\..\src\Pos.Infrastructure\Pos.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

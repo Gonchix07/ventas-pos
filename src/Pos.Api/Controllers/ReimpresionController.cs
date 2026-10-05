@@ -22,11 +22,22 @@ public class ReimpresionController : ControllerBase
     private readonly IReimpresionService _service;
     private readonly IFacturacionService _facturacion;
 
-    public ReimpresionController(IReimpresionService service, IFacturacionService facturacion)
+    private readonly IComprobanteMailService _mail;
+
+    public ReimpresionController(IReimpresionService service, IFacturacionService facturacion,
+        IComprobanteMailService mail)
     {
         _service = service;
         _facturacion = facturacion;
+        _mail = mail;
     }
+
+    /// <summary>Reenvía por mail una Factura A/B ya emitida (mismo servicio y mismas reglas que el botón
+    /// de Caja; vive acá además porque Reimpresión se autoriza por otro módulo/roles, ej. Tesorero).</summary>
+    [HttpPost("{idComprobante:int}/enviar-mail")]
+    public async Task<IActionResult> EnviarMail(int idComprobante, [FromQuery] int idSucursal,
+        [FromBody] EnviarComprobanteMailRequest req, CancellationToken ct) =>
+        Ok(ApiResult<EnviarComprobanteMailResponse>.Success(await _mail.EnviarAsync(idSucursal, idComprobante, req, ct)));
 
     /// <summary>Busca comprobantes (facturas, notas de crédito y presupuestos) por número, cliente o CUIT.</summary>
     [HttpGet("comprobantes")]

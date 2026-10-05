@@ -74,4 +74,17 @@ $env:ConnectionStrings__Pos = "Server=...;Database=...;User Id=...;Password=...;
 
 Al arrancar, el log deja la línea `BD destino: servidor ..., base ... — configuración tomada de ...`, que dice contra qué SQL Server quedó conectada y de qué archivo o variable salió el dato.
 
+### Envío de facturas por mail (Brevo)
+
+El botón **Enviar por mail** de Caja (junto a Imprimir y Nueva venta; solo Factura A y B) manda el comprobante por la API de Brevo, con el mismo remitente verificado que usa la app de Gift Cards (`info@hergo.com.ar`). Hace falta la API key de Brevo (si es la misma cuenta de Brevo que usa Gift Cards, sirve la `BREVO_API_KEY` que está en Vercel):
+
+```bash
+cd src/Pos.Api
+dotnet user-secrets set "Mail:Brevo:ApiKey" "<BREVO_API_KEY>"
+```
+
+En un servidor: variable de entorno `Mail__Brevo__ApiKey`. Opcionales: `Mail:FromEmail` / `Mail:FromName` (default `info@hergo.com.ar` / `HERGO`). Sin la API key el botón responde "El envío de mails no está configurado" (no finge enviar). Para desarrollo sin clave: `Mail:Provider=Mock` solo registra en consola.
+
+El mail que el cajero completa en el popup se guarda en la ficha del cliente (`Cliente.Email`) tras un envío exitoso, y viene prellenado la próxima vez. Cada envío queda en la auditoría (módulo `Facturacion`, acción `EnviarMail`).
+
 En un ambiente real (piloto/producción) estos mismos valores, más `Jwt:Key` (mínimo 32 caracteres, aleatoria) y `Cors:AllowedOrigins:0` (URL del frontend), se configuran como **variables de entorno** del proceso (`ConnectionStrings__Pos`, `Jwt__Key`, `Seed__AdminPassword`, `Cors__AllowedOrigins__0`), nunca en un `appsettings.*.json` commiteado. La app falla al arrancar fuera de `Development` si `Jwt:Key` o `Cors:AllowedOrigins` no están configurados.

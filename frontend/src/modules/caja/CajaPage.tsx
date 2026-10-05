@@ -12,6 +12,7 @@ import {
   facturacion, type ComprobanteImpresion, type EmitirComprobanteResponse, type PagoInput,
 } from "../../shared/api/facturacion";
 import { ComprobanteImpresionView } from "./ComprobanteImpresion";
+import { EnviarMailModal } from "./EnviarMailModal";
 import { NotaCreditoModal } from "./NotaCreditoModal";
 import { RetiroEfectivoModal } from "./RetiroEfectivoModal";
 import { IngresoInicialModal } from "./IngresoInicialModal";
@@ -208,6 +209,9 @@ export function CajaPage() {
   const [puntosPopupVisible, setPuntosPopupVisible] = useState(false);
   // Comprobante ya armado en su formato de impresión (A o B). Se pide después de emitir.
   const [impresion, setImpresion] = useState<ComprobanteImpresion | null>(null);
+  // Envío de la factura por mail (botón junto a Imprimir / Nueva venta; solo Factura A y B).
+  const [mailModalAbierto, setMailModalAbierto] = useState(false);
+  const [mailEnviadoA, setMailEnviadoA] = useState<string | null>(null);
   // Si se pagó con algún medio "Imprime comprobante" (ej. VALE), se imprime este ticket aparte para
   // que lo firme el empleado, ANTES de mostrar la pantalla del comprobante fiscal (no pueden convivir
   // los dos en el DOM al imprimir: window.print() imprimiría todo lo marcado .cbte a la vez).
@@ -879,6 +883,7 @@ export function CajaPage() {
 
   const nuevaVenta = () => {
     setComprobante(null); setImpresion(null); setPuntosPopupVisible(false); setVoucherPago(null); setCobroActivo(false); setPagos([]);
+    setMailModalAbierto(false); setMailEnviadoA(null);
     setOperacion(null); setClienteSel(null); setCampanias([]); setClienteConfirmado(false); setPendientes([]);
     setBusquedaCliente(""); setBusquedaEjecutada(""); setResultadosCliente([]);
     setCola([]); setColaError(null); setModoPresupuesto(false);
@@ -1330,7 +1335,26 @@ export function CajaPage() {
           {/* El comprobante se muestra en su formato real (A o B) y se imprime desde el navegador,
               igual que las etiquetas. Si no se pudo armar, queda el resumen simple de abajo. */}
           {impresion ? (
-            <ComprobanteImpresionView c={impresion} onCerrar={nuevaVenta} />
+            <>
+              <ComprobanteImpresionView c={impresion} onCerrar={nuevaVenta}
+                onEnviarMail={() => setMailModalAbierto(true)} mailEnviadoA={mailEnviadoA} />
+              {mailModalAbierto && (
+                <EnviarMailModal
+                  idSucursal={impresion.idSucursal} idComprobante={impresion.idComprobante}
+                  numeroCompleto={impresion.numeroCompleto}
+                  clienteDescripcion={impresion.cliente.descripcion}
+                  emailGuardado={impresion.cliente.email}
+                  puedeGuardar={impresion.cliente.idCliente != null}
+                  onCerrar={() => setMailModalAbierto(false)}
+                  onEnviado={(email, guardado) => {
+                    setMailModalAbierto(false);
+                    setMailEnviadoA(email);
+                    // Si quedó en la ficha, se refleja acá: al reabrir el popup ya viene prellenado.
+                    if (guardado) setImpresion({ ...impresion, cliente: { ...impresion.cliente, email } });
+                  }}
+                />
+              )}
+            </>
           ) : (
           <div className="ticket-card">
             <p className="muted">Comprobante {comprobante.esCaea ? "(contingencia CAEA)" : "emitido"}</p>

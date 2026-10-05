@@ -79,9 +79,13 @@ public record EmisorComprobanteDto(
 /// Datos del comprador. En la B alcanza con "Consumidor Final"; en la A van todos completos
 /// (razón social, CUIT, domicilio, localidad, provincia y condición frente al IVA).
 /// </summary>
+/// <param name="IdCliente">Null en la B a consumidor final sin cliente identificado.</param>
+/// <param name="Email">Mail guardado en la ficha del cliente (null si no tiene) — la caja lo usa
+/// para prellenar el popup de "Enviar por mail". No se imprime en el comprobante.</param>
 public record ClienteComprobanteDto(
     string Descripcion, string? Cuit, string? Documento, string? CondicionIva,
-    string? Domicilio, string? Localidad, string? Provincia, string? CodigoPostal);
+    string? Domicilio, string? Localidad, string? Provincia, string? CodigoPostal,
+    int? IdCliente = null, string? Email = null);
 
 /// <summary>
 /// Línea del comprobante. En la A los importes van NETOS (sin IVA, que se discrimina al pie);
@@ -110,6 +114,25 @@ public record ComprobanteImpresionDto(
     /// restado de <see cref="Neto"/>/<see cref="Iva"/> (no es base de IVA) pero SÍ suma al
     /// <see cref="Total"/>, igual que las percepciones. Ver DetalleComprobante.ImpuestoInterno.</summary>
     decimal ImpuestoInterno = 0);
+
+/// <param name="Email">Destinatario. Se valida el formato acá también (no alcanza con el popup).</param>
+/// <param name="GuardarEnCliente">Si es true y el mail difiere del de la ficha del cliente, se
+/// guarda como mail del cliente para próximas compras (solo después de un envío exitoso).</param>
+public record EnviarComprobanteMailRequest(string Email, bool GuardarEnCliente);
+
+/// <param name="EmailGuardadoEnCliente">true si en este envío se actualizó el mail de la ficha.</param>
+public record EnviarComprobanteMailResponse(string Email, bool EmailGuardadoEnCliente);
+
+/// <summary>Envío del comprobante (solo Factura A/B) por mail al cliente.</summary>
+public interface IComprobanteMailService
+{
+    /// <exception cref="Pos.Application.Common.DomainException">
+    /// EMAIL_INVALIDO, COMPROBANTE_NO_ENVIABLE (presupuesto, nota de crédito o anulado),
+    /// MAIL_NO_CONFIGURADO / MAIL_ERROR (ver IMailSender).
+    /// </exception>
+    Task<EnviarComprobanteMailResponse> EnviarAsync(int idSucursal, int idComprobante,
+        EnviarComprobanteMailRequest req, CancellationToken ct = default);
+}
 
 public interface IFacturacionService
 {

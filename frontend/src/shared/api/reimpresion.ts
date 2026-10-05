@@ -1,5 +1,5 @@
 import { api, unwrap } from "./client";
-import type { ComprobanteImpresion } from "./facturacion";
+import type { ComprobanteImpresion, EnviarComprobanteMailResponse } from "./facturacion";
 import type { ArqueoX, CierreTurnoResultado } from "./caja";
 
 /** Resultado de la búsqueda de comprobantes para reimprimir — mismo criterio que la búsqueda de
@@ -37,6 +37,11 @@ export const reimpresion = {
   /** Mismo armado que la vista inmediata post-emisión (ComprobanteImpresionView + window.print()). */
   impresion: (idSucursal: number, idComprobante: number) =>
     unwrap<ComprobanteImpresion>(api.get(`/reimpresion/${idComprobante}/impresion`, { params: { idSucursal } })),
+
+  /** Reenvío por mail desde Reimpresión: mismo servicio que Caja, pero autorizado por el módulo Reimpresión. */
+  enviarMail: (idSucursal: number, idComprobante: number, email: string, guardarEnCliente: boolean) =>
+    unwrap<EnviarComprobanteMailResponse>(
+      api.post(`/reimpresion/${idComprobante}/enviar-mail`, { email, guardarEnCliente }, { params: { idSucursal } })),
 
   buscarRendiciones: (idSucursal: number, texto: string, desde?: string, hasta?: string) => {
     const p = new URLSearchParams({ idSucursal: String(idSucursal), texto });

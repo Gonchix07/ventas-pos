@@ -34,7 +34,7 @@ const GRUPOS: Grupo[] = [
     items: [
       { to: "/admin/listas-precios", label: "Listas de precios" },
       { to: "/admin/ofertas", label: "Ofertas" },
-      { to: "/admin/ofertas-medio-pago", label: "Ofertas por medio de pago" },
+      { to: "/admin/ofertas-medio-pago", label: "Ofertas Medio Pago" },
       { to: "/admin/convenios", label: "Convenios" },
       { to: "/admin/tarjetas", label: "Tarjetas" },
     ],

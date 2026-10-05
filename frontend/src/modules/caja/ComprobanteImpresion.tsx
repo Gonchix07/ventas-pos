@@ -33,8 +33,13 @@ const porcentaje = (alicuota: number) =>
  * vencimiento (obligatorio en una factura electrónica real). Se distinguen por si el backend mandó
  * `cae` o no — el camino Fiscal nunca lo completa.
  */
-export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolver }: {
+export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolver, onEnviarMail, mailEnviadoA }: {
   c: Comprobante; onCerrar?: () => void;
+  /** Si se pasa, aparece el botón "Enviar por mail" (solo se muestra en Factura A/B, nunca en
+      presupuesto). Lo pasa Caja tras emitir; el resto de las pantallas no lo usan. */
+  onEnviarMail?: () => void;
+  /** Mail al que ya se envió en esta pantalla: se muestra como confirmación al lado del botón. */
+  mailEnviadoA?: string | null;
   /** true cuando esto se reimprime tiempo después de la emisión original (ej. desde el módulo de
       Reimpresión), no en el momento mismo del cobro. Cambia el rótulo "ORIGINAL" a "COPIA" — un
       comprobante fiscal reimpreso no puede volver a decir "ORIGINAL". */
@@ -43,6 +48,8 @@ export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolv
 }) {
   const esA = c.letra?.toUpperCase() === "A";
   const esPresupuesto = c.letra?.toUpperCase() === "X";
+  // El mail es solo para Factura A y B — nunca para el presupuesto (no es un comprobante fiscal).
+  const puedeMail = esA || c.letra?.toUpperCase() === "B";
   // Solo el camino Electrónica completa el CAE acá — Fiscal (Hasar) lo deja siempre en null,
   // porque ahí la autorización queda en el propio controlador, no en este comprobante.
   const esElectronica = !esPresupuesto && !!c.cae;
@@ -52,12 +59,20 @@ export function ComprobanteImpresionView({ c, onCerrar, esReimpresion, textoVolv
     <>
       <div className="cbte__acciones cbte-no-print">
         <button className="primary" onClick={() => window.print()}>Imprimir</button>
+        {onEnviarMail && puedeMail && (
+          <button className="primary" onClick={onEnviarMail}>Enviar por mail</button>
+        )}
         {onCerrar && (
           <button className={esReimpresion ? "btn-verde-hover" : undefined} onClick={onCerrar}>
             {textoVolver ?? "Nueva venta"}
           </button>
         )}
       </div>
+      {mailEnviadoA && puedeMail && (
+        <p className="muted cbte-no-print" style={{ textAlign: "center", margin: "0 0 8px" }}>
+          ✓ Enviado a {mailEnviadoA}
+        </p>
+      )}
 
       <div className={`cbte${esPresupuesto ? " cbte--presupuesto" : ""}`}>
         <div className="cbte__tipo">

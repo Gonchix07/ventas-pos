@@ -14,7 +14,12 @@ namespace Pos.Api.Controllers;
 public class FacturacionController : ControllerBase
 {
     private readonly IFacturacionService _service;
-    public FacturacionController(IFacturacionService service) => _service = service;
+    private readonly IComprobanteMailService _mail;
+    public FacturacionController(IFacturacionService service, IComprobanteMailService mail)
+    {
+        _service = service;
+        _mail = mail;
+    }
 
     [HttpPost("emitir")]
     public async Task<IActionResult> Emitir([FromBody] EmitirComprobanteRequest req, CancellationToken ct) =>
@@ -43,6 +48,12 @@ public class FacturacionController : ControllerBase
     [HttpGet("letra")]
     public async Task<IActionResult> Letra([FromQuery] int idSucursal, [FromQuery] int idOperacion, CancellationToken ct) =>
         Ok(ApiResult<string>.Success(await _service.ResolverLetraAsync(idSucursal, idOperacion, ct)));
+
+    /// <summary>Envía la Factura A/B por mail (Brevo) y, si se pide, guarda el mail en la ficha del cliente.</summary>
+    [HttpPost("{idComprobante:int}/enviar-mail")]
+    public async Task<IActionResult> EnviarMail(int idComprobante, [FromQuery] int idSucursal,
+        [FromBody] EnviarComprobanteMailRequest req, CancellationToken ct) =>
+        Ok(ApiResult<EnviarComprobanteMailResponse>.Success(await _mail.EnviarAsync(idSucursal, idComprobante, req, ct)));
 
     [HttpPost("{idComprobante:int}/reimprimir")]
     public async Task<IActionResult> Reimprimir(int idComprobante, [FromQuery] int idSucursal, CancellationToken ct) =>

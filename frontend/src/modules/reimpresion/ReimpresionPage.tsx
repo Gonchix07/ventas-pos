@@ -7,6 +7,7 @@ import {
 } from "../../shared/api/reimpresion";
 import { type ComprobanteImpresion } from "../../shared/api/facturacion";
 import { ComprobanteImpresionView } from "../caja/ComprobanteImpresion";
+import { EnviarMailModal } from "../caja/EnviarMailModal";
 import { abrirPestañaParaRendicion, generarYAbrirRendicionPdf } from "../caja/RendicionPdf";
 import { formatearMoneda } from "../../shared/ui/moneda";
 import { abreviarTipoComprobante } from "../../shared/ui/tipoComprobante";
@@ -43,6 +44,9 @@ export function ReimpresionPage() {
   const [resultados, setResultados] = useState<ComprobanteReimpresion[] | null>(null);
   const [resultadosRendicion, setResultadosRendicion] = useState<RendicionReimpresion[] | null>(null);
   const [impresion, setImpresion] = useState<ComprobanteImpresion | null>(null);
+  // Reenvío por mail de la Factura A/B que se está viendo (mismo popup que en Caja).
+  const [mailModalAbierto, setMailModalAbierto] = useState(false);
+  const [mailEnviadoA, setMailEnviadoA] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,8 +117,28 @@ export function ReimpresionPage() {
           <div className="user-box"><span>{usuario}</span><button onClick={logout}>Salir</button></div>
         </header>
         <div className="caja-center">
-          <ComprobanteImpresionView c={impresion} onCerrar={() => setImpresion(null)}
-            esReimpresion textoVolver="Volver a la búsqueda" />
+          <ComprobanteImpresionView c={impresion}
+            onCerrar={() => { setImpresion(null); setMailModalAbierto(false); setMailEnviadoA(null); }}
+            esReimpresion textoVolver="Volver a la búsqueda"
+            // Solo facturas: las notas de crédito y el presupuesto no se mandan por mail.
+            onEnviarMail={/^Factura [AB]$/.test(impresion.tipoComprobante) ? () => setMailModalAbierto(true) : undefined}
+            mailEnviadoA={mailEnviadoA} />
+          {mailModalAbierto && (
+            <EnviarMailModal
+              idSucursal={impresion.idSucursal} idComprobante={impresion.idComprobante}
+              numeroCompleto={impresion.numeroCompleto}
+              clienteDescripcion={impresion.cliente.descripcion}
+              emailGuardado={impresion.cliente.email}
+              puedeGuardar={impresion.cliente.idCliente != null}
+              enviarFn={reimpresion.enviarMail}
+              onCerrar={() => setMailModalAbierto(false)}
+              onEnviado={(email, guardado) => {
+                setMailModalAbierto(false);
+                setMailEnviadoA(email);
+                if (guardado) setImpresion({ ...impresion, cliente: { ...impresion.cliente, email } });
+              }}
+            />
+          )}
         </div>
       </div>
     );

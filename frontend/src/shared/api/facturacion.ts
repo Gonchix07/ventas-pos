@@ -57,6 +57,10 @@ export interface EmisorComprobante {
 export interface ClienteComprobante {
   descripcion: string; cuit?: string | null; documento?: string | null; condicionIva?: string | null;
   domicilio?: string | null; localidad?: string | null; provincia?: string | null; codigoPostal?: string | null;
+  /** Null en una B a consumidor final sin cliente identificado. */
+  idCliente?: number | null;
+  /** Mail guardado en la ficha del cliente (no se imprime): prellena el popup "Enviar por mail". */
+  email?: string | null;
 }
 
 /** En la A los importes vienen NETOS (el IVA se discrimina al pie); en la B, con IVA incluido. */
@@ -94,4 +98,22 @@ export const facturacion = {
     unwrap<string>(api.get(`/facturacion/letra`, { params: { idSucursal, idOperacion } })),
   impresion: (idSucursal: number, idComprobante: number) =>
     unwrap<ComprobanteImpresion>(api.get(`/facturacion/${idComprobante}/impresion`, { params: { idSucursal } })),
+  /** Envía la Factura A/B por mail (Brevo). Con guardarEnCliente, el mail queda en la ficha del cliente. */
+  enviarMail: (idSucursal: number, idComprobante: number, email: string, guardarEnCliente: boolean) =>
+    unwrap<EnviarComprobanteMailResponse>(
+      api.post(`/facturacion/${idComprobante}/enviar-mail`, { email, guardarEnCliente }, { params: { idSucursal } })),
 };
+
+export interface EnviarComprobanteMailResponse { email: string; emailGuardadoEnCliente: boolean }
+
+/** Misma regla que EmailReglas.cs del backend (que es quien decide de verdad): un solo "@", sin
+ *  espacios ni caracteres raros, dominio con punto y TLD de 2+ letras. */
+export const EMAIL_LARGO_MAXIMO = 120;
+const EMAIL_FORMATO = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
+export function emailValido(valor: string): boolean {
+  const e = valor.trim();
+  if (e.length === 0 || e.length > EMAIL_LARGO_MAXIMO) return false;
+  if (!EMAIL_FORMATO.test(e)) return false;
+  const local = e.slice(0, e.indexOf("@"));
+  return !e.includes("..") && !local.startsWith(".") && !local.endsWith(".");
+}

@@ -156,7 +156,22 @@ public static class DependencyInjection
         }
 
         services.AddSingleton<IPaymentProviderFactory, PaymentProviderFactory>();
-        services.AddSingleton<IMailSender, MockMailSender>();
+        // Mail: Brevo (API REST, remitente info@hergo.com.ar como la app de Gift Cards) por defecto;
+        // Mail:Provider=Mock solo registra en consola, para desarrollo sin API key. La API key
+        // (Mail:Brevo:ApiKey) va en user-secrets / variable de entorno, nunca en appsettings.json.
+        if (string.Equals(config["Mail:Provider"], "Mock", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton<IMailSender, MockMailSender>();
+        }
+        else
+        {
+            var brevo = new BrevoMailOptions { ApiKey = config["Mail:Brevo:ApiKey"] ?? "" };
+            if (!string.IsNullOrWhiteSpace(config["Mail:FromEmail"])) brevo.FromEmail = config["Mail:FromEmail"]!;
+            if (!string.IsNullOrWhiteSpace(config["Mail:FromName"])) brevo.FromName = config["Mail:FromName"]!;
+            services.AddSingleton(brevo);
+            services.AddHttpClient<IMailSender, BrevoMailSender>(c => c.Timeout = TimeSpan.FromSeconds(20));
+        }
+        services.AddScoped<Pos.Application.Facturacion.IComprobanteMailService, Services.ComprobanteMailService>();
         services.AddSingleton<IErpGateway, DisabledErpGateway>();
 
         var imgBase = config["ImageBank:BaseUrl"] ?? "https://portal.hergo.com.ar:8099/Imagenes";

@@ -628,7 +628,10 @@ public class ErpSyncRunner
                     existente.Localidad = fila.Localidad;
                     existente.Cuit = cuit;
                     existente.IdCondIva = idCondIva;
-                    existente.Email = fila.Email;
+                    // El mail también se carga a mano desde Caja (al enviar una factura por mail, se
+                    // guarda en la ficha para futuras compras): si el ERP no tiene uno, no se borra el
+                    // que ya hay. Si el ERP trae uno, el ERP manda (es el maestro de clientes).
+                    if (!string.IsNullOrWhiteSpace(fila.Email)) existente.Email = fila.Email;
                     existente.Activo = activo;
                     existente.EstadoErp = fila.Estado;
                     existente.UpdatedBy = AutorSync;

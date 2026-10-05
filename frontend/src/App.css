@@ -1143,3 +1143,16 @@ td.precio-folder { color: #c2620d; font-weight: 700; }
    campo y su valor que el form-grid default (5px quedaba muy pegado al ser todo de solo lectura,
    sin el foco/interacción que ayuda a distinguirlos en un formulario editable). */
 .ficha-lectura label { gap: 9px; }
+
+/* ---- Campo de mail del popup "Enviar por mail" (modules/caja/EnviarMailModal.tsx) ---- */
+.mail-campo-etiqueta { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+.mail-campo { display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--surface);
+  border: 1.5px solid var(--line); border-radius: 12px; transition: border-color .15s, box-shadow .15s; }
+.mail-campo:focus-within { border-color: var(--petrol); box-shadow: 0 0 0 3px rgba(12, 107, 99, .15); }
+.mail-campo--ok { border-color: #8fcfb0; }
+.mail-campo--error, .mail-campo--error:focus-within { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(163, 55, 46, .12); }
+.mail-campo input { flex: 1; min-width: 0; border: none; outline: none; background: transparent;
+  padding: 13px 0; font-size: 16px; color: var(--ink); }
+.mail-campo__icono { font-size: 18px; color: var(--petrol); }
+.mail-campo--error .mail-campo__icono { color: var(--danger); }
+.mail-campo__check { color: var(--petrol); font-weight: 700; }
