@@ -828,8 +828,10 @@ public class FacturacionService : IFacturacionService
                         Fecha: cabecera.Fecha,
                         Articulo: InterfaseContableReglas.Articulo(codigoArticulo),
                         Salida: salidaCodificada,
-                        Descto: InterfaseContableReglas.PorcentajeDescuento(origen.Precio, origen.Cantidad, origen.Descuento),
-                        Unitario: origen.Precio, Pesos: importe,
+                        // Unitario = precio de lista y Descto = % total (convenio+campaña+oferta) sobre
+                        // ese bruto, así unitario × cantidad × (1 − descto%) cierra con "pesos".
+                        Descto: InterfaseContableReglas.PorcentajeDescuento(origen.PrecioLista, origen.Precio, origen.Cantidad, origen.Descuento),
+                        Unitario: origen.PrecioLista > 0 ? origen.PrecioLista : origen.Precio, Pesos: importe,
                         DeDeposito: InterfaseContableReglas.DepositoFijo,
                         Cliente: Truncar(datosCliente?.CodigoInt, 5),
                         Nombre: Truncar(datosCliente?.Descripcion, 30),

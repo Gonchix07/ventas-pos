@@ -68,6 +68,22 @@ public static class InterfaseContableReglas
         return bruto <= 0m ? 0m : Math.Round(descuento / bruto * 100m, 2, MidpointRounding.AwayFromZero);
     }
 
+    /// <summary>
+    /// Igual que <see cref="PorcentajeDescuento(decimal, decimal, decimal)"/> pero contando TODO lo
+    /// descontado a la línea: <c>DetalleOperacion.Descuento</c> es solo la oferta — convenio y campaña
+    /// de puntos-app ya vienen dentro de <c>Precio</c> — así que, sobre el carrito, el % sale de
+    /// comparar contra <paramref name="precioLista"/> (precio sin ningún descuento). Con
+    /// <paramref name="precioLista"/> en 0 (líneas viejas) cae al cálculo anterior.
+    /// </summary>
+    public static decimal PorcentajeDescuento(decimal precioLista, decimal precio, decimal cantidad, decimal descuentoOferta)
+    {
+        if (precioLista <= 0m) return PorcentajeDescuento(precio, cantidad, descuentoOferta);
+        var brutoLista = precioLista * cantidad;
+        if (brutoLista <= 0m) return 0m;
+        var descontado = brutoLista - (precio * cantidad - descuentoOferta);
+        return Math.Round(Math.Max(0m, descontado) / brutoLista * 100m, 2, MidpointRounding.AwayFromZero);
+    }
+
     /// <summary>Código de reparto para <c>movstock.reparto</c> (char 8): el número de operación de
     /// pos-mayorista, completando ceros a la izquierda (confirmado con el usuario — no hay reparto
     /// real todavía, se usa como referencia).</summary>
