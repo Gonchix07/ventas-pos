@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/auth/auth";
 import { useLectorCodigo } from "../../shared/ui/useLectorCodigo";
@@ -17,7 +17,21 @@ function tituloLista(codigo: string): string {
   return `Tarjeta ${codigo.charAt(0)}${codigo.slice(1).toLowerCase()}`;
 }
 
-type Estado = "esperando" | "buscando" | "encontrado" | "error";
+type Estado = "esperando" | "buscando" | "encontrado" | "error" | "video";
+
+// Pasados los 20s de mostrado un escaneo, el kiosco reproduce en loop los videos institucionales
+// de esta carpeta (listado de directorio IIS, con CORS abierto) hasta el próximo escaneo.
+const SEGUNDOS_HASTA_VIDEO = 20;
+const URL_VIDEOS = "https://portal.hergo.com.ar:8099/Imagenes/Videos/HERGO/";
+
+async function listarVideos(): Promise<string[]> {
+  const html = await (await fetch(URL_VIDEOS)).text();
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return Array.from(doc.querySelectorAll("a"))
+    .map((a) => a.getAttribute("href") ?? "")
+    .filter((h) => /\.(mp4|webm|ogg|mov)$/i.test(h))
+    .map((h) => new URL(h, URL_VIDEOS).href);
+}
 
 /**
  * Módulo "Verificar Precios": kiosco de autoconsulta de cara al cliente, mismo patrón que el
@@ -27,7 +41,7 @@ type Estado = "esperando" | "buscando" | "encontrado" | "error";
  * real, ver VerificarPreciosService en el backend) y un sticker si el producto está en oferta o en
  * Lista Folder.
  *
- * Después de mostrar un resultado (o un error) vuelve solo a la pantalla de espera a los 20s —
+ * Después de mostrar un resultado (o un error) vuelve solo a la pantalla de espera a los 20s pasa a reproducir videos —
  * es un kiosco sin nadie mirando la pantalla la mayor parte del tiempo, no debe quedar trabado
  * mostrando el último producto escaneado por el cliente anterior.
  */
@@ -59,7 +73,7 @@ export function VerificarPreciosPage() {
       setProducto(await verificarPrecios.consultar(idSucursalAuth, codigo));
       setEstado("encontrado");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo consultar el precio.");
+      setError(`${e instanceof Error ? e.message : "No se pudo consultar el precio."} (código leído: ${codigo})`);
       setEstado("error");
     }
   };
@@ -73,11 +87,20 @@ export function VerificarPreciosPage() {
   // Auto-reset: nadie "cierra" esta pantalla a mano, así que el kiosco tiene que volver solo a
   // esperar el próximo escaneo después de mostrarle el resultado al cliente un rato.
   useEffect(() => {
-    if (estado !== "encontrado" && estado !== "error") return;
-    const t = setTimeout(limpiar, 20000);
+    if (estado !== "esperando" && estado !== "encontrado" && estado !== "error") return;
+    const t = setTimeout(() => { setEstado("video"); setProducto(null); setError(null); }, SEGUNDOS_HASTA_VIDEO * 1000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estado, producto]);
+
+  const [videos, setVideos] = useState<string[]>([]);
+  const [videoIdx, setVideoIdx] = useState(0);
+  const errores = useRef(0); // videos seguidos que fallaron: si fallan todos, se vuelve a la espera (no pantalla negra)
+  useEffect(() => {
+    if (estado !== "video" || videos.length > 0) return;
+    listarVideos().then(setVideos).catch(() => setEstado("esperando"));
+  }, [estado, videos.length]);
+  useEffect(() => { if (estado === "video") setVideoIdx(0); }, [estado]);
 
   const listas = producto?.precios ?? LISTAS_PLACEHOLDER;
   const tieneOferta = !!producto && producto.ofertas.length > 0;
@@ -112,6 +135,21 @@ export function VerificarPreciosPage() {
     );
   }
 
+  if (estado === "video" && videos.length > 0) {
+    return (
+      <div className="vp-shell" onClick={limpiar} style={{ background: "#000" }}>
+        <video
+          key={videos[videoIdx % videos.length]}
+          src={videos[videoIdx % videos.length]}
+          autoPlay muted playsInline
+          onEnded={() => { errores.current = 0; setVideoIdx((i) => (i + 1) % videos.length); }}
+          onError={() => { if (errores.current + 1 >= videos.length) { errores.current = 0; setVideos([]); limpiar(); } else { errores.current += 1; setVideoIdx((i) => (i + 1) % videos.length); } }}
+          style={{ width: "100%", height: "100vh", objectFit: "contain" }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="vp-shell">
       <header className="vp-header">
@@ -131,13 +169,13 @@ export function VerificarPreciosPage() {
       <main className="vp-body">
         <section className="vp-panel-principal">
           <div className={`vp-panel-titulo${estado === "error" ? " vp-panel-titulo--error" : ""}`}>
-            {estado === "esperando" && "INICIANDO…"}
+            {(estado === "esperando" || estado === "video") && "INICIANDO…"}
             {estado === "buscando" && "BUSCANDO…"}
             {estado === "encontrado" && producto?.descripcion.toUpperCase()}
             {estado === "error" && "PRODUCTO NO ENCONTRADO"}
           </div>
           <div className="vp-panel-contenido">
-            {estado === "esperando" && (
+            {(estado === "esperando" || estado === "video") && (
               <>
                 <img src="/barcode-scan.gif" alt="Escaneando código de barras" className="vp-gif-espera" />
                 <p className="vp-mensaje">Escaneé un producto para ver la imagen</p>
